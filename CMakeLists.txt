@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Module Build Options
 option(BUILD_MODULE_0 "Build Module 0: Setup" ON)
-option(BUILD_MODULE_1 "Build Module 1: Host API" ON)
+option(BUILD_MODULE_1 "Build Module 1: Host API" OFF)
 option(BUILD_MODULE_2 "Build Module 2: Projects" OFF)
 option(BUILD_TOOLBOX "Build Optimization Toolbox" OFF)
 option(BUILD_ADDONS "Build Addons" OFF)

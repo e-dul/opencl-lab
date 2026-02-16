@@ -22,3 +22,6 @@
 - Terse: No filler phrases.
 - Diff-Driven: Show code changes.
 - Direct: Start with the answer.
+
+## Other
+-
