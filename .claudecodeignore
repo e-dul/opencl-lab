@@ -1,0 +1,27 @@
+# Build artifacts
+build/
+cmake-build-*/
+*.o
+*.so
+*.a
+
+# Git
+.git/
+
+# Assets (large media files)
+assets/*.mp4
+assets/*.avi
+assets/*.mov
+assets/*.pcd
+assets/*.obj
+*.onnx
+
+# Vendor (do not analyze external code)
+vendor/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.tmp
+*.bak
