@@ -35,11 +35,12 @@ More about the project vision: [design/00-executive-summary.md](design/00-execut
 
 ### [Module 0: Fundamentals](00_Setup/)
 Environment setup, Docker, CMake, and the first "Smoke Test" verifying drivers.
-*   [00_Setup/README.md](00_Setup/README.md) - Setup instructions.
+*   [Setup.md](00_Setup/Setup.md) - Setup instructions.
 *   [01_Smoke_Test](00_Setup/01_Smoke_Test/) - Simple `vector_add` program.
 
 ### [Module 1: Host API](01_Host_API/)
 Learning to control the GPU from C++.
+*   [HostAPI.md](01_Host_API/HostAPI.md) - Setup instructions.
 *   [01_Visual_Kernel](01_Host_API/01_Visual_Kernel/) - First graphical kernel (image brightening).
 *   [02_Visual_Kernel_Events](01_Host_API/02_Visual_Kernel_Events/) - Introduction to profiling (Events).
 *   [03_Buffers_Layout](01_Host_API/03_Buffers_Layout/) - Memory management and data layout.

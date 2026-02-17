@@ -76,3 +76,25 @@ If Code contradicts Design (`design/*.md`):
 - **Focus:** Code quality, safety, performance.
 - **Action:** Read-only analysis. Outputs bulleted lists of issues.
 - **Constraint:** Does NOT refactor code automatically.
+---
+
+## 5. Knowledge Management & Hierarchy
+
+To ensure consistency between educational goals and technical implementation:
+
+### 5.1 The Hierarchy of Truth
+
+1.  **STRATEGY (`design/*.md`)** = **The Law (Source of Truth)**.
+    *   Defines **Technical Specs** & **Hard Constraints** (e.g., "Must output BMP").
+    *   References READMEs for context but overrides them on technical details.
+
+2.  **CONTEXT (`*/README.md`)** = **The Textbook (User View)**.
+    *   Defines **User Experience** & **Educational Goals**.
+    *   Abstract description ("Visual Hello World") without implementation mandates.
+
+3.  **TACTICS (`.ai/tasks/*.md`)** = **The Work Order (Execution)**.
+    *   Combines Strategy Specs + User Context into executable steps.
+
+### 5.2 The Agent Memory (`.ai/MEMORY.md`)
+*   **Purpose:** Long-term context for the Agent (Project decisions, session lessons).
+*   **Rule:** Consult this file at the start of every session to align with project history.
