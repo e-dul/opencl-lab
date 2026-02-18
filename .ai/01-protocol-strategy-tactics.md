@@ -8,12 +8,14 @@ To prevent context rot and hallucinations, we separate **Long-term Truth** from 
 - **Purpose:** Single Source of Truth for Architecture, Vision, Key Decisions, and High-Level Status.
 - **Lifecycle:** Long-lived. Updated only upon milestone completion or design changes.
 - **Rule:** NEVER implicitly change architecture defined here.
+- **Template:** See `design_doc_template.md`
 
 ### ⚔️ TACTICS (The Task Layer)
 - **Location:** `tasks/<id>_<task_name>.md`
 - **Purpose:** Disposable instructions for atomic units of work.
 - **Lifecycle:** Ephemeral. Created -> Executed -> Archived (`tasks/archive/`).
 - **Rule:** Must strictly follow the Strategy.
+- **Template:** See `task_doc_template.md`
 
 ---
 
