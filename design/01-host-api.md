@@ -17,6 +17,9 @@ Establish foundational skills for C++ OpenCL host-side programming with a profil
 - [ ] Phase 3: Buffers Layout — Memory management experiments (CL_MEM_USE_HOST_PTR vs COPY).
   - *Context*: See `HostAPI.md` section "03_Buffers_Layout — Memory Matters".
 
+## Specifications
+> **Inherits**: `design/00_master_specs.md`
+
 ## Architecture (high-level)
 
 ### Components

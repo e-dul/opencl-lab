@@ -11,6 +11,9 @@
   - *Context*: [Link to specific spec/section in Module README or Executive Summary if applicable]
 - [ ] Phase 2: [Milestone Name] — [Brief description]
 
+## Specifications
+> **Inherits**: `design/00_master_specs.md`
+
 ## Architecture (high-level)
 ### Components
 - **[Component A]**: [Responsibility]
