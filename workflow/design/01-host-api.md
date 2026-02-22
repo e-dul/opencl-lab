@@ -10,7 +10,7 @@ Establish foundational skills for C++ OpenCL host-side programming with a profil
 - Advanced memory patterns (sub-buffers, SVM, pipes)
 
 ## Roadmap / Status
-- [ ] Phase 1: Visual Kernel — "Hello World" basic image filter (MAD operation).
+- [x] Phase 1: Visual Kernel — "Hello World" basic image filter (MAD operation).
   - *Context*: See `HostAPI.md` section "01_VisualKernel — Visual 'Hello World'".
 - [ ] Phase 2: Visual Kernel Events — Add event-based profiling to measure upload/kernel/download times.
   - *Context*: See `HostAPI.md` section "02_VisualKernel_Events — Measure Everything".

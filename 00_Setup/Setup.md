@@ -102,6 +102,13 @@ For Ubuntu 24.04, use the ROCm stack (version 6.x+ is recommended).
 2.  **ICD:** Install the `rocm-opencl-runtime` package.
 3.  **Groups:** Add your user to the `render` and `video` groups.
 
+#### this worked
+
+```bash
+sudo apt update
+sudo apt install ocl-icd-libopencl1 mesa-opencl-icd ocl-icd-opencl-dev clinfo
+```
+
 ---
 
 ## 4. Build Tools

@@ -30,7 +30,9 @@ cmake --build build
 Output image exists and shows brightness/contrast adjustment (visually compare with input).
 
 ### Mini-challenge
-Modify the kernel to invert colors (`255 - pixel_value`) and verify the output image.
+
+- Check how to improve passing contrast and brightness to kernel and using them in mad op.
+- Modify the kernel to invert colors (`255 - pixel_value`) and verify the output image.
 
 ---
 

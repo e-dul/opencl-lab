@@ -35,12 +35,19 @@ Implement the "Visual Hello World" application using a simple Multiply-Add (MAD)
 5. **Validation:** Ensure output image visually reflects the changes.
 
 ## Definition of Done (DoD)
-- [ ] **Build:** `cmake -B build && cmake --build build` succeeds.
-- [ ] **Test:** `./build/visual_kernel --contrast 1.5 --brightness 20` runs without errors.
-- [ ] **Artifact:** `output.bmp` exists and is visibly brighter/higher contrast than input.
-- [ ] **Platform:** Runs on at least one available OpenCL platform.
+- [x] **Build:** `cmake -B build && cmake --build build` succeeds.
+- [x] **Test:** `./build/visual_kernel --contrast 1.5 --brightness 20` runs without errors.
+- [x] **Artifact:** `output.bmp` exists and is visibly brighter/higher contrast than input.
+- [x] **Platform:** Runs on NVIDIA GeForce RTX 4060 Laptop GPU (NVIDIA CUDA platform).
 
 ## Execution Report (Filled by Agent)
-- **Status:** [PENDING]
+- **Status:** [DONE]
 - **Validation:**
+  - Both `--kernel scalar` and `--kernel vec3` produce bit-identical output (md5 verified).
+  - Identity passthrough (`--contrast 1.0 --brightness 0`): `output.bmp == gradient_input.bmp`.
+  - Saturation clip (`-b 250`): no wrap-around artefacts (`convert_uchar3_sat`).
 - **Changed Files:**
+  - `01_Host_API/01_Visual_Kernel/src/main.cpp` — CLI, RGBA→RGB, dual-kernel dispatch
+  - `01_Host_API/01_Visual_Kernel/kernels/mad.cl` — added `mad_vec_kernel` (vload3/vstore3/mad)
+  - `common/ocl_wrapper.hpp` — GPU-first context selection
+  - `common/opencl_utils.hpp` — `CL_CHECK`, `load_kernel_source`

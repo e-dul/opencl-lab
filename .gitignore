@@ -22,3 +22,7 @@ Thumbs.db
 *.tmp
 *.bak
 *~
+
+# Images
+*.bmp
+*.png

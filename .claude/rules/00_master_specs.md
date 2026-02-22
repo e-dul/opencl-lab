@@ -11,6 +11,7 @@
 - **Build System**: CMake 3.18+.
   - Every sub-project (`01_Visual_Kernel`) must be standalone buildable.
   - `find_package(OpenCL REQUIRED)` must be used.
+  - Copy kernels with install instructuions to sync them easier
 
 ## 2. Directory Structure Protocol
 - **Snapshots over Branches**: Code evolves in sequential folders (`01_Basic/`, `02_Optimized/`).
