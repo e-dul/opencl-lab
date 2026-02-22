@@ -31,7 +31,6 @@ Output image exists and shows brightness/contrast adjustment (visually compare w
 
 ### Mini-challenge
 
-- Check how to improve passing contrast and brightness to kernel and using them in mad op.
 - Modify the kernel to invert colors (`255 - pixel_value`) and verify the output image.
 
 ---
@@ -55,8 +54,10 @@ Console prints timing breakdown:
 - Total: T ms
 
 ### Mini-challenge
-Run with different image sizes (256×256 vs 1920×1080 vs 4096×4096). When does GPU start winning over CPU?
 
+- Run with different image sizes (256×256 vs 1920×1080 vs 4096×4096). When does GPU start winning over CPU?
+- Modify the kernel to invert colors (`255 - pixel`) and verify the output changes. Which profiling stage changes? (Hint: only kernel time.)
+  
 ### Generating test images
 
 ```bash

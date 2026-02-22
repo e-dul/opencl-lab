@@ -20,5 +20,11 @@
 ## Known Issues
 [TODO: Add issues here]
 
+## Agent Role Discipline
+- When asked to **plan a task**, act as **@architect only**: read design doc → identify next step → write task file in `workflow/tasks/`. Do NOT design implementation details (code structure, CMake, buffer strategies) — that is @coder work.
+- The task file is the handoff artifact. @coder reads it to implement.
+- **Always wait for user to review the task file before starting implementation.** Do not proceed to coding unless explicitly told to.
+- **Always wait for user to review the completed task before updating status in design document and archiving it.** Do not proceed to unless explicitly told to.
+
 ## Session Notes
 [TODO: Add notes after each session]
