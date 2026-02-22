@@ -27,7 +27,7 @@ The goal of this project is to teach you **engineering**, not just OpenCL syntax
 *   **Profiling:** Measuring performance from the very first line of code.
 *   **Real-World Scenarios:** Video processing, Ray Tracing, Robotics (ROS 2).
 
-More about the project vision: [design/00-executive-summary.md](design/00-executive-summary.md).
+More about the project vision: [workflow/design/00-executive-summary.md](workflow/design/00-executive-summary.md).
 
 ---
 
@@ -94,9 +94,9 @@ cmake --build build
 ## For AI Agent (Claude Code)
 
 This repository is optimized for collaboration with AI assistants.
-*   **Workspace:** [.ai/](.ai/) contains protocols, memory, and active tasks.
-*   **Guidelines:** [AI_GUIDELINES.md](.ai/AI_GUIDELINES.md) defines coding style and communication.
-*   **Strategy:** [design/](design/) is the "Source of Truth". do not modify these files without explicit instruction.
+*   **Workspace:** [workflow/](workflow/) contains protocols, memory, and active tasks.
+*   **Guidelines:** [CLAUDE.md](.CLAUDE.md) defines coding style and communication.
+*   **Strategy:** [workflow/design/](workflow/design/) is the "Source of Truth". do not modify these files without explicit instruction.
 
 ---
 

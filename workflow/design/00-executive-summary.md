@@ -57,7 +57,7 @@ This project is built using a strict AI-Assisted Engineering protocol to ensure 
 
 ### The "Design Wins" Rule
 -   **Strategy (`design/*.md`):** The Single Source of Truth. If the Code contradicts the Design, the Code is wrong.
--   **Tactics (`.ai/tasks/`):** Ephemeral, atomic units of work. Generated from Strategy, executed, then archived.
+-   **Tactics (`workflow/tasks/`):** Ephemeral, atomic units of work. Generated from Strategy, executed, then archived.
 -   **Review:** All code is reviewed against the "Performance Gates" defined in the Strategy (e.g., "Must process 1080p < 16ms").
 
 ---

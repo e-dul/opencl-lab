@@ -1,7 +1,7 @@
 # Task 001: Visual Kernel Basic
 
 ## Context
-- **Design Feature:** `design/01-hostapi.md`
+- **Design Feature:** `workflow/design/01-hostapi.md`
 - **Milestone:** Phase 1: Visual Kernel — "Hello World" basic image filter (MAD operation).
 - **Relevant Files:**
   - `01_VisualKernel/main.cpp`
@@ -15,7 +15,7 @@
 Implement the "Visual Hello World" application using a simple Multiply-Add (MAD) kernel. The application must load an image (or generate a synthetic one if no input is provided), apply contrast/brightness adjustment on the GPU, and save the result to `output.bmp`. This validates the toolchain, wrapper, and basic data transfer.
 
 ## Constraints & Rules
-- **No Design Changes:** Do not modify `design/*.md`.
+- **No Design Changes:** Do not modify `workflow/design/*.md`.
 - **Language/Standard:** C++17, OpenCL 1.2+ (via cl.hpp).
 - **Directory Structure:** `01_VisualKernel/` (as per Design Specs).
 - **CLI Arguments:** Must support `--contrast <float>` and `--brightness <int>`.

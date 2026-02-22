@@ -12,7 +12,7 @@
 - [ ] Phase 2: [Milestone Name] — [Brief description]
 
 ## Specifications
-> **Inherits**: `design/00_master_specs.md`
+> **Inherits**: `workflow/design/00_master_specs.md`
 
 ## Architecture (high-level)
 ### Components

@@ -1,7 +1,7 @@
 # Task [ID]: [Short Title]
 
 ## Context
-- **Design Feature:** `design/[feature_name].md`
+- **Design Feature:** `workflow/design/[feature_name].md`
 - **Milestone:** [Phase Name from Design Roadmap]
 - **Relevant Files:**
   - `[path/to/file1]`
@@ -11,7 +11,7 @@
 [1-2 sentences: What is the specific, atomic goal of this task?]
 
 ## Constraints & Rules
-- **No Design Changes:** Do not modify `design/*.md`. If architecture is wrong, stop and ask.
+- **No Design Changes:** Do not modify `workflow/design/*.md`. If architecture is wrong, stop and ask.
 - **Language/Standard:** C++17 (or strictly per project settings).
 - **Dependencies:** [List allowed libraries]
 - **Error Handling:** [e.g., Throw exceptions on failure]

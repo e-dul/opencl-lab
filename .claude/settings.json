@@ -1,0 +1,23 @@
+{
+  "theme": "dark",
+  "preferredModel": "claude-3-7-sonnet-20250219",
+  "autoUpdate": true,
+  "env": {
+    "OPENCL_PATH": "/usr/local/cuda",
+    "CUSTOM_VAR": "value_needed_by_your_scripts"
+  },
+  "allowedTools": [
+    "Bash",
+    "ReadFile",
+    "WriteFile",
+    "RunCommand"
+  ],
+  "permissions": {
+    "allow": [
+      "RunCommand(cmake --build .)"
+    ],
+    "deny": [
+      "Read(./vendor/**)"
+    ]
+  }
+}

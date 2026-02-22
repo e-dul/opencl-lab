@@ -25,7 +25,7 @@ After generating code, verify against:
 - [ ] Did I break the public API contract?
 
 ## 5. Handling Conflicts
-If the requested Task contradicts the Design document (`design/*.md`):
+If the requested Task contradicts the Design document (`workflow/design/*.md`):
 - **STOP immediately.**
 - Inform the user about the conflict.
 - **Do not** implement code that violates the approved architecture without explicit confirmation (Reverse Engineering Mode).
