@@ -24,4 +24,5 @@
 - Direct: Start with the answer.
 
 ## Other
--
+- When asked to plan a task, write the plan and store in `workflow/tasks/`. Never implement unless explicitly told to proceed.
+- Consider task completed only after explicitly told.

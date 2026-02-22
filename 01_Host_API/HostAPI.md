@@ -44,7 +44,7 @@ Output image exists and shows brightness/contrast adjustment (visually compare w
 cd 02_VisualKernel_Events
 cmake -B build
 cmake --build build
-./build/visual_kernel_events
+./build/visual_kernel_events -p
 ```
 
 ### Verify
@@ -56,6 +56,12 @@ Console prints timing breakdown:
 
 ### Mini-challenge
 Run with different image sizes (256×256 vs 1920×1080 vs 4096×4096). When does GPU start winning over CPU?
+
+### Generating test images
+
+```bash
+ffmpeg -y -f lavfi -i "color=c=gray:s=4096x4096" -vframes 1 -f image2 -vcodec bmp test_4k.bmp
+```
 
 ---
 

@@ -100,3 +100,7 @@ To ensure consistency between educational goals and technical implementation:
 ### 5.2 The Agent Memory (`.claude/rules/MEMORY.md`)
 *   **Purpose:** Long-term context for the Agent (Project decisions, session lessons).
 *   **Rule:** Consult this file at the start of every session to align with project history.
+   
+## 6. General remarks
+- When asked to plan a task, write the plan and store in `workflow/tasks/`. Never implement unless explicitly told to proceed.
+- Consider task completed only after explicitly told.

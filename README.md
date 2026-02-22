@@ -104,3 +104,12 @@ This repository is optimized for collaboration with AI assistants.
 
 *   **License:** [LICENSE](LICENSE) (MIT)
 *   **Author:** Your Team / Claude Code
+
+---
+
+## TODO:
+
+- Improved arguments handing - extrnal lib?
+- CMake function to handle duplications
+- Install/copy kernels in better way
+- 
