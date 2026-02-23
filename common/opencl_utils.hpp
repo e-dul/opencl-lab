@@ -34,3 +34,11 @@ inline std::string load_kernel_source(const std::string& path) {
     buf << file.rdbuf();
     return buf.str();
 }
+
+// Convert cl::Event timestamps from nanoseconds to milliseconds.
+// WHY / 1e6: getProfilingInfo returns nanoseconds.
+// Requires CL_QUEUE_PROFILING_ENABLE on the queue and queue.finish() before calling.
+inline double duration_ms(const cl::Event& e) {
+    return (e.getProfilingInfo<CL_PROFILING_COMMAND_END>() -
+            e.getProfilingInfo<CL_PROFILING_COMMAND_START>()) / 1e6;
+}

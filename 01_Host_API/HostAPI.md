@@ -7,19 +7,19 @@ See [main README](../README.md) for base requirements (OpenCL, CMake, Docker set
 
 ## Contents
 ```
-01_VisualKernel/          Basic image filter (MAD operation)
-02_VisualKernel_Events/   Add event-based profiling  
-03_Buffers_Layout/        Memory management experiments
+01_Visual_Kernel/         Basic image filter (MAD operation)
+02_Visual_Kernel_Events/  Add event-based profiling
+03_Buffer_Flags/          Buffer flag experiments (USE_HOST_PTR vs COPY_HOST_PTR)
 ```
 
 ---
 
-## 01_VisualKernel — Visual "Hello World"
+## 01_Visual_Kernel — Visual "Hello World"
 **Goal**: Get immediate visual feedback that your GPU code works.
 
 ### Build & run
 ```bash
-cd 01_VisualKernel
+cd 01_Visual_Kernel
 cmake -B build
 cmake --build build
 ./build/visual_kernel --contrast 1.2 --brightness 10
@@ -35,12 +35,12 @@ Output image exists and shows brightness/contrast adjustment (visually compare w
 
 ---
 
-## 02_VisualKernel_Events — Measure Everything
+## 02_Visual_Kernel_Events — Measure Everything
 **Goal**: Build the habit—measure, then optimize.
 
 ### Build & run
 ```bash
-cd 02_VisualKernel_Events
+cd 02_Visual_Kernel_Events
 cmake -B build
 cmake --build build
 ./build/visual_kernel_events -p
@@ -66,12 +66,12 @@ ffmpeg -y -f lavfi -i "color=c=gray:s=4096x4096" -vframes 1 -f image2 -vcodec bm
 
 ---
 
-## 03_Buffers_Layout — Memory Matters
+## 03_Buffer_Flags — Memory Matters
 **Goal**: Understand when data gets copied and how buffer flags affect performance.
 
 ### Build & run
 ```bash
-cd 03_Buffers_Layout
+cd 03_Buffer_Flags
 cmake -B build
 cmake --build build
 ./build/buffers_layout_demo

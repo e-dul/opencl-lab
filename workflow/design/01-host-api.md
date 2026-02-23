@@ -1,7 +1,7 @@
 # Module 1: Host API & Feedback Loop
 
 ## Goal
-Establish foundational skills for C++ OpenCL host-side programming with a profiling-first mindset. Students learn to wrap the OpenCL C API in modern C++, capture performance metrics from day one, and understand memory layout impact on CPU↔GPU data transfer.
+Establish foundational skills for C++ OpenCL host-side programming with a profiling-first mindset. Users learn to wrap the OpenCL C API in modern C++, capture performance metrics from day one, and understand memory layout impact on CPU↔GPU data transfer.
 
 ## Non-goals
 - Deep kernel optimization (covered in Module 2+)
@@ -14,8 +14,28 @@ Establish foundational skills for C++ OpenCL host-side programming with a profil
   - *Context*: See `HostAPI.md` section "01_VisualKernel — Visual 'Hello World'".
 - [x] Phase 2: Visual Kernel Events — Add event-based profiling to measure upload/kernel/download times.
   - *Context*: See `HostAPI.md` section "02_VisualKernel_Events — Measure Everything".
-- [x] Phase 3: Buffers Layout — Memory management experiments (CL_MEM_USE_HOST_PTR vs COPY).
-  - *Context*: See `HostAPI.md` section "03_Buffers_Layout — Memory Matters".
+- [x] Phase 3: Buffer Flags — Memory management experiments (CL_MEM_USE_HOST_PTR vs COPY).
+  - *Context*: See `HostAPI.md` section "03_Buffer_Flags — Memory Matters".
+- [x] Phase 4: Module review and cleanup — remove distraction, focus on what matters.
+  - Improved arguments handing - extrnal lib?
+  - CMake function to handle duplications
+  - Install/copy kernels in better way?
+
+  ```CMake
+  add_custom_command(TARGET your_exe POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E copy_directory 
+          ${CMAKE_CURRENT_SOURCE_DIR}/kernels 
+          $<TARGET_FILE_DIR:your_exe>/kernels
+  COMMENT "Copying kernels"
+  )
+
+  ```
+  - `03_Buffers_Layout` is name misleading?
+  - Image IO utils in common
+  - Event based prfiling utils in common 
+  - Find obsolete documents in module
+- [ ] Phase 5: Analyze completed tasks(001-003) and refine `workflow/templates/task_doc_template.md`
+- [ ] Phase 6: provide option to request GPU vendor via env var. `GPU=NVIDIA`, `GPU=AMD` and `GPU=INTEL` should be supported.
 
 ## Specifications
 > **Inherits**: `design/00_master_specs.md`
@@ -51,7 +71,7 @@ Establish foundational skills for C++ OpenCL host-side programming with a profil
 ## Known Issues / Risks
 - **Platform-specific event timing**: Intel CPU runtimes may report zero for QUEUED→SUBMIT deltas.
 - **Driver quirks**: NVIDIA requires `CL_QUEUE_PROFILING_ENABLE` at queue creation.
-- **Student profiling avoidance**: Tasks must strictly enforce timing output in DoD.
+- **User profiling avoidance**: Tasks must strictly enforce timing output in DoD.
 
 ## Performance Gate (Module Completion)
 - **Kernel Launch Overhead**: < 1ms (empty kernel baseline).
@@ -63,7 +83,7 @@ Establish foundational skills for C++ OpenCL host-side programming with a profil
 - **Directory Structure**:
   - `01_VisualKernel/` (Phase 1)
   - `02_VisualKernel_Events/` (Phase 2)
-  - `03_Buffers_Layout/` (Phase 3)
+  - `03_Buffer_Flags/` (Phase 3)
 - **Verification Standard**: Must output visual artifact (`output.bmp`) and match CLI args (`--contrast 1.2`).
 - **Tooling**:
   - Use `stb_image` / `stb_image_write` for BMP IO.

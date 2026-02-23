@@ -29,7 +29,7 @@ A shared library of isolated optimization techniques. Projects in Module 2 "link
 -   **Advanced:** Device Enqueue, Sub-groups, Inline PTX (if applicable).
 
 ### The Spokes: Specialization Paths (`02_Projects/`)
-Students choose **one** path but share the same foundational knowledge.
+User choose **one** path but share the same foundational knowledge.
 
 #### 🎥 Path A: Multimedia & AI
 *Focus: High-bandwidth video processing and Edge AI.*
@@ -68,7 +68,7 @@ This project is built using a strict AI-Assisted Engineering protocol to ensure 
 -   **C++ Wrapper:** We use `cl.hpp` (C++ bindings) for RAII and type safety. Raw C API is avoided in user code.
 -   **Build System:** **CMake** with a "Hybrid" structure.
     -   *Root:* Orchestrates the build of selected modules.
-    -   *Leaf:* Every project is standalone buildable to ensure students can copy-paste it into their work.
+    -   *Leaf:* Every project is standalone buildable to ensure users can copy-paste it into their work.
 -   **Snapshot Folders:** Code evolves in separate directories (e.g., `01_Visual_Kernel` -> `02_Visual_Kernel_Events`) rather than Git branches, allowing side-by-side comparison in IDEs.
 
 ---

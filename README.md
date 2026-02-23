@@ -107,19 +107,6 @@ This repository is optimized for collaboration with AI assistants.
 
 ---
 
-## TODO:
+## TODO
 
-- Improved arguments handing - extrnal lib?
-- CMake function to handle duplications
-- Install/copy kernels in better way?
-
-```CMake
-add_custom_command(TARGET your_exe POST_BUILD
-  COMMAND ${CMAKE_COMMAND} -E copy_directory 
-          ${CMAKE_CURRENT_SOURCE_DIR}/kernels 
-          $<TARGET_FILE_DIR:your_exe>/kernels
-  COMMENT "Copying kernels"
-)
-
-```
-- `03_Buffers_Layout` is name misleading?
+- 

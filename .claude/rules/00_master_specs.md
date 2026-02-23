@@ -12,13 +12,16 @@
   - Every sub-project (`01_Visual_Kernel`) must be standalone buildable.
   - `find_package(OpenCL REQUIRED)` must be used.
   - Copy kernels with install instructuions to sync them easier
+- **CLI Parsing**: Use [CLI11](https://github.com/CLIUtils/CLI11) (v2.4.2, header-only, FetchContent) in all modules.
+  - **FORBIDDEN**: Hand-rolled `Args` structs or custom `parse_args()` functions.
+  - Integrated via `common/common.cmake`; linked as `CLI11::CLI11`.
 
 ## 2. Directory Structure Protocol
 - **Snapshots over Branches**: Code evolves in sequential folders (`01_Basic/`, `02_Optimized/`).
 - **Dependencies**:
   - `common/`: Header-only shared utilities (Platform selection, IO).
   - `vendor/`: Third-party header-only libs (`stb_image`, `cl.hpp`).
-  - **Rule**: No complex linking. Students must be able to copy-paste code easily.
+  - **Rule**: No complex linking. User must be able to copy-paste code easily.
 
 ## 3. Input / Output Standards
 - **Visual Verification**: All kernels must produce visual artifacts (`output.bmp`). Console text is not enough.

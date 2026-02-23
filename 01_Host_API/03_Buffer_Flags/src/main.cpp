@@ -1,5 +1,5 @@
 /*
- * Applied OpenCL Lab — Module 1, Phase 3: Buffers Layout
+ * Applied OpenCL Lab — Module 1, Phase 3: Buffer Flags
  *
  * Compares three OpenCL buffer allocation strategies side-by-side.
  * All strategies run the same scalar MAD kernel on a 256×256 RGB image;
@@ -22,12 +22,13 @@
  *                         implicitly — result varies by platform.
  *
  * Flow:
- *   1. Generate 256×256 RGB synthetic gradient
- *   2. Create OpenCL context + profiling queue (always enabled for this demo)
- *   3. Build MAD program once; reuse across all strategies
- *   4. run_strategy() × 3 → collect TimingResult per strategy
- *   5. Print comparison table to stdout
- *   6. Save output.bmp (from last strategy run)
+ *   1. Parse CLI args (--contrast, --brightness)
+ *   2. Generate 256×256 RGB synthetic gradient
+ *   3. Create OpenCL context + profiling queue (always enabled for this demo)
+ *   4. Build MAD program once; reuse across all strategies
+ *   5. run_strategy() × 3 → collect TimingResult per strategy
+ *   6. Print comparison table to stdout
+ *   7. Save output.bmp (from last strategy run)
  */
 
 // stb — single-header image IO (implementations compiled here)
@@ -36,19 +37,17 @@
 #include <stb_image.h>
 #include <stb_image_write.h>
 
+#include "image_utils.hpp"    // make_gradient(), save_bmp()
 #include "ocl_wrapper.hpp"    // create_context(), OclContext
-#include "opencl_utils.hpp"   // load_kernel_source(), CL_CHECK
+#include "opencl_utils.hpp"   // load_kernel_source(), duration_ms()
+
+#include <CLI/CLI.hpp>
 
 #include <iomanip>
 #include <iostream>
 #include <stdexcept>
 #include <string>
 #include <vector>
-
-// ── Constants ─────────────────────────────────────────────────────────────────
-
-static constexpr float CONTRAST   = 1.2f;
-static constexpr int   BRIGHTNESS = 10;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -61,32 +60,6 @@ struct TimingResult {
 };
 
 enum class Strategy { EXPLICIT_WRITE, COPY_ON_CREATE, USE_HOST_PTR };
-
-// ── Profiling helper ──────────────────────────────────────────────────────────
-
-// WHY / 1e6: getProfilingInfo returns nanoseconds; divide to convert to ms.
-static double duration_ms(const cl::Event& e) {
-    return (e.getProfilingInfo<CL_PROFILING_COMMAND_END>() -
-            e.getProfilingInfo<CL_PROFILING_COMMAND_START>()) / 1e6;
-}
-
-// ── Synthetic image ───────────────────────────────────────────────────────────
-
-static std::vector<uint8_t> make_gradient(int& width, int& height, int& channels) {
-    width    = 256;
-    height   = 256;
-    channels = 3;
-    std::vector<uint8_t> img(static_cast<size_t>(width * height * channels));
-    for (int y = 0; y < height; ++y) {
-        for (int x = 0; x < width; ++x) {
-            const size_t idx = static_cast<size_t>((y * width + x) * channels);
-            img[idx + 0] = static_cast<uint8_t>(x);    // R: left → right
-            img[idx + 1] = static_cast<uint8_t>(y);    // G: top  → bottom
-            img[idx + 2] = 128;                         // B: constant mid-grey
-        }
-    }
-    return img;
-}
 
 // ── run_strategy ──────────────────────────────────────────────────────────────
 //
@@ -102,7 +75,9 @@ static TimingResult run_strategy(
     const cl::Program&          program,
     const std::vector<uint8_t>& src,
     std::vector<uint8_t>&       dst,
-    size_t                      total_bytes
+    size_t                      total_bytes,
+    float                       contrast,
+    int                         brightness
 ) {
     TimingResult result;
     result.name = label;
@@ -126,8 +101,8 @@ static TimingResult run_strategy(
         cl::Kernel kernel(program, "mad_kernel");
         kernel.setArg(0, buf_src);
         kernel.setArg(1, buf_dst);
-        kernel.setArg(2, CONTRAST);
-        kernel.setArg(3, BRIGHTNESS);
+        kernel.setArg(2, contrast);
+        kernel.setArg(3, brightness);
 
         queue.enqueueNDRangeKernel(kernel, cl::NullRange,
                                    cl::NDRange(total_bytes), cl::NullRange,
@@ -157,8 +132,8 @@ static TimingResult run_strategy(
         cl::Kernel kernel(program, "mad_kernel");
         kernel.setArg(0, buf_src);
         kernel.setArg(1, buf_dst);
-        kernel.setArg(2, CONTRAST);
-        kernel.setArg(3, BRIGHTNESS);
+        kernel.setArg(2, contrast);
+        kernel.setArg(3, brightness);
 
         queue.enqueueNDRangeKernel(kernel, cl::NullRange,
                                    cl::NDRange(total_bytes), cl::NullRange,
@@ -194,8 +169,8 @@ static TimingResult run_strategy(
         cl::Kernel kernel(program, "mad_kernel");
         kernel.setArg(0, buf_src);
         kernel.setArg(1, buf_dst);
-        kernel.setArg(2, CONTRAST);
-        kernel.setArg(3, BRIGHTNESS);
+        kernel.setArg(2, contrast);
+        kernel.setArg(3, brightness);
 
         queue.enqueueNDRangeKernel(kernel, cl::NullRange,
                                    cl::NDRange(total_bytes), cl::NullRange,
@@ -220,7 +195,8 @@ static TimingResult run_strategy(
 // ── Table printer ─────────────────────────────────────────────────────────────
 
 static void print_table(const std::vector<TimingResult>& results,
-                         int width, int height) {
+                         int width, int height,
+                         float contrast, int brightness) {
     const int W = 18;   // strategy name column width
     const int N = 14;   // numeric column width
 
@@ -228,8 +204,8 @@ static void print_table(const std::vector<TimingResult>& results,
 
     std::cout << "\nBuffer Strategy Comparison — "
               << width << "×" << height << " RGB"
-              << "  (contrast=" << CONTRAST
-              << ", brightness=" << BRIGHTNESS << ")\n"
+              << "  (contrast=" << contrast
+              << ", brightness=" << brightness << ")\n"
               << sep << "\n"
               << std::left  << std::setw(W) << "Strategy"
               << std::right
@@ -242,9 +218,6 @@ static void print_table(const std::vector<TimingResult>& results,
     std::cout << std::fixed << std::setprecision(3);
     for (const auto& r : results) {
         const double total = r.upload_ms + r.kernel_ms + r.download_ms;
-        const std::string upload_str = r.upload_tracked
-            ? (std::to_string(static_cast<int>(r.upload_ms)) + "")  // placeholder
-            : "0.000 *";
 
         std::cout << std::left  << std::setw(W) << r.name
                   << std::right;
@@ -277,8 +250,16 @@ static void print_table(const std::vector<TimingResult>& results,
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 
-int main() {
+int main(int argc, char* argv[]) {
     try {
+        float contrast   = 1.2f;
+        int   brightness = 10;
+
+        CLI::App app{"Buffer strategy benchmark"};
+        app.add_option("-c,--contrast",   contrast,   "Contrast multiplier (default: 1.2)");
+        app.add_option("-b,--brightness", brightness, "Brightness addend   (default: 10)");
+        CLI11_PARSE(app, argc, argv);
+
         // 1. Synthetic source image
         int width = 0, height = 0, channels = 0;
         const std::vector<uint8_t> src = make_gradient(width, height, channels);
@@ -317,25 +298,25 @@ int main() {
 
         results.push_back(run_strategy(
             "Explicit Write", Strategy::EXPLICIT_WRITE,
-            ocl.context, queue, program, src, dst, total_bytes));
+            ocl.context, queue, program, src, dst, total_bytes,
+            contrast, brightness));
 
         results.push_back(run_strategy(
             "Copy on Create", Strategy::COPY_ON_CREATE,
-            ocl.context, queue, program, src, dst, total_bytes));
+            ocl.context, queue, program, src, dst, total_bytes,
+            contrast, brightness));
 
         results.push_back(run_strategy(
             "Use Host Ptr", Strategy::USE_HOST_PTR,
-            ocl.context, queue, program, src, dst, total_bytes));
+            ocl.context, queue, program, src, dst, total_bytes,
+            contrast, brightness));
 
         // 5. Print comparison table
-        print_table(results, width, height);
+        print_table(results, width, height, contrast, brightness);
 
         // 6. Save output from last strategy run (Use Host Ptr result)
-        const char* out_path = "output.bmp";
-        if (!stbi_write_bmp(out_path, width, height, channels, dst.data())) {
-            throw std::runtime_error("stbi_write_bmp failed");
-        }
-        std::cout << "\nWritten: " << out_path << "\n";
+        save_bmp("output.bmp", dst, width, height, channels);
+        std::cout << "\nWritten: output.bmp\n";
 
     } catch (const cl::Error& e) {
         std::cerr << "OpenCL error: " << e.what() << " (" << e.err() << ")\n";

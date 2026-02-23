@@ -4,37 +4,10 @@ project(VisualKernel LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# ── Dependencies ─────────────────────────────────────────────────────────────
-
-find_package(OpenCL REQUIRED)
-
-include(FetchContent)
-FetchContent_Declare(
-    stb
-    GIT_REPOSITORY https://github.com/nothings/stb.git
-    GIT_TAG        master
-)
-FetchContent_MakeAvailable(stb)
-
-# ── Common (header-only interface library) ────────────────────────────────────
-# Referenced by relative path so each module is standalone.
-add_subdirectory(${PROJECT_SOURCE_DIR}/../../common common_iface)
-
-# ── Executable ────────────────────────────────────────────────────────────────
+include(${CMAKE_CURRENT_SOURCE_DIR}/../../common/common.cmake)
 
 add_executable(visual_kernel src/main.cpp)
-
-target_include_directories(visual_kernel PRIVATE
-    ${stb_SOURCE_DIR}   # exposes stb_image.h / stb_image_write.h
-)
-
-target_link_libraries(visual_kernel PRIVATE
-    OpenCL::OpenCL
-    common   # header-only; pulls in common/ and vendor/ include paths
-)
-
-# Copy kernels next to the binary so the relative path "kernels/mad.cl" works.
-# file(COPY kernels/ DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/kernels)
-install(DIRECTORY kernels/ DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/kernels)
+opencl_lab_target(visual_kernel)
+copy_kernels(visual_kernel)
 
 message(STATUS "VisualKernel configured. Build then run: ./visual_kernel --contrast 1.5 --brightness 20")

@@ -12,7 +12,7 @@
   - `common/opencl_utils.hpp` (CL_CHECK, load_kernel_source)
 
 ## Objective
-Build `buffers_layout_demo`: run the same MAD kernel with three buffer strategies and print a comparative profiling table so students can observe how transfer overhead differs per strategy.
+Build `buffers_layout_demo`: run the same MAD kernel with three buffer strategies and print a comparative profiling table so users can observe how transfer overhead differs per strategy.
 
 ## Constraints & Rules
 - **No Design Changes:** Do not modify `workflow/design/*.md`.

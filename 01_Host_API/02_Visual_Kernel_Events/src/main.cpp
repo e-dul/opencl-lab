@@ -19,151 +19,75 @@
 #include <stb_image.h>
 #include <stb_image_write.h>
 
+#include "image_utils.hpp"    // load_rgb_image(), save_bmp(), make_gradient()
 #include "ocl_wrapper.hpp"    // create_context(), OclContext
-#include "opencl_utils.hpp"   // load_kernel_source(), CL_CHECK
+#include "opencl_utils.hpp"   // load_kernel_source(), CL_CHECK, duration_ms()
 
-#include <cstring>
+#include <CLI/CLI.hpp>
+
 #include <iomanip>
 #include <iostream>
 #include <stdexcept>
 #include <string>
 #include <vector>
 
-// ── CLI parsing ───────────────────────────────────────────────────────────────
-
-struct Args {
-    float       contrast   = 1.0f;
-    int         brightness = 0;
-    std::string input_path;            // empty → generate synthetic image
-    std::string kernel     = "scalar"; // "scalar" | "vec3"
-    bool        profile    = false;    // -p: enable CL_QUEUE_PROFILING_ENABLE + print timing
-};
-
-static void print_help(const char* prog) {
-    std::cout <<
-        "Usage: " << prog << " [OPTIONS]\n"
-        "\n"
-        "Options:\n"
-        "  -c, --contrast   <float>  Contrast multiplier (default: 1.0)\n"
-        "  -b, --brightness <int>    Brightness addend  (default: 0)\n"
-        "  -i, --input      <path>   Source image (BMP/PNG/JPG).\n"
-        "                            Omit to use a synthetic 256x256 gradient.\n"
-        "  -k, --kernel     <name>   Kernel: scalar (default) or vec3.\n"
-        "  -p, --profile             Enable event profiling (Upload/Kernel/Download ms).\n"
-        "  -h, --help                Show this help and exit.\n"
-        "\n"
-        "Output:\n"
-        "  output.bmp            — filtered result\n"
-        "  gradient_input.bmp    — original gradient (synthetic mode only)\n";
-}
-
-Args parse_args(int argc, char* argv[]) {
-    Args a;
-    for (int i = 1; i < argc; ++i) {
-        std::string key(argv[i]);
-        if (key == "--help" || key == "-h") {
-            print_help(argv[0]);
-            std::exit(0);
-        } else if ((key == "--contrast" || key == "-c") && i + 1 < argc) {
-            a.contrast = std::stof(argv[++i]);
-        } else if ((key == "--brightness" || key == "-b") && i + 1 < argc) {
-            a.brightness = std::stoi(argv[++i]);
-        } else if ((key == "--input" || key == "-i") && i + 1 < argc) {
-            a.input_path = argv[++i];
-        } else if ((key == "--kernel" || key == "-k") && i + 1 < argc) {
-            a.kernel = argv[++i];
-        } else if (key == "--profile" || key == "-p") {
-            a.profile = true;
-        }
-    }
-    return a;
-}
-
-// ── Synthetic image (256×256 RGB horizontal gradient) ─────────────────────────
-
-std::vector<uint8_t> make_gradient(int& width, int& height, int& channels) {
-    width    = 256;
-    height   = 256;
-    channels = 3;
-    std::vector<uint8_t> img(static_cast<size_t>(width * height * channels));
-    for (int y = 0; y < height; ++y) {
-        for (int x = 0; x < width; ++x) {
-            size_t idx      = static_cast<size_t>((y * width + x) * channels);
-            img[idx + 0]    = static_cast<uint8_t>(x);          // R increases left→right
-            img[idx + 1]    = static_cast<uint8_t>(y);          // G increases top→bottom
-            img[idx + 2]    = 128;                              // B constant mid-grey
-        }
-    }
-    return img;
-}
-
-// ── Profiling helper ──────────────────────────────────────────────────────────
-
-// WHY / 1e6: getProfilingInfo returns nanoseconds; divide to convert to ms.
-static double duration_ms(const cl::Event& e) {
-    return (e.getProfilingInfo<CL_PROFILING_COMMAND_END>() -
-            e.getProfilingInfo<CL_PROFILING_COMMAND_START>()) / 1e6;
-}
-
-// ── Main ──────────────────────────────────────────────────────────────────────
-
 int main(int argc, char* argv[]) {
     try {
-        const Args args = parse_args(argc, argv);
+        // 1. Parse CLI args
+        float       contrast   = 1.0f;
+        int         brightness = 0;
+        std::string input_path;
+        std::string kvariant   = "scalar";  // "scalar" | "vec3"
+        bool        profile    = false;
 
-        // 1. Load or generate source image (always RGB, 3 channels — no alpha)
+        CLI::App app{"MAD image filter with event profiling"};
+        app.add_option("-c,--contrast",   contrast,    "Contrast multiplier (default: 1.0)");
+        app.add_option("-b,--brightness", brightness,  "Brightness addend   (default: 0)");
+        app.add_option("-i,--input",      input_path,  "Source image (BMP/PNG/JPG)");
+        app.add_option("-k,--kernel",     kvariant,    "Kernel variant: scalar (default) or vec3");
+        app.add_flag(  "-p,--profile",    profile,     "Enable event profiling (Upload/Kernel/Download ms)");
+        CLI11_PARSE(app, argc, argv);
+
+        // 2. Load or generate source image (always RGB, 3 channels — no alpha)
         int width = 0, height = 0, channels = 0;
         std::vector<uint8_t> src_data;
 
-        if (args.input_path.empty()) {
+        if (input_path.empty()) {
             std::cout << "No --input provided. Generating 256×256 synthetic gradient.\n";
             src_data = make_gradient(width, height, channels);
             // Save the unmodified gradient so the user can diff before/after visually.
-            if (!stbi_write_bmp("gradient_input.bmp", width, height, channels, src_data.data())) {
-                throw std::runtime_error("stbi_write_bmp failed for gradient_input.bmp");
-            }
+            save_bmp("gradient_input.bmp", src_data, width, height, channels);
             std::cout << "Written: gradient_input.bmp (pre-filter reference)\n";
         } else {
-            int loaded_channels = 0;
-            uint8_t* raw = stbi_load(args.input_path.c_str(),
-                                     &width, &height, &loaded_channels,
-                                     3 /*force RGB — strips alpha*/);
-            if (!raw) {
-                throw std::runtime_error("stbi_load failed: " +
-                                         std::string(stbi_failure_reason()));
-            }
-            const size_t n = static_cast<size_t>(width * height * 3);
-            src_data.assign(raw, raw + n);
-            stbi_image_free(raw);
-            channels = 3;
-            std::cout << "Loaded: " << args.input_path
+            src_data = load_rgb_image(input_path, width, height, channels);
+            std::cout << "Loaded: " << input_path
                       << " (" << width << "×" << height << ")\n";
         }
 
         const size_t total_bytes = static_cast<size_t>(width * height * channels);
 
-        std::cout << "Contrast=" << args.contrast
-                  << "  Brightness=" << args.brightness
-                  << "  Kernel=" << args.kernel << "\n";
+        std::cout << "Contrast=" << contrast
+                  << "  Brightness=" << brightness
+                  << "  Kernel=" << kvariant << "\n";
 
-        // 2. OpenCL context (GPU-first, CPU fallback)
+        // 3. OpenCL context (GPU-first, CPU fallback)
         OclContext ocl = create_context();
 
-        // 3. CommandQueue — profiling overhead only when -p is requested
+        // 4. CommandQueue — profiling overhead only when -p is requested
         // WHY conditional: CL_QUEUE_PROFILING_ENABLE instructs the driver to
         // record timestamps for every command. This adds overhead even when
         // getProfilingInfo() is never called, so only pay the cost when needed.
         const cl_command_queue_properties queue_props =
-            args.profile ? CL_QUEUE_PROFILING_ENABLE : 0;
+            profile ? CL_QUEUE_PROFILING_ENABLE : 0;
         cl::CommandQueue queue(ocl.context, ocl.device, queue_props);
 
-        // 4. Allocate buffers
+        // 5. Allocate buffers
         // WHY no CL_MEM_COPY_HOST_PTR: upload is an explicit enqueueWriteBuffer
         // below so we can attach write_event and measure the transfer time.
         cl::Buffer buf_src(ocl.context, CL_MEM_READ_ONLY,  total_bytes);
         cl::Buffer buf_dst(ocl.context, CL_MEM_WRITE_ONLY, total_bytes);
 
-        // 5. Build program
+        // 6. Build program
         const std::string source = load_kernel_source("kernels/mad.cl");
         cl::Program::Sources sources;
         sources.push_back({source.c_str(), source.size()});
@@ -178,27 +102,27 @@ int main(int argc, char* argv[]) {
             throw;
         }
 
-        // 6. Set kernel arguments
+        // 7. Set kernel arguments
         //    scalar: one work-item per byte  → NDRange = total_bytes
         //    vec3:   one work-item per pixel → NDRange = width * height
-        const bool        use_vec3    = (args.kernel == "vec3");
-        const std::string kernel_name = use_vec3 ? "mad_vec_kernel" : "mad_kernel";
-        const size_t      work_size   = use_vec3
+        const bool   use_vec3  = (kvariant == "vec3");
+        const char*  kname     = use_vec3 ? "mad_vec_kernel" : "mad_kernel";
+        const size_t work_size = use_vec3
             ? static_cast<size_t>(width * height)
             : total_bytes;
 
-        cl::Kernel kernel(program, kernel_name.c_str());
+        cl::Kernel kernel(program, kname);
         kernel.setArg(0, buf_src);
         kernel.setArg(1, buf_dst);
-        kernel.setArg(2, args.contrast);
-        kernel.setArg(3, args.brightness);
+        kernel.setArg(2, contrast);
+        kernel.setArg(3, brightness);
 
-        // 7. Enqueue pipeline — attach events only when -p is active
+        // 8. Enqueue pipeline — attach events only when -p is active
         std::vector<uint8_t> dst_data(total_bytes);
         cl::Event write_event, kernel_event, read_event;
-        cl::Event* p_write  = args.profile ? &write_event  : nullptr;
-        cl::Event* p_kernel = args.profile ? &kernel_event : nullptr;
-        cl::Event* p_read   = args.profile ? &read_event   : nullptr;
+        cl::Event* p_write  = profile ? &write_event  : nullptr;
+        cl::Event* p_kernel = profile ? &kernel_event : nullptr;
+        cl::Event* p_read   = profile ? &read_event   : nullptr;
 
         queue.enqueueWriteBuffer(buf_src, CL_FALSE, 0, total_bytes,
                                  src_data.data(), nullptr, p_write);
@@ -216,8 +140,8 @@ int main(int argc, char* argv[]) {
         // once the event has reached CL_COMPLETE state.
         queue.finish();
 
-        // 8. Print timing breakdown (only when -p was passed)
-        if (args.profile) {
+        // 9. Print timing breakdown (only when -p was passed)
+        if (profile) {
             const double t_upload   = duration_ms(write_event);
             const double t_kernel   = duration_ms(kernel_event);
             const double t_download = duration_ms(read_event);
@@ -230,14 +154,9 @@ int main(int argc, char* argv[]) {
                       << "Total pipeline:      " << (t_upload + t_kernel + t_download) << " ms\n";
         }
 
-        // 9. Write output
-        const char* out_path = "output.bmp";
-        if (!stbi_write_bmp(out_path, width, height, channels, dst_data.data())) {
-            throw std::runtime_error("stbi_write_bmp failed");
-        }
-
-        std::cout << "Written: " << out_path
-                  << " (" << width << "×" << height << ")\n";
+        // 10. Save output
+        save_bmp("output.bmp", dst_data, width, height, channels);
+        std::cout << "Written: output.bmp (" << width << "×" << height << ")\n";
 
     } catch (const cl::Error& e) {
         std::cerr << "OpenCL error: " << e.what() << " (" << e.err() << ")\n";
