@@ -95,6 +95,8 @@ Requires proprietary NVIDIA drivers and the NVIDIA Container Toolkit for Docker.
 2.  **OpenCL:** The NVIDIA driver package includes the ICD. Verify with `clinfo`.
 3.  **Docker:** Install the `nvidia-container-toolkit` and run containers with the `--gpus all` flag.
 
+**If NVIDIA is not visible in clinfo check power profiles and enable performance mode**
+
 ### AMD GPU (ROCm)
 For Ubuntu 24.04, use the ROCm stack (version 6.x+ is recommended).
 

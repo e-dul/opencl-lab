@@ -4,6 +4,7 @@
 - **Build System:** CMake 3.18+, hybrid approach (Main + Standalone).
 - **OpenCL Wrapper:** cl.hpp version 1.2 (for Nvidia compatibility).
 - **C++ Standard:** C++17.
+- **GPU Selection:** `GPU` env var (vendor substring, case-insensitive). Implemented in `common/ocl_wrapper.hpp::create_context()`. Matches `CL_PLATFORM_VENDOR` or `CL_DEVICE_VENDOR`. Examples: `GPU=NVIDIA`, `GPU=AMD`, `GPU=INTEL`. Default: first GPU found, CPU fallback. Hard-coded device indices are FORBIDDEN.
 
 ## Progress Tracking
 - [ ] Module 0: Setup

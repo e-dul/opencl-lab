@@ -34,6 +34,15 @@
   - Use `common/opencl_utils.hpp` macros: `CL_CHECK(err)`.
 - **Kernels**: No printfs inside kernels (unless debugging). Output error codes to a debug buffer if needed.
 
-## 5. Performance Culture
+## 5. Runtime Environment
+
+- **GPU Selection**: Controlled via the `GPU` env var (vendor substring, case-insensitive).
+  - Implemented in `common/ocl_wrapper.hpp` → `create_context()`.
+  - Matches against `CL_PLATFORM_VENDOR` and `CL_DEVICE_VENDOR` (handles Mesa/rusticl stacks).
+  - Examples: `GPU=NVIDIA`, `GPU=AMD`, `GPU=INTEL`.
+  - Default (unset): first platform with a GPU; CPU fallback if none found.
+  - **FORBIDDEN**: Hard-coded platform/device indices in module code.
+
+## 6. Performance Culture
 - **Profiling**: `cl_event` profiling is MANDATORY for all "Optimized" milestones.
 - **Reporting**: Report time in milliseconds (ms) to 3 decimal places.

@@ -34,8 +34,8 @@ Establish foundational skills for C++ OpenCL host-side programming with a profil
   - Image IO utils in common
   - Event based prfiling utils in common 
   - Find obsolete documents in module
-- [ ] Phase 5: Analyze completed tasks(001-003) and refine `workflow/templates/task_doc_template.md`
-- [ ] Phase 6: provide option to request GPU vendor via env var. `GPU=NVIDIA`, `GPU=AMD` and `GPU=INTEL` should be supported.
+- [x] Phase 5: Analyze completed tasks(001-003) and refine `workflow/templates/task_doc_template.md`
+- [x] Phase 6: provide option to request GPU vendor via env var. `GPU=NVIDIA`, `GPU=AMD` and `GPU=INTEL` should be supported.
 
 ## Specifications
 > **Inherits**: `design/00_master_specs.md`

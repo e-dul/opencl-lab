@@ -23,6 +23,7 @@ cd 01_Visual_Kernel
 cmake -B build
 cmake --build build
 ./build/visual_kernel --contrast 1.2 --brightness 10
+# On multi-GPU systems, pin a vendor: GPU=NVIDIA ./build/visual_kernel
 # Check output.bmp - should be brighter than input
 ```
 
@@ -56,6 +57,7 @@ Console prints timing breakdown:
 ### Mini-challenge
 
 - Run with different image sizes (256×256 vs 1920×1080 vs 4096×4096). When does GPU start winning over CPU?
+  - Tip: on multi-GPU systems, results vary by device — use `GPU=NVIDIA` / `GPU=AMD` / `GPU=INTEL` to pin the target.
 - Modify the kernel to invert colors (`255 - pixel`) and verify the output changes. Which profiling stage changes? (Hint: only kernel time.)
   
 ### Generating test images
@@ -82,7 +84,7 @@ Program runs without errors and prints comparative timing for different buffer s
 
 ### Mini-challenge
 Profile `CL_MEM_USE_HOST_PTR` vs `CL_MEM_COPY_HOST_PTR` for your test image. Which is faster? Explain in 2–3 sentences why.
-
+- Tip: on multi-GPU systems, results vary by device — use `GPU=NVIDIA` / `GPU=AMD` / `GPU=INTEL` to pin the target.
 ---
 
 ## Core Concepts
@@ -141,7 +143,13 @@ This isn't failure—it's the point of the feedback loop. Measurement tells you 
 
 ## Troubleshooting
 
-- **"No OpenCL platforms found"**: 
+- **Wrong GPU selected / multiple devices**:
+  - List available platforms/devices: `clinfo -l`
+  - Pin by vendor substring (case-insensitive): `GPU=NVIDIA ./build/visual_kernel`
+  - Valid values: `NVIDIA`, `AMD`, `INTEL` (or any substring of the vendor string)
+  - Default (no `GPU` set): first platform with a GPU; CPU fallback if no GPU found.
+
+- **"No OpenCL platforms found"**:
   - Docker users: Did you run with `--gpus all`?
   - Native setup: Check `clinfo` output (see Module 0 troubleshooting)
 
