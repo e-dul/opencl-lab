@@ -41,6 +41,7 @@ Environment setup, Docker, CMake, and the first "Smoke Test" verifying drivers.
 ### [Module 1: Host API](01_Host_API/)
 Learning to control the GPU from C++.
 *   [HostAPI.md](01_Host_API/HostAPI.md) - Setup instructions.
+*   [00_Theory_Heterogeneous_Architecture](01_Host_API/00_Theory_Heterogeneous_Architecture.md) - Minimal theory
 *   [01_Visual_Kernel](01_Host_API/01_Visual_Kernel/) - First graphical kernel (image brightening).
 *   [02_Visual_Kernel_Events](01_Host_API/02_Visual_Kernel_Events/) - Introduction to profiling (Events).
 *   [03_Buffers_Layout](01_Host_API/03_Buffers_Layout/) - Memory management and data layout.
@@ -109,4 +110,4 @@ This repository is optimized for collaboration with AI assistants.
 
 ## TODO
 
-- 
+- 01_Host_API/00_Theory_Heterogeneous_Architecture.md - Minimal theory
