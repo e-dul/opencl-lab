@@ -1,0 +1,87 @@
+# Debugging & Profiling Tools
+
+**Symptom**: Wrong output / silent crash / kernel gives different results on CPU vs GPU.
+
+## Prerequisites
+See [main README](../../README.md) for base requirements (OpenCL 1.2+, CMake 3.18+).
+
+**Additional**:
+- Oclgrind: `sudo apt install oclgrind`
+- Nsight Systems (Nvidia): [developer.nvidia.com/nsight-systems](https://developer.nvidia.com/nsight-systems)
+- VTune (Intel): `sudo apt install intel-oneapi-vtune`
+
+## Build & Run
+```bash
+cd 99_Toolbox/Debugging
+cmake -B build && cmake --build build
+
+# Run kernel under Oclgrind (memory safety checker)
+oclgrind ./build/debug_demo --test out_of_bounds
+oclgrind --check-api ./build/debug_demo --test race_condition
+```
+
+## Verify
+```
+[Oclgrind] ERROR: Invalid write of size 4
+           at kernel mad_kernel (mad_kernel.cl:12)
+           Work-item: (64, 0, 0)
+           Address: 0x7f... (4 bytes past end of allocation)
+```
+
+Run both test modes. Confirm Oclgrind catches the injected bugs before reading the tool descriptions below.
+
+## Oclgrind — Memory Safety
+
+Oclgrind is a CPU-based OpenCL simulator that instruments every memory access. It catches:
+- Out-of-bounds global/local memory reads and writes
+- Work-item data races (concurrent writes to same address)
+- Uninitialized memory reads
+
+```bash
+# Install
+sudo apt install oclgrind
+
+# Run any OpenCL binary under Oclgrind
+oclgrind ./build/your_kernel_demo
+
+# Enable all checks
+oclgrind --check-api --max-errors 10 ./build/your_kernel_demo
+```
+
+Oclgrind runs on CPU — expect 10–50x slowdown. Use it for correctness, not performance.
+
+## Nsight / VTune — Performance Profiling
+
+For GPU timeline analysis (CPU–GPU overlap, kernel bottlenecks, memory bandwidth):
+
+```bash
+# Nvidia: Nsight Systems
+nsys profile --trace=opencl,osrt ./build/your_demo
+nsys-ui report1.nsys-rep   # open timeline
+
+# Intel: VTune
+vtune -collect gpu-hotspots -- ./build/your_demo
+vtune-gui
+
+# AMD: rocprof (OpenCL via ROCm)
+rocprof --hsa-trace ./build/your_demo
+```
+
+Look for:
+- **Gaps between kernels**: CPU is blocking between launches — use [Async Pipelines](../AsyncMultiThread/README.md)
+- **Short kernels with long launch overhead**: batch or fuse kernels
+- **Low memory bandwidth vs peak**: access pattern is uncoalesced — see [Coalesced Access](../CoalescedAccess/README.md)
+
+## Mini-Challenge
+
+Add a deliberate off-by-one error to `debug_demo` (read `input[id + 1]` without bounds check). Run under Oclgrind and confirm it reports the exact work-item and address. Then fix the bug and confirm the report is clean.
+
+## Troubleshooting
+
+- **Oclgrind not found after install**: Run `oclgrind --version` to confirm. If `clinfo` shows Oclgrind as a platform, it is working.
+- **Nsight profile shows no OpenCL events**: Pass `--trace=opencl` explicitly. Some versions default to CUDA only.
+- **rocprof produces empty trace**: Ensure the binary was linked against the ROCm OpenCL runtime, not the Khronos ICD loader.
+
+---
+
+[Back to Toolbox](../Toolbox.md)

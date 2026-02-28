@@ -110,10 +110,10 @@ This repository is optimized for collaboration with AI assistants.
 ## More Information
 
 *   **License:** [LICENSE](LICENSE) (MIT)
-*   **Author:** Your Team / Claude Code
+*   **Author:** ED / Claude Code
 
 ---
 
 ## TODO
 
-- 01_Host_API/00_Theory_Heterogeneous_Architecture.md - Minimal theory
+- Add links to external resources for more in depth information

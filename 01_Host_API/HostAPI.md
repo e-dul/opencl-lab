@@ -5,6 +5,48 @@ Learn how to control the GPU from C++ and measure whether it's actually faster t
 ## Prerequisites
 See [main README](../README.md) for base requirements (OpenCL, CMake, Docker setup).
 
+---
+
+## Heterogeneous Architecture in a Nutshell
+
+Before touching code, you need one mental model. Everything in this module (and Module 2) is a consequence of it.
+
+**Two processors, two memory spaces, one bus between them.**
+
+```
+┌──────────────────────┐        PCIe bus         ┌──────────────────────┐
+│        HOST          │ ──── data transfers ───► │       DEVICE         │
+│  (CPU + system RAM)  │ ◄─── results ──────────  │   (GPU + VRAM)       │
+│                      │                          │                      │
+│  Your C++ program    │                          │  Kernel (.cl file)   │
+│  runs here           │                          │  runs here           │
+└──────────────────────┘                          └──────────────────────┘
+```
+
+The GPU is not a faster CPU. It is a separate processor with its own memory. To use it:
+1. **Copy data to the device** (`clEnqueueWriteBuffer`)
+2. **Tell the device to run your kernel** (`clEnqueueNDRangeKernel`)
+3. **Copy results back to the host** (`clEnqueueReadBuffer`)
+
+Every step costs time. Step 1 and 3 cross the PCIe bus. This is why the first thing you measure (in `02_Visual_Kernel_Events`) is *not* kernel time — it's transfer time.
+
+**Command Queue**: the ordered list of work you submit to the device. You enqueue commands (write, kernel launch, read) and the device executes them asynchronously. `clFinish()` blocks the host until all enqueued work is done.
+
+```
+Host thread                    Command Queue              GPU
+    │                               │                      │
+    ├─ enqueueWriteBuffer ─────────►│                      │
+    ├─ enqueueNDRangeKernel ───────►│ ── upload ──────────►│
+    ├─ enqueueReadBuffer ──────────►│ ── kernel ──────────►│
+    ├─ clFinish() ──────────────────│ ── download ─────────│
+    │  (blocks here)                │                      │
+    ◄─ returns ────────────────────────────────────────────┘
+```
+
+That's it. The entire OpenCL programming model fits in this diagram. The rest is details.
+
+---
+
 ## Contents
 ```
 01_Visual_Kernel/         Basic image filter (MAD operation)
@@ -85,6 +127,7 @@ Program runs without errors and prints comparative timing for different buffer s
 ### Mini-challenge
 Profile `CL_MEM_USE_HOST_PTR` vs `CL_MEM_COPY_HOST_PTR` for your test image. Which is faster? Explain in 2–3 sentences why.
 - Tip: on multi-GPU systems, results vary by device — use `GPU=NVIDIA` / `GPU=AMD` / `GPU=INTEL` to pin the target.
+- Go deeper: [Toolbox: Zero-Copy](../99_Toolbox/ZeroCopy/README.md) — the hardware model behind these flags and when each wins.
 ---
 
 ## Core Concepts
@@ -167,11 +210,21 @@ This isn't failure—it's the point of the feedback loop. Measurement tells you 
 
 ---
 
+## Performance Gate
+
+This module is complete when:
+
+- Kernel launch overhead (empty kernel): < 1 ms
+- Event profiling captures all 3 stages: Upload, Kernel, Download
+- `01_Visual_Kernel` produces a valid `output.bmp` showing brightness/contrast adjustment
+
+---
+
 ## What's Next
 
 Module 2 applies these host-side skills to real integration problems. Choose your track:
-- **[Track A: Multimedia](../02_Projects/A_Multimedia/README.md)** — Video AI, OpenCV interop, smart webcam project
-- **[Track B: Graphics/HPC](../02_Projects/B_Graphics_HPC/README.md)** — Ray tracing, CLBlast, advanced rendering
-- **[Track C: Robotics](../02_Projects/C_Robotics_ROS2/README.md)** — ROS 2 node acceleration, perception pipelines
+- **[Track A: Multimedia](../02_Projects/A_Multimedia/Multimedia.md)** — Video AI, OpenCV interop, smart webcam project
+- **[Track B: Graphics/HPC](../02_Projects/B_Graphics_HPC/GraphicsHPC.md)** — Ray tracing, CLBlast, advanced rendering
+- **[Track C: Robotics](../02_Projects/C_Robotics_ROS2/RoboticsROS2.md)** — ROS 2 node acceleration, perception pipelines
 
-All tracks use the **[Optimization Toolbox](../99_Toolbox/README.md)** to solve performance bottlenecks.
+All tracks use the **[Optimization Toolbox](../99_Toolbox/Toolbox.md)** to solve performance bottlenecks.

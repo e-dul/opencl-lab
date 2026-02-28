@@ -49,6 +49,8 @@ User choose **one** path but share the same foundational knowledge.
 -   **Flagship Project:** **Accelerated Perception Node** (Lidar filtering + Feature extraction).
 -   **Unique Tech:** ROS 2 Loaned Messages (Zero-Copy middleware transport), Real-time guarantees.
 
+For details see Updated Structure
+
 ---
 
 ## 3. Operational Workflow: Strategy & Tactics
@@ -86,7 +88,7 @@ Success is defined by metrics, not just compilation.
 
 ---
 
-## 6. Updated Course Structure
+## 6. Updated Structure
 
 ### MODULE 0: Foundations & Environment (10% / 4.0h)
 
@@ -126,7 +128,7 @@ Success is defined by metrics, not just compilation.
 3.  **A.3.1** AI Inference (Edge AI / DNN Backend) -  OpenCV DNN (T-API Approach): 
     1. Focuses on the ease of use with cv::UMat and DNN_TARGET_OPENCL.
     2. Postprocessing (NMS, bbox decoding) in OpenCL.
-4. **A.3.2** TensorFlow Lite (Edge Approach): 
+4.  **A.3.2** TensorFlow Lite (Edge Approach): 
     1. Focuses on explicit memory mapping (clEnqueueMapBuffer), passing raw OpenCL buffer pointers to TfLiteGpuDelegateV2, and edge optimization.
     2. Postprocessing (NMS, bbox decoding) in OpenCL.
 5.  **A.4:** **PROJECT #1: AI Smart Webcam.**
