@@ -17,13 +17,13 @@ Each add-on is self-contained. Come here when one of these applies:
 
 | Add-on | When to reach for it | Folder |
 |:-------|:---------------------|:-------|
-| [4.1 vkFFT Audio](4_1_vkFFT_Audio/README.md) | Need GPU FFT without writing the kernel | `4_1_vkFFT_Audio/` |
-| [4.2 OpenCL vs CUDA](4_2_OpenCL_vs_CUDA/README.md) | Choosing a GPU API for a new project | `4_2_OpenCL_vs_CUDA/` |
-| [4.3 Deployment](4_3_Deployment/README.md) | Shipping an OpenCL app to a customer | `4_3_Deployment/` |
-| [4.4 SVM Deep Dive](4_4_SVM_Theory/README.md) | Zero-copy toolbox wasn't enough — want hardware explanation | `4_4_SVM_Theory/` |
-| [4.5 Voxel Mapping](4_5_Voxel_Mapping/README.md) | Grand finale: Track B + C combined (requires both) | `4_5_Voxel_Mapping/` |
-| [4.6 FFmpeg Pipeline](4_6_FFmpeg_Pipeline/README.md) | Apply Track A filter to a video file offline | `4_6_FFmpeg_Pipeline/` |
-| [4.7 SoftISP](4_7_SoftISP/README.md) | Raw Bayer debayering: LDS optimization on a real problem | `4_7_SoftISP/` |
+| [4.1 vkFFT Audio](4_1_vkFFT_Audio/vkFFTAudio.md) | Need GPU FFT without writing the kernel | `4_1_vkFFT_Audio/` |
+| [4.2 OpenCL vs CUDA](4_2_OpenCL_vs_CUDA/OpenCLvsCUDA.md) | Choosing a GPU API for a new project | `4_2_OpenCL_vs_CUDA/` |
+| [4.3 Deployment](4_3_Deployment/Deployment.md) | Shipping an OpenCL app to a customer | `4_3_Deployment/` |
+| [4.4 SVM Deep Dive](4_4_SVM_Theory/SVMTheory.md) | Zero-copy toolbox wasn't enough — want hardware explanation | `4_4_SVM_Theory/` |
+| [4.5 Voxel Mapping](4_5_Voxel_Mapping/VoxelMapping.md) | Grand finale: Track B + C combined (requires both) | `4_5_Voxel_Mapping/` |
+| [4.6 FFmpeg Pipeline](4_6_FFmpeg_Pipeline/FFmpegPipeline.md) | Apply Track A filter to a video file offline | `4_6_FFmpeg_Pipeline/` |
+| [4.7 SoftISP](4_7_SoftISP/SoftISP.md) | Raw Bayer debayering: LDS optimization on a real problem | `4_7_SoftISP/` |
 
 ## What's Next
 

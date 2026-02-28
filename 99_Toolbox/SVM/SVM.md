@@ -45,7 +45,7 @@ Switch the demo to coarse-grained SVM and remove the explicit map/unmap calls. V
 
 ## Troubleshooting
 
-- **Demo reports "SVM not supported"**: Your device is OpenCL 1.2 only. SVM is an OpenCL 2.0 feature. Use the [Zero-Copy](../ZeroCopy/README.md) tool instead.
+- **Demo reports "SVM not supported"**: Your device is OpenCL 1.2 only. SVM is an OpenCL 2.0 feature. Use the [Zero-Copy](../ZeroCopy/ZeroCopy.md) tool instead.
 - **Fine-grained SVM not available on Nvidia**: Expected. Nvidia's OpenCL driver caps at 1.2 features. Use CUDA for fine-grained SVM equivalents on Nvidia hardware.
 
 ## Used In

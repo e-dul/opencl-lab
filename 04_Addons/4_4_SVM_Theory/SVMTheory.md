@@ -1,11 +1,11 @@
 # 4.4 — SVM and Zero-Copy: Deep Dive
 
-**When to use**: the [Zero-Copy toolbox entry](../../99_Toolbox/ZeroCopy/README.md) wasn't enough — you want to understand *why* it works at the hardware level.
+**When to use**: the [Zero-Copy toolbox entry](../../99_Toolbox/ZeroCopy/ZeroCopy.md) wasn't enough — you want to understand *why* it works at the hardware level.
 
 ## Prerequisites
 See [main README](../../README.md) for base requirements (OpenCL 1.2+, CMake 3.18+).
 
-- [Toolbox: Zero-Copy](../../99_Toolbox/ZeroCopy/README.md) — read this first
+- [Toolbox: Zero-Copy](../../99_Toolbox/ZeroCopy/ZeroCopy.md) — read this first
 - OpenCL 2.0+ device for the SVM sections (AMD APU, Intel integrated, ARM Mali)
 
 ## Build & Run

@@ -136,7 +136,7 @@ __kernel void inflate(__global const uchar* obstacles,
 }
 ```
 
-**Memory access pattern**: the inner loop reads `obstacles` at scattered offsets. This is a classic case for Local Memory (LDS) tiling — load a tile of the obstacle map into `__local` memory once, then read neighbors from fast local memory. See [Toolbox: Local Memory](../../99_Toolbox/LocalMemory/README.md).
+**Memory access pattern**: the inner loop reads `obstacles` at scattered offsets. This is a classic case for Local Memory (LDS) tiling — load a tile of the obstacle map into `__local` memory once, then read neighbors from fast local memory. See [Toolbox: Local Memory](../../99_Toolbox/LocalMemory/LocalMemory.md).
 
 ### Mini-challenge
 Profile the naive kernel (global memory reads) vs a tiled version (local memory). At what tile size does the LDS version peak? Does the crossover radius (below which LDS doesn't help) match your theoretical expectation?
@@ -182,7 +182,7 @@ ros2 bag play ../../../assets/lidar_sample.bag
 
 A `sensor_msgs/PointCloud2` message with 100k points (XYZ + intensity, float32) is 1.6 MB. The standard ROS 2 subscriber deserializes this from shared memory into a `PointCloud2` struct, which you then copy to a `cl::Buffer`. That's two copies before the GPU sees a single point.
 
-**Loaned Messages** (ROS 2 Humble+) eliminate the first copy. The middleware loans you a pre-allocated message buffer directly in the publisher's shared memory region. If the publisher and subscriber are in the same process (or use a zero-copy transport like Iceoryx), no serialization occurs at all. The underlying GPU-side principle is the same as [Toolbox: Zero-Copy](../../99_Toolbox/ZeroCopy/README.md) — pinned or shared memory avoids the pageable-copy overhead on every transfer.
+**Loaned Messages** (ROS 2 Humble+) eliminate the first copy. The middleware loans you a pre-allocated message buffer directly in the publisher's shared memory region. If the publisher and subscriber are in the same process (or use a zero-copy transport like Iceoryx), no serialization occurs at all. The underlying GPU-side principle is the same as [Toolbox: Zero-Copy](../../99_Toolbox/ZeroCopy/ZeroCopy.md) — pinned or shared memory avoids the pageable-copy overhead on every transfer.
 
 ```cpp
 // Standard (two copies: shm → ROS msg → cl::Buffer)
@@ -209,7 +209,7 @@ To reach < 5 ms you will need to use the loaned message path. The standard path 
 
 **Intensity filter**: reject points where `intensity < min_intensity`. Combined with ground removal in a single pass to avoid two kernel launches.
 
-**Compaction**: use `cl::Buffer` prefix-sum to compact the output (remove rejected points from the array without gaps). Compaction is the expensive step — see [Toolbox: Async Pipelines](../../99_Toolbox/AsyncMultiThread/README.md) for how to overlap it with the feature extraction pass.
+**Compaction**: use `cl::Buffer` prefix-sum to compact the output (remove rejected points from the array without gaps). Compaction is the expensive step — see [Toolbox: Async Pipelines](../../99_Toolbox/AsyncMultiThread/AsyncMultiThread.md) for how to overlap it with the feature extraction pass.
 
 ### Challenge: Real-Time Guarantee
 Make the node miss-proof: if a new message arrives before the previous kernel finishes, the node must not block. Use a double-buffer strategy:

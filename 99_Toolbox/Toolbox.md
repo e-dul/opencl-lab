@@ -19,17 +19,17 @@ Each tool is a standalone project with a measurable before/after. The workflow:
 
 | Tool | Symptom | Folder |
 |:-----|:--------|:-------|
-| [Zero-Copy](ZeroCopy/README.md) | Upload time dominates frame budget | `ZeroCopy/` |
-| [Coalesced Access](CoalescedAccess/README.md) | Kernel slow despite simple logic | `CoalescedAccess/` |
-| [SVM](SVM/README.md) | Repeated map/unmap overhead on UMA | `SVM/` |
-| [Work-Group Sizing](WorkGroupSizing/README.md) | GPU underutilized, low occupancy | `WorkGroupSizing/` |
-| [Thread Divergence](ThreadDivergence/README.md) | Kernel slower than expected with conditionals | `ThreadDivergence/` |
-| [Local Memory](LocalMemory/README.md) | Kernel re-reads same global data repeatedly | `LocalMemory/` |
-| [Debugging](Debugging/README.md) | Crash / wrong output / silent slowdown | `Debugging/` |
-| [Kernel Templates](GenericKernelTemplates/README.md) | Duplicate `.cl` files for each data type | `GenericKernelTemplates/` |
-| [Async Pipelines](AsyncMultiThread/README.md) | CPU blocks on GPU between stages | `AsyncMultiThread/` |
-| [Multi-GPU](MultiGPU_Strategy/README.md) | Single GPU throughput ceiling reached | `MultiGPU_Strategy/` |
-| [Fast Math](FastMath/README.md) | `sqrt`/`rsqrt`/`sin` calls dominating compute-bound kernel | `FastMath/` |
+| [Zero-Copy](ZeroCopy/ZeroCopy.md) | Upload time dominates frame budget | `ZeroCopy/` |
+| [Coalesced Access](CoalescedAccess/CoalescedAccess.md) | Kernel slow despite simple logic | `CoalescedAccess/` |
+| [SVM](SVM/SVM.md) | Repeated map/unmap overhead on UMA | `SVM/` |
+| [Work-Group Sizing](WorkGroupSizing/WorkGroupSizing.md) | GPU underutilized, low occupancy | `WorkGroupSizing/` |
+| [Thread Divergence](ThreadDivergence/ThreadDivergence.md) | Kernel slower than expected with conditionals | `ThreadDivergence/` |
+| [Local Memory](LocalMemory/LocalMemory.md) | Kernel re-reads same global data repeatedly | `LocalMemory/` |
+| [Debugging](Debugging/Debugging.md) | Crash / wrong output / silent slowdown | `Debugging/` |
+| [Kernel Templates](GenericKernelTemplates/GenericKernelTemplates.md) | Duplicate `.cl` files for each data type | `GenericKernelTemplates/` |
+| [Async Pipelines](AsyncMultiThread/AsyncMultiThread.md) | CPU blocks on GPU between stages | `AsyncMultiThread/` |
+| [Multi-GPU](MultiGPU_Strategy/MultiGPUStrategy.md) | Single GPU throughput ceiling reached | `MultiGPU_Strategy/` |
+| [Fast Math](FastMath/FastMath.md) | `sqrt`/`rsqrt`/`sin` calls dominating compute-bound kernel | `FastMath/` |
 
 ## What's Next
 

@@ -140,7 +140,7 @@ while (node != MISS) {
 
 Each node stores a `hit_link` (left child) and `miss_link` (right sibling or parent's right sibling), precomputed on the CPU during BVH build.
 
-**Thread divergence**: Rays in the same warp will follow different tree paths. Replace `if (intersects_aabb(...))` branching with `select()` where possible. See [Toolbox: Thread Divergence](../../99_Toolbox/ThreadDivergence/README.md).
+**Thread divergence**: Rays in the same warp will follow different tree paths. Replace `if (intersects_aabb(...))` branching with `select()` where possible. See [Toolbox: Thread Divergence](../../99_Toolbox/ThreadDivergence/ThreadDivergence.md).
 
 ### BVH Build (CPU side)
 The BVH is built on the CPU using Surface Area Heuristic (SAH) and uploaded once as a flat array. The kernel only traverses — it never modifies the structure.
@@ -229,8 +229,8 @@ This track is complete when:
 **Hint**: If you're under 60 FPS, profile first. Common culprits in order of frequency:
 1. Thread divergence in traversal (fix: `select()` in inner loop)
 2. Uncoalesced triangle data reads (fix: Structure-of-Arrays layout)
-3. Work-group size not tuned for occupancy (fix: [Toolbox: Work-Group Sizing](../../99_Toolbox/WorkGroupSizing/README.md))
-4. `rsqrt`/`sqrt` in ray normalisation still using IEEE path (fix: [Toolbox: Fast Math](../../99_Toolbox/FastMath/README.md))
+3. Work-group size not tuned for occupancy (fix: [Toolbox: Work-Group Sizing](../../99_Toolbox/WorkGroupSizing/WorkGroupSizing.md))
+4. `rsqrt`/`sqrt` in ray normalisation still using IEEE path (fix: [Toolbox: Fast Math](../../99_Toolbox/FastMath/FastMath.md))
 
 ---
 

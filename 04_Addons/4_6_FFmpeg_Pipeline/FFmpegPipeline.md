@@ -59,7 +59,7 @@ The filter kernel from `A4_Smart_Webcam` runs unchanged — only the buffer sour
 
 ## Mini-Challenge
 
-Add a second effect (`--effect sepia`) using the [GenericKernelTemplates](../../99_Toolbox/GenericKernelTemplates/README.md) pattern: both `bokeh` and `sepia` should share one `.cl` source file, built with `-D EFFECT=BOKEH` and `-D EFFECT=SEPIA` respectively. No duplicate kernel code.
+Add a second effect (`--effect sepia`) using the [GenericKernelTemplates](../../99_Toolbox/GenericKernelTemplates/GenericKernelTemplates.md) pattern: both `bokeh` and `sepia` should share one `.cl` source file, built with `-D EFFECT=BOKEH` and `-D EFFECT=SEPIA` respectively. No duplicate kernel code.
 
 ## Troubleshooting
 

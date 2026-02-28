@@ -5,7 +5,7 @@
 ## Prerequisites
 See [main README](../../README.md) for base requirements (OpenCL 1.2+, CMake 3.18+).
 
-- **Required**: [Toolbox: Local Memory](../../99_Toolbox/LocalMemory/README.md) — the LDS tile pattern used here is the same one from that tool
+- **Required**: [Toolbox: Local Memory](../../99_Toolbox/LocalMemory/LocalMemory.md) — the LDS tile pattern used here is the same one from that tool
 
 ## Build & Run
 ```bash

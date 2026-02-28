@@ -68,9 +68,9 @@ rocprof --hsa-trace ./build/your_demo
 ```
 
 Look for:
-- **Gaps between kernels**: CPU is blocking between launches — use [Async Pipelines](../AsyncMultiThread/README.md)
+- **Gaps between kernels**: CPU is blocking between launches — use [Async Pipelines](../AsyncMultiThread/AsyncMultiThread.md)
 - **Short kernels with long launch overhead**: batch or fuse kernels
-- **Low memory bandwidth vs peak**: access pattern is uncoalesced — see [Coalesced Access](../CoalescedAccess/README.md)
+- **Low memory bandwidth vs peak**: access pattern is uncoalesced — see [Coalesced Access](../CoalescedAccess/CoalescedAccess.md)
 
 ## Mini-Challenge
 

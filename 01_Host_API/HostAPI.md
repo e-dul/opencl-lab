@@ -127,7 +127,7 @@ Program runs without errors and prints comparative timing for different buffer s
 ### Mini-challenge
 Profile `CL_MEM_USE_HOST_PTR` vs `CL_MEM_COPY_HOST_PTR` for your test image. Which is faster? Explain in 2–3 sentences why.
 - Tip: on multi-GPU systems, results vary by device — use `GPU=NVIDIA` / `GPU=AMD` / `GPU=INTEL` to pin the target.
-- Go deeper: [Toolbox: Zero-Copy](../99_Toolbox/ZeroCopy/README.md) — the hardware model behind these flags and when each wins.
+- Go deeper: [Toolbox: Zero-Copy](../99_Toolbox/ZeroCopy/ZeroCopy.md) — the hardware model behind these flags and when each wins.
 ---
 
 ## Core Concepts

@@ -41,7 +41,7 @@ Console prints two transfer times:
 ```
 The zero-copy path should show a measurable reduction. On discrete GPU the gap is clear at 1080p; on integrated GPU (iGPU) the buffer may be physically shared, reducing it to near zero.
 
-The technique behind this demo: [Toolbox: Zero-Copy](../../99_Toolbox/ZeroCopy/README.md). On UMA hardware (Intel iGPU, ARM Mali), `CL_MEM_USE_HOST_PTR` makes the buffer physically shared — see [Toolbox: SVM](../../99_Toolbox/SVM/README.md) for the hardware explanation of why.
+The technique behind this demo: [Toolbox: Zero-Copy](../../99_Toolbox/ZeroCopy/ZeroCopy.md). On UMA hardware (Intel iGPU, ARM Mali), `CL_MEM_USE_HOST_PTR` makes the buffer physically shared — see [Toolbox: SVM](../../99_Toolbox/SVM/SVM.md) for the hardware explanation of why.
 
 ### Mini-challenge
 Change the input image to `4096×4096` and re-run. At what resolution does the copy time exceed 1 ms? 5 ms? This is your "copy budget" for later work.
@@ -202,7 +202,7 @@ The main tutorial blurs the entire background. The challenge: blur only a detect
 **Performance gate:** Privacy Mode < 20 ms/frame @ 1080p (single face).
 
 ### Mini-challenge
-Inside the Bokeh kernel, the condition `if (mask[id] == BACKGROUND)` causes thread divergence — within one warp, some threads blur and others do nothing. Replace it with `select()` (branchless) and measure the kernel time difference. See [Toolbox: Thread Divergence](../../99_Toolbox/ThreadDivergence/README.md).
+Inside the Bokeh kernel, the condition `if (mask[id] == BACKGROUND)` causes thread divergence — within one warp, some threads blur and others do nothing. Replace it with `select()` (branchless) and measure the kernel time difference. See [Toolbox: Thread Divergence](../../99_Toolbox/ThreadDivergence/ThreadDivergence.md).
 
 ---
 
