@@ -123,10 +123,13 @@ Success is defined by metrics, not just compilation.
     3.  **Kernels:** Color Space Conversion (NV12 to RGBA). Optimization: Integer Math and vectors (uchar8).
     4.  **Channel Extraction:** Extracting the Y channel (Greyscale) for AI without copying.
     5.  **Goal:** The student stops treating the image as a black box (`cv::Mat`) and starts seeing a raw byte buffer.
-3.  **A.3:** AI Inference (Edge AI / DNN Backend).
-    1.  Integration with OpenCV DNN or TensorFlow Lite.
-    2.  Postprocessing (NMS, bbox decoding) in OpenCL.
-4.  **A.4:** **PROJECT #1: AI Smart Webcam.**
+3.  **A.3.1** AI Inference (Edge AI / DNN Backend) -  OpenCV DNN (T-API Approach): 
+    1. Focuses on the ease of use with cv::UMat and DNN_TARGET_OPENCL.
+    2. Postprocessing (NMS, bbox decoding) in OpenCL.
+4. **A.3.2** TensorFlow Lite (Edge Approach): 
+    1. Focuses on explicit memory mapping (clEnqueueMapBuffer), passing raw OpenCL buffer pointers to TfLiteGpuDelegateV2, and edge optimization.
+    2. Postprocessing (NMS, bbox decoding) in OpenCL.
+5.  **A.4:** **PROJECT #1: AI Smart Webcam.**
     1.  Pipeline: Camera (OpenCV) → AI Segmentation → OpenCL Blur → Screen.
     2.  **Main Tutorial: "Bokeh Mode" (Background Blur)**
         1.  AI Model: Person segmentation (MediaPipe Selfie Segmentation).

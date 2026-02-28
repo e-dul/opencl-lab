@@ -1,7 +1,13 @@
 # Applied OpenCL Lab
 
-A practical course on heterogeneous CPU/GPU system engineering based on OpenCL.
-This repository teaches you how to build high-performance data, video, and graphics processing systems by leveraging the power of GPUs in a professional and scalable way.
+Think of Applied OpenCL Lab as an OpenCL **cookbook for real systems**, not a traditional textbook.
+
+Each module is a self‑contained “recipe”: a runnable project with a clear goal, required tools, step‑by‑step instructions, and a reference implementation that hits concrete performance gates (e.g., 30 FPS 1080p webcam processing).
+
+You are encouraged to treat the provided code as one possible solution and then adapt, optimize, or re‑implement it to fit your own projects, as long as you meet the same verification and performance criteria.
+
+**Key topics**: Zero-copy interop with OpenCV/FFmpeg/ROS2, SoftISP debayering, BVH ray tracing, ROS2 perception nodes, and an optimization toolbox covering memory coalescing, thread divergence, occupancy, and device enqueue.
+
 
 ---
 
