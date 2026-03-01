@@ -117,3 +117,7 @@ This repository is optimized for collaboration with AI assistants.
 ## TODO
 
 - Add links to external resources for more in depth information
+- Command, agent and skill to review contest without specific focus on code
+- Move B1 CLBlast section to addons
+- Sync prerequisites form design documents to modules descriptions
+- Extract more repeated specs into `.claude/rules/00_master_specs.md`
