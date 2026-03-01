@@ -143,8 +143,6 @@ Each tool is an independent C++17 executable with its own `CMakeLists.txt`. Ther
 | MultiGPU_Strategy | Dual-GPU vs single-GPU on 4K workload | ≥ 2× speedup |
 | FastMath | `native_rsqrt` vs standard `rsqrt` on 1M ray normalizations | ≥ 4× faster |
 
-All timing via `cl::Event` profiling. Reported in ms to 3 decimal places.
-
 ---
 
 ## Specifications & Standards
@@ -207,14 +205,7 @@ All timing via `cl::Event` profiling. Reported in ms to 3 decimal places.
   - Numeric tools (WorkGroupSizing, MultiGPU_Strategy, SVM, AsyncMultiThread, FastMath): structured console table with before/after timing. No BMP required.
   - Debugging tool: Oclgrind error output for the injected bug. Clean run (no error) after the fix.
   - GenericKernelTemplates: autotuner console output declaring the winning type for the current device.
-- **Tooling**:
-  - `cl.hpp` (C++ bindings, OpenCL 1.2 baseline).
-  - `stb_image` / `stb_image_write` for BMP IO (image tools only).
-  - `CLI11` via `common/common.cmake` for all argument parsing.
-  - `find_package(OpenCL REQUIRED)` in every `CMakeLists.txt`.
-  - `common/ocl_wrapper.hpp → create_context()` for GPU selection.
-  - `CL_CHECK(err)` from `common/opencl_utils.hpp` for all error handling.
-  - OpenCL 2.0+ features (SVM): guarded by `#ifdef CL_VERSION_2_0`.
+- **Tooling**: See `> **Inherits**: .claude/rules/00_master_specs.md` — no module-specific additions.
 
 ---
 

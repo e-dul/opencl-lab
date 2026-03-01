@@ -176,7 +176,7 @@ Provide self-contained, elective case studies for engineers who have completed a
 | 4.7 SoftISP V2 LDS | Debayer 4K RGGB → RGBA | < 10 ms (≥ 100 FPS at 3840×2160) |
 | 4.7 V2 vs V1 | Speedup | ≥ 3× reported in console |
 
-All GPU timing via `cl::Event` profiling in milliseconds to 3 decimal places. CPU timing via `std::chrono::steady_clock`. Wall-clock estimates do not satisfy any gate. 4.2 and 4.3 have no numeric performance gate.
+*4.2 and 4.3 have no numeric performance gate.*
 
 ---
 
@@ -228,18 +228,12 @@ All GPU timing via `cl::Event` profiling in milliseconds to 3 decimal places. CP
   - 4.5: `output_voxel_slice.bmp` (occupied black, free white, unknown grey). Console: per-stage ms summing to < 5 ms.
   - 4.6: `filtered.mp4` plays correctly with effect visible. Console: per-frame breakdown.
   - 4.7: `output_rgb_v1.bmp` and `output_rgb_v2.bmp` pixel-identical and visually correct (no Bayer pattern visible). Console: V1 ms, V2 ms, speedup.
-- **Tooling**:
-  - `cl.hpp` (C++ bindings, OpenCL 1.2 baseline) for all binaries.
-  - `stb_image` / `stb_image_write` for all BMP I/O.
-  - `CLI11` via `common/common.cmake` for all argument parsing.
-  - `find_package(OpenCL REQUIRED)` in every `CMakeLists.txt`.
-  - `common/ocl_wrapper.hpp` → `create_context()` for GPU selection.
-  - `CL_CHECK(err)` macro from `common/opencl_utils.hpp` for all error handling.
+- **Tooling** (module-specific additions to master_specs):
   - vkFFT: `FetchContent_Declare` in 4.1.
   - FFmpeg: `find_package(PkgConfig REQUIRED)` → `pkg_check_modules(FFMPEG REQUIRED libavcodec libavformat libavutil)` in 4.6.
   - ROS 2: `find_package(rclcpp REQUIRED)` + `$ENV{ROS_DISTRO}` guard in 4.5 only.
   - FFTW3: `find_package(FFTW3)` (optional) in 4.1.
-- **OpenCL 2.0+ Gating**: SVM fine-grained (4.4) and any `enqueue_kernel` use must be wrapped in `#ifdef CL_VERSION_2_0`. Runtime `CL_DEVICE_SVM_CAPABILITIES` check required before any SVM allocation. All 2.0+ paths must fail gracefully with a descriptive message and exit code 0 (not a crash) when the device does not support them.
+- **OpenCL 2.0+ Gating**: SVM fine-grained (4.4) and any `enqueue_kernel` use must be wrapped in `#ifdef CL_VERSION_2_0`. Runtime `CL_DEVICE_SVM_CAPABILITIES` check required before any SVM allocation.
 
 ---
 

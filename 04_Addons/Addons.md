@@ -3,7 +3,18 @@
 Elective case studies for after you've completed a Module 2 track. Non-linear — pick any section in any order based on what you need next.
 
 ## Prerequisites
-See [main README](../README.md) for base requirements (OpenCL 1.2+, CMake 3.18+).
+- Module 1 complete + at least one Module 2 track (most add-ons). Exception: 4.3 requires Module 1 only.
+- See [main README](../README.md) for base requirements (OpenCL 1.2+, CMake 3.18+).
+
+| Add-on | Additional Prerequisites |
+|:-------|:-------------------------|
+| 4.1 vkFFT Audio | Any Module 2 track. `sudo apt install libfftw3-dev` (optional — CPU reference; GPU path works without). Asset: `assets/sample.wav`. |
+| 4.2 OpenCL vs CUDA | Any Module 2 track. No binary; no extra deps. |
+| 4.3 Deployment | Module 1 only. Docker installed. |
+| 4.4 SVM Deep Dive | Any Module 2 track. OpenCL 2.0+ device for fine-grained SVM paths (falls back gracefully on 1.2). |
+| 4.5 Voxel Mapping | Track B (B3 complete) + Track C (C3 complete) + ROS 2 Humble+. Asset: `assets/lidar_sample.bag`. |
+| 4.6 FFmpeg Pipeline | Track A (A4 complete). `sudo apt install libavcodec-dev libavformat-dev libavutil-dev`. Asset: `assets/sample.mp4`. |
+| 4.7 SoftISP | Toolbox `LocalMemory` reviewed. No external library deps. Asset: `assets/raw_bayer_4k.raw`. |
 
 ## How to Use This Module
 

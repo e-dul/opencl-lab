@@ -3,7 +3,11 @@
 A library of isolated GPU optimization techniques. Do not read this front-to-back. Come here when your profiler shows a specific bottleneck, find the relevant tool, run it, then return to your project.
 
 ## Prerequisites
-See [main README](../README.md) for base requirements (OpenCL 1.2+, CMake 3.18+).
+- Module 1 complete (`01_Host_API/`): `cl.hpp` usage, `cl::Event` profiling, `CL_CHECK`.
+- See [main README](../README.md) for base requirements (OpenCL 1.2+, CMake 3.18+).
+- Debugging tool: `sudo apt install oclgrind` (optional at build time; required at runtime).
+- SVM tool: OpenCL 2.0+ device (AMD APU, Intel iGPU, ARM Mali) — falls back gracefully on 1.2.
+- MultiGPU_Strategy: two OpenCL-capable GPUs on the same system — optional; single-GPU baseline always runs.
 
 ## How to Use This Toolbox
 

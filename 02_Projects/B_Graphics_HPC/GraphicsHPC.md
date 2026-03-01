@@ -6,8 +6,9 @@ Build a ray tracer from scratch and make it fast enough to render 100k-triangle 
 See [main README](../../README.md) for base requirements (OpenCL, CMake, Docker setup).
 
 **Additional:**
-- OpenGL + GLFW (for B2 display interop): `sudo apt install libglfw3-dev libgl-dev`
-- CLBlast (fetched automatically by CMake via FetchContent in B1)
+- OpenGL + GLFW (live window in B2/B3): `sudo apt install libglfw3-dev libgl-dev` — optional; headless `--output render.bmp` works without it.
+- CLBlast (B1) and tinyobjloader (B3/B4) are fetched automatically by CMake at configure time. Offline: `-DCMAKE_PREFIX_PATH=/path/to/clblast/install`.
+- Assets in repository root: `assets/bunny.obj` (or equivalent 100k-triangle OBJ), `assets/cornell_box.obj` (for B4).
 
 ## Contents
 ```

@@ -152,8 +152,6 @@ Accelerate a real ROS 2 perception pipeline without breaking the node contract. 
 | C3 Perception Node | End-to-end latency | < 5 ms @ 100k points (all stages summed) |
 | C3 Perception Node | Publish rate | ≥ 200 Hz sustained |
 
-GPU stages timed via `cl::Event` profiling in milliseconds to 3 decimal places. CPU stages timed via `std::chrono::steady_clock`. Wall-clock estimates do not satisfy the gate.
-
 ---
 
 ## Specifications & Standards
@@ -183,16 +181,11 @@ GPU stages timed via `cl::Event` profiling in milliseconds to 3 decimal places. 
   - C1: Console log showing context init time (once) and per-callback dispatch times (flat, ≤ 0.5 ms each). No BMP required.
   - C2: `output_costmap.bmp` (correct colorization — obstacles black, inflation red gradient, free white). Console table with CPU / GPU naive / GPU tiled times and speedups.
   - C3: Console per-message stage breakdown summing to < 5 ms. `ros2 topic hz /filtered_points` shows ≥ 200 Hz. No BMP required (point cloud topic is the visual artifact).
-- **Tooling**:
-  - `cl.hpp` (C++ bindings, OpenCL 1.2 baseline).
+- **Tooling** (module-specific additions to master_specs):
   - `stb_image` / `stb_image_write` for `.pgm` input and `output_costmap.bmp` output (C2 only).
-  - `CLI11` via `common/common.cmake` for all argument parsing.
-  - `find_package(OpenCL REQUIRED)` in every `CMakeLists.txt`.
-  - `common/ocl_wrapper.hpp` → `create_context()` for GPU selection.
-  - `CL_CHECK(err)` macro from `common/opencl_utils.hpp` for all error handling.
   - ROS 2 packages: `rclcpp`, `sensor_msgs`, `nav_msgs` via `find_package(... REQUIRED)`.
   - No third-party Lidar SDK. No PCL dependency.
-- **OpenCL 2.0+ Gating**: Any SVM usage must be wrapped in `#ifdef CL_VERSION_2_0`. No OpenCL 2.0 features are required by this path.
+- **Note**: No OpenCL 2.0 features are required by this path.
 
 ---
 

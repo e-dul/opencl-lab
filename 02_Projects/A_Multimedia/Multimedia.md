@@ -6,8 +6,9 @@ Process real video with a GPU pipeline that ships in production. You start with 
 See [main README](../../README.md) for base requirements (OpenCL, CMake, Docker setup).
 
 **Additional:**
-- OpenCV 4.5+: `sudo apt install libopencv-dev`
-- Verify: `pkg-config --modversion opencv4`
+- OpenCV 4.5+: `sudo apt install libopencv-dev` — verify: `pkg-config --modversion opencv4`
+- A3_2 only: TFLite GPU delegate library (`.so`). Pre-built or built from source with `-DTFLITE_ENABLE_GPU=ON`. ARM-packaged delegates do not work on x86.
+- Assets in repository root: `assets/sample.bmp`, `assets/sample_nv12.yuv`, `assets/person.jpg`, `assets/selfie_segmentation.onnx`, `assets/selfie_segmentation.tflite`.
 
 ## Contents
 ```

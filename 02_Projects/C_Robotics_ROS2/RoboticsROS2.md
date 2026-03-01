@@ -6,10 +6,13 @@ Accelerate a real ROS 2 perception pipeline without breaking the node contract. 
 See [main README](../../README.md) for base requirements (OpenCL, CMake, Docker setup).
 
 **Additional:**
-- ROS 2 Humble or later (Jazzy recommended)
-- `sudo apt install ros-humble-rclcpp ros-humble-sensor-msgs ros-humble-nav-msgs`
-- Source your workspace before every build: `source /opt/ros/humble/setup.bash`
-- Verify: `ros2 --version`
+- ROS 2 Humble or later: `sudo apt install ros-humble-desktop`
+  - Required packages: `ros-humble-rclcpp`, `ros-humble-sensor-msgs`, `ros-humble-nav-msgs`
+  - Source workspace before every build: `source /opt/ros/humble/setup.bash`
+  - Verify: `ros2 --version`
+- C2 standalone demo (`C2_Costmap_Inflation`) has no ROS 2 dependency — builds without sourcing.
+- Assets in repository root: `assets/warehouse.pgm` (512×512+ occupancy grid, required for C2). `assets/lidar_sample.bag` (optional — synthetic publisher covers the no-bag case for C3).
+- C3 optimal performance: `export RMW_IMPLEMENTATION=rmw_fastrtps_cpp` (enables loaned messages). Standard path works without it.
 
 > **Assumption**: You know ROS 2 basics — nodes, pub/sub, topics, `rclcpp`. This track focuses exclusively on GPU acceleration inside that model.
 

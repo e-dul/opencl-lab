@@ -143,7 +143,6 @@ Build a production-grade GPU video pipeline that processes 1080p at ≥ 30 FPS. 
 | A4 Bokeh Mode | Total frame time | < 33 ms @ 1080p (≥ 30 FPS) |
 | A4 Privacy Mode | Total frame time | < 20 ms @ 1080p (single face) |
 
-All timing reported via `cl::Event` profiling in milliseconds to 3 decimal places. Wall-clock estimates do not satisfy the gate.
 
 ---
 
@@ -180,14 +179,8 @@ All timing reported via `cl::Event` profiling in milliseconds to 3 decimal place
   - A2: `output_rgba.bmp` (correct colors) + `output_y_channel.bmp` (grayscale). Green-pink output = failure.
   - A3_1 / A3_2: `output_mask.bmp` + `output_blurred.bmp`. Console prints inference and blur times separately.
   - A4: Live preview window with per-frame timing breakdown printed to console.
-- **Tooling**:
-  - `cl.hpp` (C++ bindings, OpenCL 1.2).
-  - `stb_image` / `stb_image_write` for BMP/PNG IO.
-  - `CLI11` via `common/common.cmake` for all argument parsing.
+- **Tooling** (module-specific additions to master_specs):
   - `find_package(OpenCV REQUIRED)` — OpenCV 4.5+.
-  - `common/ocl_wrapper.hpp` → `create_context()` for GPU selection.
-  - `CL_CHECK(err)` macro from `common/opencl_utils.hpp` for all error handling.
-- **OpenCL 2.0+ Gating**: Any SVM usage must be wrapped in `#ifdef CL_VERSION_2_0`.
 
 ---
 

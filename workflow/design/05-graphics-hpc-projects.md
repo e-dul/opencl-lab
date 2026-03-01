@@ -147,8 +147,6 @@ Build a ray tracer from first principles and scale it to render 100k-triangle sc
 | B3 BVH vs Naive | Speedup | Reported in console (expected ~100–250×) |
 | B4 Device Enqueue | Per-bounce latency vs CPU-dispatched | GPU-spawned path ≤ 50% of CPU-dispatched time (3 bounces) |
 
-All timing reported via `cl::Event` profiling in milliseconds to 3 decimal places. Wall-clock estimates do not satisfy the gate.
-
 ---
 
 ## Specifications & Standards
@@ -181,17 +179,11 @@ All timing reported via `cl::Event` profiling in milliseconds to 3 decimal place
   - B2: Headless `output.bmp` showing ≥ 1 sphere with shadow. Live window optional.
   - B3: Headless `render.bmp` showing OBJ scene correctly (no black patches). Console prints naive vs BVH timing and speedup. Live window optional.
   - B4: Console prints per-bounce timing for CPU-dispatched vs device-enqueued paths. `render.bmp` showing multi-bounce reflections.
-- **Tooling**:
-  - `cl.hpp` (C++ bindings, OpenCL 1.2 baseline).
-  - `stb_image_write` for BMP/PNG headless output.
-  - `CLI11` via `common/common.cmake` for all argument parsing.
-  - `find_package(OpenCL REQUIRED)` in every `CMakeLists.txt`.
-  - `common/ocl_wrapper.hpp` → `create_context()` for GPU selection.
-  - `CL_CHECK(err)` macro from `common/opencl_utils.hpp` for all error handling.
+- **Tooling** (module-specific additions to master_specs):
   - CLBlast: `FetchContent_Declare` in B1 `CMakeLists.txt`.
   - GLFW + OpenGL: `find_package(glfw3)` + `find_package(OpenGL)`, gated on availability.
   - tinyobjloader: `FetchContent_Declare` in B3/B4 `CMakeLists.txt`.
-- **OpenCL 2.0+ Gating**: All Device Enqueue code must be wrapped in `#ifdef CL_VERSION_2_0`. B4 binary must emit a human-readable error and exit with code 1 if device does not support OpenCL C 2.0.
+- **B4 OpenCL 2.0 Runtime Check**: B4 binary must emit a human-readable error and exit with code 1 if the device does not support OpenCL C 2.0 (hard requirement — no graceful fallback for B4).
 
 ---
 
