@@ -8,7 +8,7 @@ allowed-tools: Read, FileEdit
 You are executing the Tactical Planning phase of the workflow.
 
 ## Instructions
-1. **Fetch Context:** Read the specific module's design document (e.g., `workflow/design/design_[module].md`) to identify the next unchecked milestone.
+1. **Fetch Context:** Read the specific module's design document (e.g., `workflow/design/[module].md`) to identify the next unchecked milestone.
 2. **Fetch Template:** Read the `workflow/templates/task_doc_template.md` file from the workspace root.
 3. **Draft the Task:** Fill out the template for the specific milestone.
 4. **Enforce Rules:**

@@ -119,3 +119,4 @@ This repository is optimized for collaboration with AI assistants.
 - Add links to external resources for more in depth information
 - Command, agent and skill to review content without specific focus on code
 - Move B1 CLBlast section to addons
+- Summarize command, agents, skills and usage for this project
