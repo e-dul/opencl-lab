@@ -10,7 +10,7 @@
   - **Extensions**: OpenCL 2.0 features (SVM, Device Enqueue) must be guarded by macros.
 - **Build System**: CMake 3.18+.
   - Every sub-project (`01_Visual_Kernel`) must be standalone buildable via `cmake -B build && cmake --build build` from within that directory. No shared parent required.
-  - `find_package(OpenCL REQUIRED)` must be used in every `CMakeLists.txt`.
+  - `find_package(OpenCL REQUIRED)` must be used in every `CMakeLists.txt`. Unless it's included via common.cmake.
   - Kernel files must be copied to the binary directory post-build using:
     ```cmake
     add_custom_command(TARGET <target> POST_BUILD
@@ -34,6 +34,7 @@
 ## 3. Input / Output Standards
 - **Visual Verification**: All kernels must produce visual artifacts (`output.bmp`). Console text alone is not enough.
   - **Exception**: Purely numeric tools (benchmarks, pipeline timing, multi-GPU) must produce a structured console timing table as the artifact. No BMP required.
+- **Utilities**: try to use image utils from `common/image_utils.hpp` instead implementing from scratch each time
 - **Image IO**: Use `stb_image.h` and `stb_image_write.h`.
   - **Format**: BMP or PNG (no JPEG to avoid compression artifacts in debugging).
   - **Data**: RGBA (4 channels) or Grayscale (1 channel).
@@ -41,7 +42,7 @@
 
 ## 4. Error Handling Protocol
 - **Host Code**: Throw `std::runtime_error` for CL errors.
-  - Use `common/opencl_utils.hpp` macros: `CL_CHECK(err)`.
+  - Use `common/opencl_utils.hpp` macros: `CL_CHECK(err)` only for raw cl_int return values not covered by the C++ bindings.
 - **Kernels**: No printfs inside kernels (unless debugging). Output error codes to a debug buffer if needed.
 - **OpenCL 2.0+ Graceful Fallback**: When a binary includes OpenCL 2.0+ features (SVM, Device Enqueue) and the device does not support them, the binary **must** print a descriptive message and exit with code 0. Crashes or silent hangs are forbidden.
 
@@ -60,3 +61,29 @@
   - **GPU stages**: Timed via `cl::Event` (`CL_PROFILING_COMMAND_START` / `CL_PROFILING_COMMAND_END`).
   - **CPU stages** (serialization, publish, host logic): Timed via `std::chrono::steady_clock`.
 - **Wall-clock measurements do NOT satisfy performance gates.** Only `cl::Event` profiling results count for GPU gate verification.
+
+## 7. Code Correctness Checklist (common review failures)
+
+### 7.1 Integer Arithmetic Safety
+- **FORBIDDEN**: `static_cast<size_t>(a * b * c)` when `a`, `b`, `c` are `int` — the multiplication overflows before the cast.
+- **REQUIRED**: Promote the first operand before multiplying: `static_cast<size_t>(a) * b * c`.
+- Applies to: buffer sizes, image index arithmetic (`y * width + x`), stbi dimensions.
+- When passing pixel count to a kernel as `cl_int`: throw `std::runtime_error` if `size > INT_MAX`. **FORBIDDEN**: silent `std::min` truncation.
+
+### 7.2 OpenCL Return Code Coverage
+- `CL_HPP_ENABLE_EXCEPTIONS` causes **constructors** and `getInfo<>()` to throw automatically.
+- The following methods return `cl_int` and do **NOT** throw — wrap every call in `CL_CHECK`:
+  - `cl::Kernel::setArg()`
+  - `cl::CommandQueue::finish()`
+  - `cl::CommandQueue::enqueueNDRangeKernel()`
+  - `cl::CommandQueue::enqueueReadBuffer()` / `enqueueWriteBuffer()`
+
+### 7.3 CMake Strictness
+- Every `CMakeLists.txt` must set `set(CMAKE_CXX_EXTENSIONS OFF)` alongside `CMAKE_CXX_STANDARD 17` to enforce `-std=c++17` (not `-std=gnu++17`).
+
+### 7.4 Kernel Correctness
+- Use `size_t gid = get_global_id(0)` — not `int`. `get_global_id()` returns `size_t`.
+- Guard: `if (gid < (size_t)size)` to avoid signed/unsigned comparison warnings.
+
+### 7.5 WHY Comments
+- Non-obvious flag combinations (e.g. `CL_MEM_ALLOC_HOST_PTR | CL_MEM_COPY_HOST_PTR`) must have a comment explaining why both flags are combined, not just what they do.

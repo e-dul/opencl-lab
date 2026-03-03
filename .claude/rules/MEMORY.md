@@ -18,14 +18,27 @@
 - Buffers: Always RAII (`cl::Buffer`).
 - Comments: Explain "WHY", not "WHAT".
 
+## Workflow Pipeline
+```
+/implement  →  /review  →  /implement  →  /validate  →  /implement  →  /sync
+               (fix loop)                  (fix loop)
+```
+- `/review` (@reviewer): static analysis — code quality, spec compliance, safety. Output: issues or `APPROVED`.
+- `/validate` (@coder): runtime — build, run binary, check DoD, fill `## Execution Report` + check DoD boxes.
+- `/sync` (@architect): runs only after both pass — updates design doc, archives task.
+- Fix loops always go back to `/implement` (@coder owns all source changes).
+
 ## Known Issues
 [TODO: Add issues here]
 
-## Agent Role Discipline
+## Discipline
 - When asked to **plan a task**, act as **@architect only**: read design doc → identify next step → write task file in `workflow/tasks/`. Do NOT design implementation details (code structure, CMake, buffer strategies) — that is @coder work.
 - The task file is the handoff artifact. @coder reads it to implement.
-- **Always wait for user to review the task file before starting implementation.** Do not proceed to coding unless explicitly told to.
-- **Always wait for user to review the completed task before updating status in design document and archiving it.** Do not proceed to unless explicitly told to.
+- Never use sed or custom python scripts for file modifications
+- ALWAYS show a clear diff before applying any change
+- Use str_replace with explicit before/after blocks
+- Wait for approval before writing to disk
+
 
 ## Session Notes
 [TODO: Add notes after each session]

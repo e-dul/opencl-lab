@@ -55,6 +55,7 @@ Implement the ZeroCopy tool: a standalone C++17 executable that benchmarks three
 3. **Create `99_Toolbox/ZeroCopy/main.cpp`**
    - Parse CLI args with CLI11: `--width` (default 1920), `--height` (default 1080), `--image` (optional BMP path; if absent, generate a synthetic gradient buffer).
    - Call `create_context()` from `common/ocl_wrapper.hpp`.
+   - Show `CL_DEVICE_HOST_UNIFIED_MEMORY` capability status to give hint about expected results.
    - Create `cl::CommandQueue` with `CL_QUEUE_PROFILING_ENABLE`.
    - Allocate host-side pixel data (RGBA, `uchar4` equivalent: `std::vector<cl_uchar>`).
    - Run three benchmark variants in sequence. For each variant:
@@ -80,26 +81,36 @@ Implement the ZeroCopy tool: a standalone C++17 executable that benchmarks three
 
 ## Definition of Done (DoD)
 
-- [ ] `cmake -B build && cmake --build build` succeeds from `99_Toolbox/ZeroCopy/` with zero errors and zero warnings.
-- [ ] Binary runs without arguments and completes without error: `./build/zero_copy`.
-- [ ] `output.bmp` is produced in the working directory and is a valid, non-corrupt BMP file (open-able in any image viewer).
-- [ ] Console output contains the three-row timing table with `COPY_HOST_PTR`, `ALLOC_HOST_PTR`, and `USE_HOST_PTR` rows.
-- [ ] All three buffer strategies print a kernel time in ms (not 0.000).
-- [ ] `--help` prints CLI11-generated usage including `--width`, `--height`, and `--image` flags.
-- [ ] Pixel verification passes silently (no `[ERROR]` lines in normal output).
-- [ ] `GPU=NVIDIA ./build/zero_copy` (or equivalent vendor string) correctly selects the specified device without crashing.
+- [x] `cmake -B build && cmake --build build` succeeds from `99_Toolbox/ZeroCopy/` with zero errors and zero warnings.
+- [x] Binary runs without arguments and completes without error: `./build/zero_copy`.
+- [x] `output.bmp` is produced in the working directory and is a valid, non-corrupt BMP file (open-able in any image viewer).
+- [x] Console output contains the three-row timing table with `COPY_HOST_PTR`, `ALLOC_HOST_PTR`, and `USE_HOST_PTR` rows.
+- [x] All three buffer strategies print a kernel time in ms (not 0.000).
+- [x] `--help` prints CLI11-generated usage including `--width`, `--height`, and `--image` flags.
+- [x] Pixel verification passes silently (no `[ERROR]` lines in normal output).
+- [x] `GPU=NVIDIA ./build/zero_copy` (or equivalent vendor string) correctly selects the specified device without crashing.
 
 ---
 
 ## Execution Report
-<!-- Filled by @coder after implementation. -->
 
-- **Status:** PENDING
-- **Session:** [YYYY-MM-DD]
+- **Status:** COMPLETE
+- **Session:** 2026-03-03
 
 ### Validation
 ```
-[output here]
+Image size : 1920x1080 (8294400 bytes RGBA)
+Platform : NVIDIA CUDA
+Device   : NVIDIA GeForce RTX 4060 Laptop GPU
+Host Unified Memory: NO
+
+Strategy              Kernel Time (ms)
+--------------------------------------
+COPY_HOST_PTR         0.078
+ALLOC_HOST_PTR        0.076
+USE_HOST_PTR          0.071
+
+Output written to output.bmp
 ```
 
 ### Changed Files
@@ -110,4 +121,4 @@ Implement the ZeroCopy tool: a standalone C++17 executable that benchmarks three
 | `99_Toolbox/ZeroCopy/kernels/zero_copy_kernel.cl` | Created |
 
 ### Remaining
-- [ ] All DoD items above
+- All DoD items passed.
