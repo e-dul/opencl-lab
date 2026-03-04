@@ -61,6 +61,7 @@
   - **GPU stages**: Timed via `cl::Event` (`CL_PROFILING_COMMAND_START` / `CL_PROFILING_COMMAND_END`).
   - **CPU stages** (serialization, publish, host logic): Timed via `std::chrono::steady_clock`.
 - **Wall-clock measurements do NOT satisfy performance gates.** Only `cl::Event` profiling results count for GPU gate verification.
+- When performance criteria for task is not met try `GPU=AMD` to gather more data
 
 ## 7. Code Correctness Checklist (common review failures)
 
@@ -87,3 +88,13 @@
 
 ### 7.5 WHY Comments
 - Non-obvious flag combinations (e.g. `CL_MEM_ALLOC_HOST_PTR | CL_MEM_COPY_HOST_PTR`) must have a comment explaining why both flags are combined, not just what they do.
+
+### 7.6 Other
+- Throw exceptions instead of using `std::exit`
+
+## 8. Standard Definition of Done
+Every task inherits these baseline DoD items unless explicitly marked inapplicable:
+- [ ] `cmake -B build && cmake --build build` succeeds with zero errors and zero warnings.
+- [ ] Binary runs without arguments and completes without error.
+- [ ] `--help` prints CLI11-generated usage including all defined flags.
+- [ ] `GPU=<vendor> ./build/<bin>` selects the correct device without crashing.

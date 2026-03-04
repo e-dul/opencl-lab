@@ -26,3 +26,8 @@
 ## Other
 - When asked to plan a task, write the plan and store in `workflow/tasks/`. Never implement unless explicitly told to proceed.
 - Consider task completed only after explicitly told.
+
+## Discipline
+- NEVER use sed or custom python scripts for file modifications
+- ALWAYS show a clear diff before applying any change
+- Use str_replace with explicit before/after blocks

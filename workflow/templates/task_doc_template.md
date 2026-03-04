@@ -13,10 +13,10 @@
 [1 sentence: What is the specific, atomic goal of this task?]
 
 ## Constraints & Rules
-- **No Design Changes:** Do not modify `workflow/design/*.md`. If architecture is wrong, stop and ask.
-- **Language/Standard:** C++17 (or strictly per project settings).
-- **Dependencies:** [List allowed libraries]
-- **Error Handling:** Throw `std::runtime_error` on CL errors; use `CL_CHECK()` macro.
+<!-- All standard constraints inherited from .claude/rules/00_master_specs.md (C++17, cl.hpp,
+     CLI11, create_context(), cl::Event profiling, CL_CHECK, standalone CMake, kernel copy rule).
+     List ONLY task-specific overrides or additions below. -->
+- [Task-specific override or addition — delete if none]
 
 ---
 
@@ -41,11 +41,9 @@
 -->
 
 ## Definition of Done (DoD)
-<!-- Write task-specific entries. Do NOT use generic Build/Test/Output/Verification labels. -->
-<!-- Each checkbox should be a concrete, verifiable outcome for THIS task. -->
-- [ ] [Specific observable outcome, e.g., "cmake --build succeeds without warnings"]
-- [ ] [Specific runtime outcome, e.g., "output.bmp produced and visually correct"]
-- [ ] [Specific verification step, e.g., "--help prints CLI11-generated usage"]
+<!-- Standard items defined in .claude/rules/00_master_specs.md §8 apply to all tasks. -->
+<!-- Add ONLY task-specific outcomes below. -->
+- [ ] [Task-specific outcome]
 
 ---
 
