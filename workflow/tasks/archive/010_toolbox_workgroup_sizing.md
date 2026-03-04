@@ -69,29 +69,86 @@ Implement the WorkGroupSizing tool: an automated sweep of `local_work_size` valu
 
 ## Definition of Done (DoD)
 
-- [ ] `cmake -B build && cmake --build build` succeeds without warnings from `99_Toolbox/WorkGroupSizing/`.
-- [ ] `./build/occupancy_demo` runs without flags (uses 1920×1080 defaults) and prints a timing table with one row per tested `local_work_size`.
-- [ ] `./build/occupancy_demo --help` prints CLI11-generated usage listing `--width`, `--height`, `--kernel`.
-- [ ] The timing table shows at least a 2× gap between the slowest and fastest `local_work_size` on any OpenCL-capable device (gate from design doc).
-- [ ] All timing values are from `cl::Event` profiling (not `std::chrono`); the table reports ms to 3 decimal places.
-- [ ] No `local_work_size` exceeding `CL_DEVICE_MAX_WORK_GROUP_SIZE` is tested; no `CL_INVALID_WORK_GROUP_SIZE` error occurs.
-- [ ] `GPU` env var is respected: `GPU=NVIDIA ./build/occupancy_demo` selects the Nvidia device if present.
-- [ ] The binary is a standalone executable — no dependency on other Toolbox tool directories.
+- [x] `cmake -B build && cmake --build build` succeeds without warnings from `99_Toolbox/WorkGroupSizing/`.
+- [x] `./build/occupancy_demo` runs without flags (uses 1920×1080 defaults) and prints a timing table with one row per tested `local_work_size`.
+- [x] `./build/occupancy_demo --help` prints CLI11-generated usage listing `--width`, `--height`, `--kernel`.
+- [x] The timing table shows at least a 2× gap between the slowest and fastest `local_work_size` on any OpenCL-capable device (gate from design doc).
+- [x] All timing values are from `cl::Event` profiling (not `std::chrono`); the table reports ms to 3 decimal places.
+- [x] No `local_work_size` exceeding `CL_DEVICE_MAX_WORK_GROUP_SIZE` is tested; no `CL_INVALID_WORK_GROUP_SIZE` error occurs.
+- [x] `GPU` env var is respected: `GPU=NVIDIA ./build/occupancy_demo` selects the Nvidia device if present.
+- [x] The binary is a standalone executable — no dependency on other Toolbox tool directories.
 
 ---
 
 ## Execution Report
-<!-- Filled by @coder after implementation. -->
 
-- **Status:** PENDING
-  <!-- PENDING → IN PROGRESS → COMPLETED -->
-- **Session:** [YYYY-MM-DD]
+- **Status:** COMPLETED
+- **Session:** 2026-03-04
 
 ### Validation
-<!-- Paste terminal output, test results, or observable evidence. -->
+
 ```
-[output here]
+# Build (zero errors, zero warnings)
+$ cmake -B build && cmake --build build
+-- Configuring done (0.9s)
+-- Generating done (0.0s)
+-- Build files have been written to: .../WorkGroupSizing/build
+[  0%] Built target CLI11
+[100%] Built target occupancy_demo
+
+# Default run (NVIDIA — default GPU)
+$ ./build/occupancy_demo
+Platform : NVIDIA CUDA
+Device   : NVIDIA GeForce RTX 4060 Laptop GPU
+Device max WGS   : 1024
+Buffer elements  : 2073600 (float, 7 MB)
+
+local_work_size=  8:     0.338 ms  occupancy: 0.8%
+local_work_size= 16:     0.169 ms  occupancy: 1.6%
+local_work_size= 32:     0.085 ms  occupancy: 3.1%
+local_work_size= 64:     0.042 ms  occupancy: 6.2%
+local_work_size=128:     0.020 ms  occupancy: 12.5%
+local_work_size=256:     0.020 ms  occupancy: 25.0%
+
+Sweet spot: local_work_size=256 at 0.020 ms
+
+# Help check
+$ ./build/occupancy_demo --help
+occupancy_demo — WorkGroupSizing sweep benchmark
+Usage: ./build/occupancy_demo [OPTIONS]
+
+Options:
+  -h,--help                   Print this help message and exit
+  --width INT                 Buffer width  (default 1920)
+  --height INT                Buffer height (default 1080)
+  --kernel TEXT               Kernel name (default: mad)
+
+# GPU env var — AMD (rusticl/Mesa)
+$ GPU=AMD ./build/occupancy_demo
+Platform : rusticl  [GPU=AMD]
+Device   : AMD Radeon 680M (radeonsi, rembrandt, LLVM 20.1.2, DRM 3.61, 6.14.0-37-generic)
+Device max WGS   : 1024
+Buffer elements  : 2073600 (float, 7 MB)
+
+local_work_size=  8:     1.612 ms  occupancy: 0.8%
+local_work_size= 16:     0.416 ms  occupancy: 1.6%
+local_work_size= 32:     0.257 ms  occupancy: 3.1%
+local_work_size= 64:     0.264 ms  occupancy: 6.2%
+local_work_size=128:     0.264 ms  occupancy: 12.5%
+local_work_size=256:     0.261 ms  occupancy: 25.0%
+
+Sweet spot: local_work_size=32 at 0.257 ms
 ```
+
+**2x gap analysis:**
+- NVIDIA: lws=8 (0.338 ms) vs lws=256 (0.020 ms) → 16.9x gap. PASS.
+- AMD:    lws=8 (1.612 ms) vs lws=32  (0.257 ms) →  6.3x gap. PASS.
+
+**Profiling source:** `duration_ms()` in `common/opencl_utils.hpp` reads
+`CL_PROFILING_COMMAND_END - CL_PROFILING_COMMAND_START` from `cl::Event`. No `std::chrono` involved.
+
+**WGS cap:** `CL_DEVICE_MAX_WORK_GROUP_SIZE` queried at runtime (1024 on both devices);
+all candidate sizes (8–256) are within limit — no skips logged.
 
 ### Changed Files
 | File | Change |
@@ -101,4 +158,4 @@ Implement the WorkGroupSizing tool: an automated sweep of `local_work_size` valu
 | `99_Toolbox/WorkGroupSizing/kernels/mad_kernel.cl` | Created |
 
 ### Remaining
-- [ ] [Remaining item]
+- None.
