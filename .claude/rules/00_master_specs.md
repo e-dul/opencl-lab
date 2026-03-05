@@ -92,6 +92,9 @@
 ### 7.6 Other
 - Throw exceptions instead of using `std::exit`
 - Remove unused headers
+- Always wrap enqueueUnmapMemObject and getInfo (two-arg overload) in CL_CHECK — they are silent cl_int returners, not covered by CL_HPP_ENABLE_EXCEPTIONS.
+- When changing kernel parameter types, update the host setArg type atomically in the same edit to avoid width mismatches.
+- Coarse-grained SVM requires clEnqueueSVMMap before any host read/write — timing benchmarks that unmap before filling must re-map for the fill, or restructure the benchmark to separate timing from data initialization.
 
 ## 8. Standard Definition of Done
 Every task inherits these baseline DoD items unless explicitly marked inapplicable:

@@ -146,36 +146,83 @@ Implement the `SVM` tool: a standalone C++17 binary (`svm_demo`) that benchmarks
 
 ## Definition of Done (DoD)
 
-- [ ] `cmake -B build && cmake --build build` from `99_Toolbox/SVM/` succeeds with zero errors and zero warnings on GCC/Clang with `-Wall`.
-- [ ] `./build/svm_demo --help` prints CLI11-generated usage listing `--size` and `--mode`.
-- [ ] On an OpenCL 1.2-only device (or simulated via `GPU=<cpu>` env var), the binary prints the SVM-not-supported informational message and exits with code 0 — no crash or unhandled exception.
-- [ ] On an OpenCL 2.0+ device with coarse-grained SVM, the output table shows `Buffer + Map/Unmap` and `Coarse-grained SVM` rows with non-zero kernel times from `cl::Event` profiling.
-- [ ] If fine-grained SVM is unavailable, `[SKIP] Fine-grained SVM not supported` is printed without crashing.
-- [ ] Correctness check prints `[PASS]` for all active variants (no `[FAIL]` output on correct hardware).
-- [ ] All SVM code paths are inside `#ifdef CL_VERSION_2_0 ... #endif` guards — the binary compiles cleanly with `CL_HPP_TARGET_OPENCL_VERSION=120` by commenting out the `#define` to 200 (design doc constraint verification).
-- [ ] No `output.bmp` is produced (numeric tool — console table is the artifact).
-- [ ] `kernels/svm_kernel.cl` is present in `$<TARGET_FILE_DIR:svm_demo>/kernels/` after build (post-build copy verified by `ls build/kernels/`).
-- [ ] Device selection respects `GPU` env var — `GPU=INTEL ./build/svm_demo` selects Intel device without error (or prints "no matching device" if absent).
+- [x] `cmake -B build && cmake --build build` from `99_Toolbox/SVM/` succeeds with zero errors and zero warnings on GCC/Clang with `-Wall`.
+- [x] `./build/svm_demo --help` prints CLI11-generated usage listing `--size` and `--mode`.
+- [x] On an OpenCL 1.2-only device (or simulated via `GPU=<cpu>` env var), the binary prints the SVM-not-supported informational message and exits with code 0 — no crash or unhandled exception.
+- [~] On an OpenCL 2.0+ device with coarse-grained SVM, the output table shows `Buffer + Map/Unmap` and `Coarse-grained SVM` rows with non-zero kernel times from `cl::Event` profiling. (Deferred: no OpenCL 2.0 device available on this machine — NVIDIA RTX 4060 Laptop and AMD Radeon 680M both report OpenCL C 1.2.)
+- [~] If fine-grained SVM is unavailable, `[SKIP] Fine-grained SVM not supported` is printed without crashing. (Deferred: requires OpenCL 2.0 device.)
+- [~] Correctness check prints `[PASS]` for all active variants (no `[FAIL]` output on correct hardware). (Deferred: requires OpenCL 2.0 device.)
+- [x] All SVM code paths are inside `#ifdef CL_VERSION_2_0 ... #endif` guards — the binary compiles cleanly with `CL_HPP_TARGET_OPENCL_VERSION=120` by commenting out the `#define` to 200 (design doc constraint verification).
+- [x] No `output.bmp` is produced (numeric tool — console table is the artifact).
+- [x] `kernels/svm_kernel.cl` is present in `$<TARGET_FILE_DIR:svm_demo>/kernels/` after build (post-build copy verified by `ls build/kernels/`).
+- [x] Device selection respects `GPU` env var — `GPU=INTEL ./build/svm_demo` prints informational "no matching device" message and exits with code 0 (no crash). PASS.
 
 ---
 
 ## Execution Report
-<!-- Filled by @coder after implementation. -->
 
-- **Status:** PENDING
-- **Session:** —
+- **Status:** PASS (hardware-gated items deferred)
+- **Session:** 2026-03-05 (re-validated after bug fix)
 
 ### Validation
 ```
-[output here]
+# Step 1: Build
+$ cmake -B build && cmake --build build
+-- Configuring done (0.3s)
+-- Generating done (0.0s)
+-- Build files have been written to: .../99_Toolbox/SVM/build
+[  0%] Built target CLI11
+[100%] Built target svm_demo
+# Zero errors, zero warnings. PASS.
+
+# Step 2: --help
+$ ./build/svm_demo --help
+SVM — OpenCL host-device sharing strategy benchmark
+Usage: ./build/svm_demo [OPTIONS]
+
+Options:
+  -h,--help                   Print this help message and exit
+  --size INT:POSITIVE         Number of float elements (default 1048576)
+  --mode TEXT:{all,buffer_map,coarse_svm,fine_svm}
+                              Benchmark mode: all | buffer_map | coarse_svm | fine_svm (default all)
+# --size and --mode present. PASS.
+
+# Step 3: Default run (NVIDIA GeForce RTX 4060 Laptop GPU — OpenCL C 1.2)
+$ ./build/svm_demo
+Device: NVIDIA GeForce RTX 4060 Laptop GPU (OpenCL C 1.2 )
+Buffer size: 4194304 bytes (1048576 floats)
+
+[INFO] Device reports OpenCL C 1.x. SVM is an OpenCL 2.0 feature.
+[INFO] Use the ZeroCopy tool (99_Toolbox/ZeroCopy/) for host-device transfer optimization on OpenCL 1.x.
+# Exit 0. PASS.
+
+# Step 4: GPU=INTEL (no Intel device on this machine — graceful exit after bug fix)
+$ GPU=INTEL ./build/svm_demo; echo "Exit: $?"
+[INFO] No device matching GPU=INTEL found. Available platforms:
+  - NVIDIA Corporation / device: NVIDIA Corporation
+  - Mesa/X.org / device: AMD
+[INFO] Exiting gracefully.
+Exit: 0
+# Prints informational message, exits 0. PASS.
+
+# Step 5: ls build/kernels/
+$ ls build/kernels/
+svm_kernel.cl
+# PASS.
+
+# Step 6: No output.bmp — confirmed by ls build/
+# build/ contains: CMakeCache.txt  CMakeFiles  cmake_install.cmake  _deps  kernels  Makefile  svm_demo
+# PASS.
+
+# NOTE: DoD items 4, 5, 6 (OpenCL 2.0+ device table / fine-SVM skip / [PASS]
+# correctness) cannot be verified — no OpenCL 2.0 device available on this machine.
+# NVIDIA RTX 4060 Laptop and AMD Radeon 680M both report OpenCL C 1.2.
+# Marked [~] (deferred/hardware-dependent).
 ```
 
 ### Changed Files
 | File | Change |
 |------|--------|
 | `99_Toolbox/SVM/CMakeLists.txt` | Created |
-| `99_Toolbox/SVM/main.cpp` | Created |
+| `99_Toolbox/SVM/main.cpp` | Created (bug fix: select_device() now exits 0 on missing GPU vendor) |
 | `99_Toolbox/SVM/kernels/svm_kernel.cl` | Created |
-
-### Remaining
-- [ ] Implementation by @coder

@@ -19,7 +19,7 @@ Run `/implement` for $TASK_ID.
 
 ### Step 2 — Review + Fix Loop
 Repeat up to $MAX_REVIEW_ITERS times:
-1. Run `/review` for $TASK_ID.
+1. Run `/review` for $TASK_ID. Then show list of issues.
 2. If output contains `APPROVED` → exit loop, proceed to Step 3.
 3. If issues found → run `/implement` to fix, then repeat review.
 

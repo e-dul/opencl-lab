@@ -62,6 +62,8 @@ Implement dynamic load balancing: give GPU 0 60% of the rows and GPU 1 40%. Meas
 - **Only one GPU detected**: Check `clinfo -l` for all available platforms. Mixed-vendor setups (Nvidia + Intel iGPU) may require the Khronos ICD loader to enumerate both.
 - **Speedup below 1.65x**: PCIe bandwidth is likely the bottleneck, not compute. Profile with Nsight/VTune to confirm whether transfer or kernel time dominates at 4K.
 - **Shared context across different vendors fails**: A `cl::Context` spanning devices from different platforms is not possible in OpenCL 1.2. Create separate contexts per vendor and synchronize on the host side.
+- **Total N-GPU time shows an absurd value (e.g. 1.7e12 ms)**: Cross-platform profiling timestamps (e.g. NVIDIA + AMD) use independent device clocks with no shared epoch. `max(read_end) - min(write_start)` across platforms is meaningless. Use `GPU=<vendor>` to restrict to a single platform, or interpret only the per-device kernel times.
+- **N-GPU leg is slower than single-GPU baseline**: Devices are heterogeneous(e.g. discrete NVIDIA vs integrated AMD). Equal row partitioning makes total time = slowest device. The Mini-Challenge's proportional split is the fix.
 
 ---
 
