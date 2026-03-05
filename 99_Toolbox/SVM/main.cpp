@@ -193,21 +193,31 @@ static OclSetup select_device() {
 
 // ---------------------------------------------------------------------------
 // parse_opencl_c_major — extract the major version number from the string
-// returned by CL_DEVICE_OPENCL_C_VERSION, e.g. "OpenCL C 3.0 Mesa..." -> 3.
-// Returns 1 on any parse failure (safe fallback for unknown format).
+// returned by CL_DEVICE_VERSION, e.g. "OpenCL C 3.0 Mesa..." -> 3.
+// Returns 0 on any parse failure (safe fallback for unknown format).
 // ---------------------------------------------------------------------------
 static int parse_opencl_c_major(const std::string& ver_str) {
     // Format: "OpenCL C <major>.<minor> ..."
-    const std::string prefix = "OpenCL C ";
-    auto pos = ver_str.find(prefix);
-    if (pos == std::string::npos) return 1;
-    pos += prefix.size();
-    try {
-        return std::stoi(ver_str.substr(pos));
-    } catch (const std::exception&) {
-        // Unexpected version string format — assume OpenCL C 1.x (conservative).
-        return 1;
+    std::istringstream iss(ver_str);
+    std::string token;
+
+    // Read the string word by word, splitting by spaces
+    while (iss >> token) {
+        try {
+            // Attempt to convert the token to a double
+            // std::stod naturally stops parsing when it hits non-numeric characters,
+            // meaning "3.0" parses cleanly even if the token had trailing characters.
+            return std::stod(token);
+        } catch (const std::invalid_argument&) {
+            // Token is not a number (e.g., "OpenCL", "C", "NEO"), skip to the next
+            continue;
+        } catch (const std::out_of_range&) {
+            // Token represents a number too large for a double, skip
+            continue;
+        }
     }
+    
+    return 0;
 }
 
 // ---------------------------------------------------------------------------
@@ -278,7 +288,7 @@ int main(int argc, char** argv) {
     OclSetup ocl = select_device();
 
     const std::string dev_name  = ocl.device.getInfo<CL_DEVICE_NAME>();
-    const std::string ocl_c_ver = ocl.device.getInfo<CL_DEVICE_OPENCL_C_VERSION>();
+    const std::string ocl_c_ver = ocl.device.getInfo<CL_DEVICE_VERSION>();
 
     std::cout << "Device: " << dev_name << " (" << ocl_c_ver << ")\n";
     std::cout << "Buffer size: " << (elem_count * sizeof(float))

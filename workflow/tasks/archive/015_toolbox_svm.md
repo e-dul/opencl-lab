@@ -37,7 +37,7 @@ Implement the `SVM` tool: a standalone C++17 binary (`svm_demo`) that benchmarks
   - Use `FetchContent` directly for CLI11 v2.4.2.
   - Link manually: `target_link_libraries(svm_demo PRIVATE OpenCL::OpenCL CLI11::CLI11)`.
   - Add `target_include_directories` for the `vendor/` directory (for `cl.hpp` / `opencl.hpp` if needed by the system).
-- **OpenCL 2.0 Guard:** All SVM code paths must be inside `#ifdef CL_VERSION_2_0 ... #endif`. At runtime, query `CL_DEVICE_OPENCL_C_VERSION` and `CL_DEVICE_EXTENSIONS`. If SVM is not supported, print a descriptive message and `exit(0)`. Crash or silent hang is FORBIDDEN.
+- **OpenCL 2.0 Guard:** All SVM code paths must be inside `#ifdef CL_VERSION_2_0 ... #endif`. At runtime, query `CL_DEVICE_VERSION` and `CL_DEVICE_EXTENSIONS`. If SVM is not supported, print a descriptive message and `exit(0)`. Crash or silent hang is FORBIDDEN.
 - **Fine-Grained SVM Guard:** Check `CL_DEVICE_SVM_CAPABILITIES` for `CL_DEVICE_SVM_FINE_GRAIN_BUFFER`. If unavailable, skip the fine-grained variant gracefully and note it in the output table.
 - **CLI Parsing:** CLI11 v2.4.2 via FetchContent. Required flags: `--size` (element count, default 1048576 = 4 M floats), `--mode` (optional; `all`, `buffer_map`, `coarse_svm`, `fine_svm`; default `all`).
 - **Profiling:** GPU kernel timing via `cl::Event` with `CL_QUEUE_PROFILING_ENABLE`. Host map/unmap overhead measured via `std::chrono::steady_clock` (no GPU event available for host-side map). Both must appear in the output table.
@@ -79,7 +79,7 @@ Implement the `SVM` tool: a standalone C++17 binary (`svm_demo`) that benchmarks
    - Parse CLI args with CLI11: `--size` (default 1048576), `--mode` (default `all`).
    - Enumerate OpenCL platforms and devices. Select device respecting `GPU` env var (substring match on `CL_PLATFORM_VENDOR` / `CL_DEVICE_VENDOR`, case-insensitive; fallback to first GPU, then first CPU if no GPU found).
    - Print selected device name and OpenCL C version.
-   - Query `CL_DEVICE_OPENCL_C_VERSION`. If version < 2.0:
+   - Query `CL_DEVICE_VERSION`. If version < 2.0:
      ```
      [INFO] Device reports OpenCL C 1.x. SVM is an OpenCL 2.0 feature.
      [INFO] Use the ZeroCopy tool (99_Toolbox/ZeroCopy/) for host-device transfer optimization on OpenCL 1.x.
