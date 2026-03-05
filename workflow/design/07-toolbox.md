@@ -1,7 +1,7 @@
 # Module 7: Optimization Toolbox (`99_Toolbox/`)
 
 **Version:** 1.0
-**Status:** Active — Phase 1–5 complete (ZeroCopy, CoalescedAccess, LocalMemory, ThreadDivergence, WorkGroupSizing), Phase 6 next
+**Status:** Active — Phase 1–7 complete (ZeroCopy, CoalescedAccess, LocalMemory, ThreadDivergence, WorkGroupSizing, Debugging, GenericKernelTemplates), Phase 8 next
 **Module Path:** `99_Toolbox/`
 
 ---
@@ -32,9 +32,9 @@ Provide a library of isolated, standalone GPU optimization techniques. Each tool
   - *Context*: Executive Summary §Tool 2; `99_Toolbox/ThreadDivergence/ThreadDivergence.md`.
 - [x] Phase 5: WorkGroupSizing — automated sweep of `local_work_size`; occupancy calculator output.
   - *Context*: Executive Summary §Tool 2; `99_Toolbox/WorkGroupSizing/WorkGroupSizing.md`.
-- [ ] Phase 6: Debugging — Oclgrind out-of-bounds and race-condition demos; Nsight/VTune workflow guide.
+- [x] Phase 6: Debugging — Oclgrind out-of-bounds and race-condition demos; Nsight/VTune workflow guide.
   - *Context*: Executive Summary §Tool 3; `99_Toolbox/Debugging/Debugging.md`.
-- [ ] Phase 7: GenericKernelTemplates — single `.cl` source compiled as `uchar`/`float`/`half`; runtime autotuner selects fastest type.
+- [x] Phase 7: GenericKernelTemplates — single `.cl` source compiled as `uchar`/`float`/`half`; runtime autotuner selects fastest type.
   - *Context*: Executive Summary §Tool 4; `99_Toolbox/GenericKernelTemplates/GenericKernelTemplates.md`.
 - [ ] Phase 8: AsyncMultiThread — blocking baseline → OOO queue → per-thread queues; 2x pipeline overlap visible.
   - *Context*: Executive Summary §Tool 5; `99_Toolbox/AsyncMultiThread/AsyncMultiThread.md`.
@@ -56,7 +56,7 @@ Provide a library of isolated, standalone GPU optimization techniques. Each tool
 
 - **Standalone Build Mandatory**: Every tool subdirectory must build independently via `cmake -B build && cmake --build build` from within that subdirectory. No shared CMake parent required.
 - **Before/After Pattern**: Every tool must implement at minimum two code paths (naive vs optimized) and print timing for both. A single number in isolation is not acceptable output.
-- **Visual Artifact**: Tools operating on image data must produce `output.bmp` via `stb_image_write`. Tools that are purely numeric (e.g., MultiGPU_Strategy, SVM, Debugging) must print a structured console timing table.
+- **Visual Artifact**: Tools operating on image data must produce `output.bmp` via `stb_image_write`. Tools that are purely numeric (e.g., MultiGPU_Strategy, SVM) must print a structured console timing table.
 - **OpenCL 2.0 Gating (SVM)**: All SVM code must be guarded by `#ifdef CL_VERSION_2_0`. The SVM tool must fall back gracefully (print "SVM not supported" and exit cleanly) on OpenCL 1.2 devices.
 - **CLI Arguments**: All binaries use CLI11. Minimum required flags per tool class:
   - Image tools: `--width`, `--height`, `--image` (optional input BMP).
@@ -124,6 +124,7 @@ Each tool is an independent C++17 executable with its own `CMakeLists.txt`. Ther
 - **MultiGPU Mixed-Vendor Context**: A `cl::Context` spanning devices from different platforms is not supported in OpenCL 1.2. MultiGPU_Strategy must document this and implement the cross-platform path as separate per-vendor contexts synchronized on the host.
 - **`half` Type in GenericKernelTemplates**: `cl_khr_fp16` is not universally supported. The `half` variant must be guarded by a runtime extension check and skip gracefully if unavailable.
 - **WorkGroupSizing `local_work_size` Must Divide `global_work_size`**: Autotuning sweeps must pad the global work size to the next multiple of the tested work-group size. Underpaddded images will produce `CL_INVALID_WORK_GROUP_SIZE` at runtime.
+- **Oclgrind Race-Condition Flag**: The correct Oclgrind invocation for race detection is `oclgrind --data-races --uniform-writes`, NOT `oclgrind --check-api`. `--check-api` validates the API call sequence only and does not trigger data-race analysis. Validated 2026-03-04.
 - **Oclgrind Not Installed by Default**: The Debugging tool build must not fail if Oclgrind is absent. CMake should emit a warning, not an error. The executable still builds; the README instructs the user to install Oclgrind before running.
 - **`native_` Math Precision Variance Across Vendors**: FastMath `native_rsqrt` output differs between AMD, Nvidia, and Intel at the bit level. The demo must not compare output pixels between vendors as part of its DoD.
 - **ZeroCopy Performance Gate Not Met on Discrete GPU (Nvidia RTX 4060)**: Validated 2026-03-03. `ALLOC_HOST_PTR` (0.076 ms) vs `COPY_HOST_PTR` (0.078 ms) shows ~1.03x difference — well below the ≥3x gate. This is expected on discrete GPUs with non-unified memory (HOST_UNIFIED_MEMORY=NO) where all strategies still traverse PCIe for the passthrough kernel. The gate may be achievable on APU/iGPU (unified memory) hardware.

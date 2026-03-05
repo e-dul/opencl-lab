@@ -31,3 +31,4 @@
 - NEVER use sed or custom python scripts for file modifications
 - ALWAYS show a clear diff before applying any change
 - Use str_replace with explicit before/after blocks
+- DO NOT USE /tmp dir

@@ -83,15 +83,124 @@ Implement the Debugging tool: a binary with two injected-bug modes (`--test out_
 ## Execution Report
 <!-- Filled by @coder after implementation. -->
 
-- **Status:** PENDING
-  <!-- PENDING → IN PROGRESS → COMPLETED -->
-- **Session:** [YYYY-MM-DD]
+- **Status:** COMPLETED
+- **Session:** 2026-03-04
 
 ### Validation
-<!-- Paste terminal output, test results, or observable evidence. -->
+
+**DoD 1 — cmake build**
 ```
-[output here]
+$ cmake -B build && cmake --build build
+-- oclgrind found: /usr/bin/oclgrind
+-- Configuring done (1.0s)
+-- Generating done (0.0s)
+-- Build files have been written to: /home/emil/Projects/opencl-lab/99_Toolbox/Debugging/build
+[  0%] Built target CLI11
+[ 50%] Building CXX object CMakeFiles/debug_demo.dir/main.cpp.o
+[100%] Linking CXX executable debug_demo
+Copying kernels for debug_demo
+[100%] Built target debug_demo
+EXIT: 0
 ```
+- [x] PASS — zero errors, zero warnings (oclgrind found note is STATUS, not WARNING)
+
+**DoD 2 — out_of_bounds mode**
+```
+$ ./build/debug_demo --test out_of_bounds
+Platform : NVIDIA CUDA
+Device   : NVIDIA GeForce RTX 4060 Laptop GPU
+Bug injected: out-of-bounds write at buf[64] (1 element past end). Run under oclgrind to detect.
+EXIT: 0
+```
+- [x] PASS
+
+**DoD 3 — race_condition mode**
+```
+$ ./build/debug_demo --test race_condition
+Platform : NVIDIA CUDA
+Device   : NVIDIA GeForce RTX 4060 Laptop GPU
+Bug injected: race condition — all 64 work-items write to buf[0]. Run under oclgrind --check-api to detect.
+EXIT: 0
+```
+- [x] PASS
+
+**DoD 4 — --help**
+```
+$ ./build/debug_demo --help
+debug_demo — Oclgrind out-of-bounds and race-condition demo
+Usage: ./build/debug_demo [OPTIONS]
+
+Options:
+  -h,--help                   Print this help message and exit
+  --test TEXT REQUIRED        Bug to inject: out_of_bounds | race_condition
+EXIT: 0
+```
+- [x] PASS — CLI11 usage lists `--test`
+
+**DoD 5 — no args**
+```
+$ ./build/debug_demo
+--test is required
+Run with --help for more information.
+EXIT: 106
+```
+- [x] PASS — exits non-zero (106), prints CLI11 error
+
+**DoD 6 — oclgrind out_of_bounds**
+```
+$ oclgrind ./build/debug_demo --test out_of_bounds
+Platform : Oclgrind
+Device   : Oclgrind Simulator
+
+Invalid write of size 4 at global memory address 0x1000000000100
+	Kernel: debug_kernel
+	Entity: Global(0,0,0) Local(0,0,0) Group(0,0,0)
+	  store float %conv17.sink, float addrspace(1)* %arrayidx18, align 4
+	At line 0 (column 0) of input.cl:
+	  (source not available)
+
+Bug injected: out-of-bounds write at buf[64] (1 element past end). Run under oclgrind to detect.
+EXIT: 0
+```
+- [x] PASS — `Invalid write` detected for `debug_kernel`
+
+**DoD 7 — oclgrind race_condition**
+Note: `--check-api` does not trigger race detection; correct flags are `--data-races --uniform-writes`.
+```
+$ oclgrind --data-races --uniform-writes ./build/debug_demo --test race_condition
+Platform : Oclgrind
+Device   : Oclgrind Simulator
+
+Write-write data race at global memory address 0x1000000000000
+	Kernel: debug_kernel
+
+	First entity:  Global(1,0,0) Local(1,0,0) Group(0,0,0)
+	  store float 1.000000e+00, float addrspace(1)* %buf, align 4
+	At line 36 (column 16) of input.cl:
+	  buf[0] = 1.0f;        // BUG: concurrent unsynchronized write from all work-items.
+
+	Second entity: Global(0,0,0) Local(0,0,0) Group(0,0,0)
+	  store float 1.000000e+00, float addrspace(1)* %buf, align 4
+	At line 36 (column 16) of input.cl:
+	  buf[0] = 1.0f;        // BUG: concurrent unsynchronized write from all work-items.
+[... 63 more write-write data race reports ...]
+EXIT: 0
+```
+- [x] PASS — 63 write-write data race reports detected, referencing line 36 of debug_kernel.cl
+- NOTE: `--check-api` is the wrong flag; task DoD should reference `--data-races --uniform-writes`
+
+**DoD 8 — GPU env var**
+```
+$ GPU=NVIDIA ./build/debug_demo --test out_of_bounds
+Platform : NVIDIA CUDA  [GPU=NVIDIA]
+Device   : NVIDIA GeForce RTX 4060 Laptop GPU
+Bug injected: out-of-bounds write at buf[64] (1 element past end). Run under oclgrind to detect.
+EXIT: 0
+```
+- [x] PASS — selects NVIDIA device correctly
+
+**DoD 9 — standalone build**
+- [x] PASS — builds independently from `99_Toolbox/Debugging/`; no cross-toolbox dependencies
 
 ### Changed Files
 | File | Change |
@@ -101,4 +210,4 @@ Implement the Debugging tool: a binary with two injected-bug modes (`--test out_
 | `99_Toolbox/Debugging/kernels/debug_kernel.cl` | Created |
 
 ### Remaining
-- [ ] [Remaining item]
+- DoD 7 note: `--check-api` does not trigger data-race detection in this Oclgrind version. The correct invocation is `oclgrind --data-races --uniform-writes`. Task file wording should be updated by @architect if desired.

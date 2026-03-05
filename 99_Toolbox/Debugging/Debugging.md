@@ -17,7 +17,7 @@ cmake -B build && cmake --build build
 
 # Run kernel under Oclgrind (memory safety checker)
 oclgrind ./build/debug_demo --test out_of_bounds
-oclgrind --check-api ./build/debug_demo --test race_condition
+oclgrind --data-races --uniform-writes ./build/debug_demo --test race_condition
 ```
 
 ## Verify
@@ -44,9 +44,16 @@ sudo apt install oclgrind
 # Run any OpenCL binary under Oclgrind
 oclgrind ./build/your_kernel_demo
 
-# Enable all checks
-oclgrind --check-api --max-errors 10 ./build/your_kernel_demo
+# Detect write-write data races between work-items
+oclgrind --data-races --uniform-writes --max-errors 10 ./build/your_kernel_demo
 ```
+
+> `--data-races` detects work-item write conflicts: two work-items writing to the same
+> address without synchronization. `--uniform-writes` suppresses false positives when all
+> work-items write the same value to the same address intentionally.
+> Use `--check-api` separately to validate the OpenCL API call sequence (invalid enqueue
+> arguments, wrong buffer sizes on host calls) — it operates at the host API level and does
+> not detect memory-level data races inside kernels.
 
 Oclgrind runs on CPU — expect 10–50x slowdown. Use it for correctness, not performance.
 
