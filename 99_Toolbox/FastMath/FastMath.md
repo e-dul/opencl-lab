@@ -9,8 +9,8 @@ See [main README](../../README.md) for base requirements (OpenCL 1.2+, CMake 3.1
 ```bash
 cd 99_Toolbox/FastMath
 cmake -B build && cmake --build build
-./build/fast_math_demo --width 1920 --height 1080 --rays 1000000
-# GPU=NVIDIA ./build/fast_math_demo --rays 10000000
+./build/fast_math --rays 1000000
+# GPU=NVIDIA ./build/fast_math --rays 10000000
 ```
 
 ## Verify

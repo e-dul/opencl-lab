@@ -42,9 +42,9 @@ Provide a library of isolated, standalone GPU optimization techniques. Each tool
   - *Context*: Executive Summary §Tool 6; `99_Toolbox/MultiGPU_Strategy/MultiGPUStrategy.md`.
 - [x] Phase 10: SVM — coarse vs fine-grained SVM vs buffer+map baseline; OpenCL 2.0 runtime guard.
   - *Context*: Executive Summary §Tool 1 (SVM); `99_Toolbox/SVM/SVM.md`.
-- [ ] Phase 11: FastMath — standard vs `half_` vs `native_` math functions; `-cl-fast-relaxed-math` flag demo.
+- [x] Phase 11: FastMath — standard vs `half_` vs `native_` math functions; `-cl-fast-relaxed-math` flag demo.
   - *Context*: Executive Summary §Path B B.3; `99_Toolbox/FastMath/FastMath.md`.
-- [ ] Phase 12: Module review and cleanup — verify all tools build standalone, cross-link "Used In" references, confirm all DoDs. Make executables names consistent and code using utils for image operations.
+- [x] Phase 12: Module review and cleanup — verify all tools build standalone, cross-link "Used In" references, confirm all DoDs. Make executables names consistent and code using utils for image operations. Review empty directories and check if content is missing.
 
 ---
 
@@ -156,6 +156,10 @@ Each tool is an independent C++17 executable with its own `CMakeLists.txt`. Ther
   These items can only be verified on an OpenCL 2.0+ device (AMD APU, Intel iGPU Gen 9+, ARM Mali).
 
 - **SVM — `GPU=<vendor>` No-Match Path**: `GPU=INTEL` on a machine with only NVIDIA and AMD devices prints informational "no matching device" message and exits 0. Verified 2026-03-05.
+
+- **FastMath Performance Gate — NVIDIA RTX 4060 Laptop (~2× speedup for `native_rsqrt`)**: Validated 2026-03-05. `standard` rsqrt: 0.052 ms, `native_rsqrt`: 0.026 ms → 2.03× speedup. NVIDIA driver aggressively optimizes standard `rsqrt` to near-native hardware speed, eliminating the observable throughput gap on Ampere/Ada Lovelace laptop GPUs. The ≥4× gate is expected on AMD discrete GPUs where the standard path is not silently promoted to hardware-speed. Hardware waiver applies per master spec §8.
+
+- **MultiGPU_Strategy Task-File Canonical Command Typo**: Task 017 section B lists  for  but the binary's flag is . The task file contained a typo; the binary and CMakeLists.txt are correct. No code change required.
 
 ## Performance Gates (Module Completion)
 

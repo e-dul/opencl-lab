@@ -7,8 +7,15 @@
 // kernels to confirm correctness before the output.bmp write.  Using separate
 // buffers avoids any ordering ambiguity between the two dispatches.
 
+// stb implementations must be defined exactly once per binary before image_utils.hpp.
+// WHY both STB_IMAGE_IMPLEMENTATION and STB_IMAGE_WRITE_IMPLEMENTATION: image_utils.hpp
+// declares load_rgb_image() which references stbi_load/stbi_image_free even though this
+// tool only calls save_bmp().  The compiler sees the full header so both symbols must exist.
+#define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
+#include <stb_image.h>
 #include <stb_image_write.h>
+#include "image_utils.hpp"   // save_bmp()
 
 #include "opencl_utils.hpp"   // CL_CHECK, duration_ms, load_kernel_source
 #include "ocl_wrapper.hpp"    // create_context(), OclContext
@@ -243,10 +250,10 @@ int main(int argc, char** argv) {
 
     // ── Write output BMP ─────────────────────────────────────────────────────
     // Use local-memory result as the canonical output.
-    // stbi_write_bmp returns 0 on failure.
-    if (!stbi_write_bmp("output.bmp", width, height, 1, out_local.data())) {
-        throw std::runtime_error("stbi_write_bmp failed for output.bmp");
-    }
+    // save_bmp wraps stbi_write_bmp and throws on failure (from image_utils.hpp).
+    save_bmp("output.bmp",
+             std::vector<uint8_t>(out_local.begin(), out_local.end()),
+             width, height, 1);
     std::cout << "Output written to output.bmp\n";
 
     return 0;

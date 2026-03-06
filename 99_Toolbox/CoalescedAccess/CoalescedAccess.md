@@ -9,7 +9,7 @@ See [main README](../../README.md) for base requirements (OpenCL 1.2+, CMake 3.1
 ```bash
 cd 99_Toolbox/CoalescedAccess
 cmake -B build && cmake --build build
-./build/coalesced_demo --width 1920 --height 1080
+./build/coalesced_access --width 1920 --height 1080
 ```
 
 ## Verify
@@ -18,10 +18,10 @@ Run the demo first, then read the explanation. The gap you observe depends on yo
 
 ```bash
 # Default (1920×1080) — may show a small gap if your L2 cache is large
-./build/coalesced_demo
+./build/coalesced_access
 
 # 8192×8192 (256 MiB) — exceeds L2 on most GPUs; shows the real penalty
-./build/coalesced_demo --width 8192 --height 8192
+./build/coalesced_access --width 8192 --height 8192
 ```
 
 Expected output at 8192×8192 — actual numbers vary by architecture (see Troubleshooting):

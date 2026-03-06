@@ -8,16 +8,9 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # WHY ../../common: this module sits 2 levels deep (99_Toolbox/ThreadDivergence/).
 include(${CMAKE_CURRENT_SOURCE_DIR}/../../common/common.cmake)
 
-add_executable(divergence_demo main.cpp)
+add_executable(thread_divergence main.cpp)
 
 # Wire include dirs (stb, common, vendor) and link libs (OpenCL, CLI11, common).
-opencl_lab_target(divergence_demo)
+opencl_lab_target(thread_divergence)
 
-# Copy kernels/ next to the binary at build time so the executable can locate
-# them via a relative path regardless of where cmake --build is invoked.
-add_custom_command(TARGET divergence_demo POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-            ${CMAKE_CURRENT_SOURCE_DIR}/kernels
-            $<TARGET_FILE_DIR:divergence_demo>/kernels
-    COMMENT "Copying kernels"
-)
+copy_kernels(thread_divergence)

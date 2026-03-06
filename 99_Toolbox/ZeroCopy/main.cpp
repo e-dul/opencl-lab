@@ -13,10 +13,14 @@
 // is critical for latency-sensitive pipelines on integrated and discrete GPUs.
 // This tool makes the trade-off visible as concrete millisecond numbers.
 
+// stb implementations must be defined exactly once per binary before image_utils.hpp.
+// WHY we keep stbi_load directly (not load_rgb_image): ZeroCopy works in RGBA
+// (4 channels) for maximum fidelity, but image_utils::load_rgb_image forces 3 channels.
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include <stb_image.h>
 #include <stb_image_write.h>
+#include "image_utils.hpp"   // save_bmp()
 
 #include "opencl_utils.hpp"   // CL_CHECK, duration_ms, load_kernel_source
 #include "ocl_wrapper.hpp"    // create_context(), OclContext
@@ -148,6 +152,8 @@ int main(int argc, char** argv) {
 
     if (!image_path.empty()) {
         // Load from disk, forcing 4 channels so we always work in RGBA.
+        // WHY direct stbi_load (not image_utils::load_rgb_image): we need 4ch
+        // RGBA; load_rgb_image forces 3 channels.
         int w = 0, h = 0, ch_loaded = 0;
         uint8_t* raw = stbi_load(image_path.c_str(), &w, &h, &ch_loaded, 4);
         if (!raw) {
@@ -240,11 +246,11 @@ int main(int argc, char** argv) {
     // Use ALLOC_HOST_PTR result as the canonical output image.
     // WHY ALLOC_HOST_PTR: it is the most portable pinned-memory path; the
     // output data has already been read back to host via enqueueReadBuffer.
-    if (!stbi_write_bmp("output.bmp",
-                        width, height, channels,
-                        result_alloc.output_pixels.data())) {
-        throw std::runtime_error("stbi_write_bmp failed for output.bmp");
-    }
+    // save_bmp wraps stbi_write_bmp and throws on failure (from image_utils.hpp).
+    save_bmp("output.bmp",
+             std::vector<uint8_t>(result_alloc.output_pixels.begin(),
+                                  result_alloc.output_pixels.end()),
+             width, height, channels);
     std::cout << "\nOutput written to output.bmp\n";
 
     return 0;

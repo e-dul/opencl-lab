@@ -1,23 +1,52 @@
 {
-  "theme": "dark",
-  "preferredModel": "claude-3-7-sonnet-20250219",
-  "autoUpdate": true,
   "env": {
     "OPENCL_PATH": "/usr/local/cuda",
     "CUSTOM_VAR": "value_needed_by_your_scripts"
   },
+  "permissions": {
+    "allow": [
+      "RunCommand(cmake --build .)",
+      "Bash(./fast_math)",
+      "Bash(./fast_math --relaxed)",
+      "Bash(python3 -:*)",
+      "Bash(./build/fast_math --rays 1000000)",
+      "Bash(./build/fast_math --help)",
+      "Bash(./build/fast_math --rays 1000000 --relaxed)",
+      "Bash(GPU=AMD ./build/fast_math --rays 1000000)",
+      "Bash(./build/zero_copy --help)",
+      "Bash(./build/divergence_demo --help)",
+      "Bash(./build/01_basic_mad --help)",
+      "Bash(./build/multigpu_strategy --help)",
+      "Bash(timeout 60 ./build/occupancy_demo --width 1920 --height 1080)",
+      "Bash(timeout 60 ./build/03_autotune --width 1920 --height 1080)",
+      "Bash(timeout 60 ./build/zero_copy --width 1920 --height 1080)",
+      "Bash(timeout 60 ./build/local_mem_demo --width 1920 --height 1080 --radius 5)",
+      "Bash(timeout 60 ./build/divergence_demo --width 1920 --height 1080)",
+      "Bash(./build/coalesced_access --help)",
+      "Bash(./build/local_memory --help)",
+      "Bash(./build/thread_divergence --help)",
+      "Bash(./build/workgroup_sizing --help)",
+      "Bash(timeout 30 ./build/coalesced_access --width 512 --height 512)",
+      "Bash(timeout 30 ./build/local_memory --width 512 --height 512 --radius 3)",
+      "Bash(timeout 30 ./build/thread_divergence --width 512 --height 512)"
+    ],
+    "deny": [
+      "Read(./vendor/**)"
+    ],
+    "additionalDirectories": [
+      "/home/emil/Projects/opencl-lab/99_Toolbox/CoalescedAccess",
+      "/home/emil/Projects/opencl-lab/99_Toolbox/LocalMemory",
+      "/home/emil/Projects/opencl-lab/99_Toolbox/ThreadDivergence",
+      "/home/emil/Projects/opencl-lab/99_Toolbox/WorkGroupSizing"
+    ]
+  },
+  "theme": "dark",
+  "preferredModel": "claude-3-7-sonnet-20250219",
+  "autoUpdate": true,
   "allowedTools": [
     "Bash",
     "ReadFile",
     "WriteFile",
     "RunCommand"
-  ],
-  "permissions": {
-    "allow": [
-      "RunCommand(cmake --build .)"
-    ],
-    "deny": [
-      "Read(./vendor/**)"
-    ]
-  }
+  ]
 }

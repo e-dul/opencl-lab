@@ -26,3 +26,6 @@ Thumbs.db
 # Images
 *.bmp
 *.png
+
+# Claude
+.claude/settings.json

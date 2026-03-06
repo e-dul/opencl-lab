@@ -2,12 +2,12 @@
 
 Run the full workflow pipeline for a task with review/fix loops.
 
-**Arguments:** `$TASK_ID` (required), `$MAX_REVIEW_ITERS` (optional, default: 3)
+**Arguments:** `$TASK_ID` (required), `$MAX_REVIEW_ITERS` (optional, default: 4)
 
 ## Instructions
 
 You are orchestrating the full pipeline for task **$TASK_ID**.
-Max review iterations: **$MAX_REVIEW_ITERS** (default 3 if not provided).
+Max review iterations: **$MAX_REVIEW_ITERS** (default 4 if not provided).
 
 Follow these steps **in order**, tracking state as you go:
 

@@ -18,7 +18,7 @@ kernels/
 ```bash
 cd 99_Toolbox/GenericKernelTemplates
 cmake -B build && cmake --build build
-./build/kernel_template_demo --image ../../../assets/sample.bmp --autotune
+./build/03_autotune --width 1920 --height 1080 --autotune
 ```
 
 ## Verify
@@ -73,6 +73,11 @@ Add a fourth type `int` to the kernel template. Measure its performance vs `ucha
 
 - **`half` type fails to compile**: Guard with `#pragma OPENCL EXTENSION cl_khr_fp16 : enable` and check device extensions before building.
 - **All variants run at the same speed**: The bottleneck is memory bandwidth, not compute. Arithmetic type only matters when the kernel is compute-bound.
+
+## Used In
+- [Track A — A2_YUV_Pipeline](../../02_Projects/A_Multimedia/Multimedia.md#a2_yuv_pipeline--see-what-the-camera-actually-sends) (uchar vs float YUV conversion kernel)
+- [Track B — B3_Ray_Tracer_BVH](../../02_Projects/B_Graphics_HPC/GraphicsHPC.md#b3_ray_tracer_bvh--flagship-project) (float/half ray payload type selection)
+- [Track C — C3_Perception_Node](../../02_Projects/C_Robotics_ROS2/RoboticsROS2.md#c3_perception_node--flagship-project) (multi-type point cloud processing kernels)
 
 ---
 

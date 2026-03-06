@@ -10,11 +10,11 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # WHY ../../common: this module sits 2 levels deep (99_Toolbox/CoalescedAccess/).
 include(${CMAKE_CURRENT_SOURCE_DIR}/../../common/common.cmake)
 
-add_executable(coalesced_demo main.cpp)
+add_executable(coalesced_access main.cpp)
 
 # Wire include dirs (stb, common, vendor) and link libs (OpenCL, CLI11, common).
-opencl_lab_target(coalesced_demo)
+opencl_lab_target(coalesced_access)
 
 # Copy kernels/ next to the binary at build time so the executable can locate
 # them via a relative path regardless of where cmake --build is invoked.
-copy_kernels(coalesced_demo)
+copy_kernels(coalesced_access)

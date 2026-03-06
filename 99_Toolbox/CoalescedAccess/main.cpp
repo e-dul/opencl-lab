@@ -13,8 +13,15 @@
 // optimisation. This tool makes the 5-7× performance gap visible as concrete
 // millisecond numbers from cl::Event profiling.
 
+// stb implementations must be defined exactly once per binary before image_utils.hpp.
+// WHY both STB_IMAGE_IMPLEMENTATION and STB_IMAGE_WRITE_IMPLEMENTATION: image_utils.hpp
+// declares load_rgb_image() which references stbi_load/stbi_image_free even though this
+// tool only calls save_bmp().  The compiler sees the full header so both symbols must exist.
+#define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
+#include <stb_image.h>
 #include <stb_image_write.h>
+#include "image_utils.hpp"   // save_bmp()
 
 #include "opencl_utils.hpp"   // CL_CHECK, duration_ms, load_kernel_source
 #include "ocl_wrapper.hpp"    // create_context(), OclContext
@@ -259,10 +266,8 @@ int main(int argc, char** argv) {
         pixels[i] = static_cast<unsigned char>(clamped * 255.0f + 0.5f);
     }
 
-    // stbi_write_bmp: 1 channel = grayscale BMP.
-    if (!stbi_write_bmp("output.bmp", width, height, 1, pixels.data())) {
-        throw std::runtime_error("stbi_write_bmp failed for output.bmp");
-    }
+    // save_bmp wraps stbi_write_bmp and throws on failure (from image_utils.hpp).
+    save_bmp("output.bmp", pixels, width, height, 1);
     std::cout << "Output      : output.bmp (grayscale, row-major result)\n";
 
     return 0;

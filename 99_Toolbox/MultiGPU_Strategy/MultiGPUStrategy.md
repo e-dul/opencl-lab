@@ -13,7 +13,7 @@ See [main README](../../README.md) for base requirements (OpenCL 1.2+, CMake 3.1
 ```bash
 cd 99_Toolbox/MultiGPU_Strategy
 cmake -B build && cmake --build build
-./build/multi_gpu_demo --width 3840 --height 2160 --gpus 2
+./build/multigpu_strategy --width 3840 --height 2160 --gpus 2
 ```
 
 ## Verify
@@ -64,6 +64,10 @@ Implement dynamic load balancing: give GPU 0 60% of the rows and GPU 1 40%. Meas
 - **Shared context across different vendors fails**: A `cl::Context` spanning devices from different platforms is not possible in OpenCL 1.2. Create separate contexts per vendor and synchronize on the host side.
 - **Total N-GPU time shows an absurd value (e.g. 1.7e12 ms)**: Cross-platform profiling timestamps (e.g. NVIDIA + AMD) use independent device clocks with no shared epoch. `max(read_end) - min(write_start)` across platforms is meaningless. Use `GPU=<vendor>` to restrict to a single platform, or interpret only the per-device kernel times.
 - **N-GPU leg is slower than single-GPU baseline**: Devices are heterogeneous(e.g. discrete NVIDIA vs integrated AMD). Equal row partitioning makes total time = slowest device. The Mini-Challenge's proportional split is the fix.
+
+## Used In
+- [Track B — B3_Ray_Tracer_BVH](../../02_Projects/B_Graphics_HPC/GraphicsHPC.md#b3_ray_tracer_bvh--flagship-project) (multi-GPU BVH rendering split by tile rows)
+- [Track C — C3_Perception_Node](../../02_Projects/C_Robotics_ROS2/RoboticsROS2.md#c3_perception_node--flagship-project) (point cloud partitioning across two GPUs)
 
 ---
 

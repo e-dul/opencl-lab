@@ -9,8 +9,15 @@
 // both kernels before writing BMPs, ensuring the benchmark is not masking
 // a correctness bug.
 
+// stb implementations must be defined exactly once per binary before image_utils.hpp.
+// WHY both STB_IMAGE_IMPLEMENTATION and STB_IMAGE_WRITE_IMPLEMENTATION: image_utils.hpp
+// declares load_rgb_image() which references stbi_load/stbi_image_free even though this
+// tool only calls save_bmp().  The compiler sees the full header so both symbols must exist.
+#define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
+#include <stb_image.h>
 #include <stb_image_write.h>
+#include "image_utils.hpp"   // save_bmp()
 
 #include "opencl_utils.hpp"   // CL_CHECK, duration_ms, load_kernel_source
 #include "ocl_wrapper.hpp"    // create_context(), OclContext
@@ -228,12 +235,13 @@ int main(int argc, char** argv) {
     // ── Write output BMPs ────────────────────────────────────────────────────
     // Write grayscale (1 channel) BMP; both files should look visually identical
     // (blurred region + identity region visible).
-    if (!stbi_write_bmp("output_ifelse.bmp", width, height, 1, out_ifelse.data())) {
-        throw std::runtime_error("stbi_write_bmp failed for output_ifelse.bmp");
-    }
-    if (!stbi_write_bmp("output_select.bmp", width, height, 1, out_select.data())) {
-        throw std::runtime_error("stbi_write_bmp failed for output_select.bmp");
-    }
+    // save_bmp wraps stbi_write_bmp and throws on failure (from image_utils.hpp).
+    save_bmp("output_ifelse.bmp",
+             std::vector<uint8_t>(out_ifelse.begin(), out_ifelse.end()),
+             width, height, 1);
+    save_bmp("output_select.bmp",
+             std::vector<uint8_t>(out_select.begin(), out_select.end()),
+             width, height, 1);
     std::cout << "Outputs          : output_ifelse.bmp, output_select.bmp\n";
 
     return 0;

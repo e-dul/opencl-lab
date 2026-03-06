@@ -117,7 +117,8 @@ This repository is optimized for collaboration with AI assistants.
 ## TODO
 
 - Add links to external resources for more in depth information
-- Command, agent and skill to review content without specific focus on code
+- Command, agent and skill to review content without specific focus on code - pseudo user experience
+- Command, agent and skill to review - technical audit, validate claims and conclusions
 - Move B1 CLBlast section to addons
 - Summarize command, agents, skills and usage for this project
 - Mark sections with strict HW or OpenCL version dependencies

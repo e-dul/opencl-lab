@@ -9,7 +9,7 @@ See [main README](../../README.md) for base requirements (OpenCL 1.2+, CMake 3.1
 ```bash
 cd 99_Toolbox/ThreadDivergence
 cmake -B build && cmake --build build
-./build/divergence_demo --width 1920 --height 1080
+./build/thread_divergence --width 1920 --height 1080
 ```
 
 ## Verify

@@ -89,6 +89,11 @@ Add a deliberate off-by-one error to `debug_demo` (read `input[id + 1]` without 
 - **Nsight profile shows no OpenCL events**: Pass `--trace=opencl` explicitly. Some versions default to CUDA only.
 - **rocprof produces empty trace**: Ensure the binary was linked against the ROCm OpenCL runtime, not the Khronos ICD loader.
 
+## Used In
+- [Track A — A4_Smart_Webcam](../../02_Projects/A_Multimedia/Multimedia.md#a4_smart_webcam--flagship-project) (Oclgrind validation of background segmentation kernel)
+- [Track B — B3_Ray_Tracer_BVH](../../02_Projects/B_Graphics_HPC/GraphicsHPC.md#b3_ray_tracer_bvh--flagship-project) (Nsight profiling of traversal kernel hotspots)
+- [Track C — C2_Costmap_Inflation](../../02_Projects/C_Robotics_ROS2/RoboticsROS2.md#c2_costmap_inflation--distance-transform-on-gpu) (race-condition detection in inflation kernel)
+
 ---
 
 [Back to Toolbox](../Toolbox.md)
