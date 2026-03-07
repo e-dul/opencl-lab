@@ -36,7 +36,10 @@
       "Bash(./build/sync_atomics --size 65536)",
       "Bash(GPU=AMD ./build/sync_atomics)",
       "Skill(design-creation)",
-      "Skill(design-creation:*)"
+      "Skill(design-creation:*)",
+      "Bash(/home/emil/Projects/opencl-lab/02_Projects/A_Multimedia/A1_OpenCV_Interop/CMakeLists.txt:*)",
+      "Bash(./build/A1_OpenCV_Interop --input /home/emil/Projects/opencl-lab/01_Host_API/01_Visual_Kernel/gradient_input.bmp)",
+      "Bash(./build/A1_OpenCV_Interop --input ../../../assets/sample.bmp)"
     ],
     "deny": [
       "Read(./vendor/**)"
@@ -45,7 +48,8 @@
       "/home/emil/Projects/opencl-lab/99_Toolbox/CoalescedAccess",
       "/home/emil/Projects/opencl-lab/99_Toolbox/LocalMemory",
       "/home/emil/Projects/opencl-lab/99_Toolbox/ThreadDivergence",
-      "/home/emil/Projects/opencl-lab/99_Toolbox/WorkGroupSizing"
+      "/home/emil/Projects/opencl-lab/99_Toolbox/WorkGroupSizing",
+      "/home/emil/Projects/opencl-lab/02_Projects/A_Multimedia"
     ]
   },
   "theme": "dark",

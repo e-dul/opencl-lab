@@ -1,9 +1,18 @@
 #pragma once
 
 // OpenCL version targeting (must be defined before including opencl.hpp)
+// WHY #ifndef: CMakeLists.txt may pass -DCL_HPP_* via add_definitions(); guards
+// prevent "macro redefined" warnings when both the compiler flag and this header
+// define the same macro.
+#ifndef CL_HPP_TARGET_OPENCL_VERSION
 #define CL_HPP_TARGET_OPENCL_VERSION  120
+#endif
+#ifndef CL_HPP_MINIMUM_OPENCL_VERSION
 #define CL_HPP_MINIMUM_OPENCL_VERSION 120
+#endif
+#ifndef CL_HPP_ENABLE_EXCEPTIONS
 #define CL_HPP_ENABLE_EXCEPTIONS
+#endif
 
 #include <CL/opencl.hpp>
 

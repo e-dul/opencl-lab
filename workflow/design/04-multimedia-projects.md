@@ -23,7 +23,7 @@ Build a production-grade GPU video pipeline that processes 1080p at ≥ 30 FPS. 
 
 ## Roadmap / Status
 
-- [ ] Phase 1: A1 — OpenCV Interop — Measure and eliminate `cv::Mat → GPU` copy overhead.
+- [x] Phase 1: A1 — OpenCV Interop — Measure and eliminate `cv::Mat → GPU` copy overhead.
   - *Context*: Executive Summary §Path A item A.1; `Multimedia.md` §A1_OpenCV_Interop.
 - [ ] Phase 2: A2 — YUV Pipeline — NV12 → RGBA and Y-channel extraction kernels; CPU vs GPU comparison table.
   - *Context*: Executive Summary §Path A item A.2; `Multimedia.md` §A2_YUV_Pipeline.

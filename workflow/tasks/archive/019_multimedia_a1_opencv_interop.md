@@ -111,31 +111,85 @@ Implement a standalone transfer benchmark that measures and compares the GPU upl
 ## Definition of Done (DoD)
 
 Standard items (master_specs §8):
-- [ ] `cmake -B build && cmake --build build` succeeds with zero errors and zero warnings.
-- [ ] Binary runs without error: `./build/A1_OpenCV_Interop --input ../../../assets/sample.bmp`.
-- [ ] `--help` prints CLI11-generated usage including `--input` and `--iterations`.
-- [ ] `GPU=<vendor> ./build/A1_OpenCV_Interop --input ...` selects the correct device without crashing.
+- [x] `cmake -B build && cmake --build build` succeeds with zero errors and zero warnings.
+- [x] Binary runs without error: `./build/A1_OpenCV_Interop --input ../../../assets/sample.bmp`.
+- [x] `--help` prints CLI11-generated usage including `--input` and `--iterations`.
+- [x] `GPU=<vendor> ./build/A1_OpenCV_Interop --input ...` selects the correct device without crashing.
 
 Task-specific outcomes:
-- [ ] Console output contains a structured timing table with both path timings in ms (3 decimal places).
-- [ ] Both timings are sourced from `cl::Event` profiling, not `std::chrono`.
-- [ ] `CL_MEM_USE_HOST_PTR` buffer construction includes a `// WHY` comment explaining zero-copy semantics.
-- [ ] `size_bytes > INT_MAX` check throws `std::runtime_error` (not silent truncation).
-- [ ] Speedup gate printed: PASS (`>= 1.20x`) or WAIVER with topology note.
-- [ ] No hardcoded asset paths; `--input` is required CLI arg.
+- [x] Console output contains a structured timing table with both path timings in ms (3 decimal places).
+- [x] Both timings are sourced from `cl::Event` profiling, not `std::chrono`.
+- [x] `CL_MEM_USE_HOST_PTR` buffer construction includes a `// WHY` comment explaining zero-copy semantics.
+- [x] `size_bytes > INT_MAX` check throws `std::runtime_error` (not silent truncation).
+- [x] Speedup gate printed: PASS (`>= 1.20x`) or WAIVER with topology note.
+- [x] No hardcoded asset paths; `--input` is required CLI arg.
 
 ---
 
 ## Execution Report
-<!-- Filled by @coder after implementation. -->
 
-- **Status:** PENDING
-- **Session:** —
+- **Status:** COMPLETE
+- **Session:** 2026-03-07 — Device: NVIDIA GeForce RTX 4060 Laptop GPU
 
 ### Validation
 ```
-[output here]
+# 1. cmake -B build && cmake --build build
+-- Configuring done (1.2s)
+-- Generating done (0.0s)
+-- Build files have been written to: .../A1_OpenCV_Interop/build
+[  0%] Built target CLI11
+[100%] Built target A1_OpenCV_Interop
+# Zero errors, zero warnings.
+
+# 2. ./build/A1_OpenCV_Interop --input /home/emil/Projects/opencl-lab/01_Host_API/01_Visual_Kernel/gradient_input.bmp
+pci id for fd 10: 10de:28e0, driver (null)
+pci id for fd 11: 10de:28e0, driver (null)
+Platform : NVIDIA CUDA
+Device   : NVIDIA GeForce RTX 4060 Laptop GPU
+
+=== OpenCV Interop Transfer Benchmark ===
+Image: 256x256 RGBA (0.25 MB)
+Iterations: 10
+
+Path                            Avg Time (ms)
+------------------------------------------------
+1. clEnqueueWriteBuffer         0.023 ms
+2. UMat zero-copy               0.001 ms
+------------------------------------------------
+Speedup (zero-copy / copy):   21.695 x
+Gate: PASS
+
+# 3. ./build/A1_OpenCV_Interop --help
+OpenCV Interop Transfer Benchmark
+Usage: ./build/A1_OpenCV_Interop [OPTIONS]
+
+Options:
+  -h,--help                   Print this help message and exit
+  --input TEXT REQUIRED       Path to input image
+  --iterations INT [10]       Benchmark repetitions per path
+
+# 4. GPU=NVIDIA ./build/A1_OpenCV_Interop --input ...
+pci id for fd 10: 10de:28e0, driver (null)
+pci id for fd 11: 10de:28e0, driver (null)
+Platform : NVIDIA CUDA  [GPU=NVIDIA]
+Device   : NVIDIA GeForce RTX 4060 Laptop GPU
+
+=== OpenCV Interop Transfer Benchmark ===
+Image: 256x256 RGBA (0.25 MB)
+Iterations: 10
+
+Path                            Avg Time (ms)
+------------------------------------------------
+1. clEnqueueWriteBuffer         0.024 ms
+2. UMat zero-copy               0.001 ms
+------------------------------------------------
+Speedup (zero-copy / copy):   21.115 x
+Gate: PASS
 ```
+
+### Notes
+- `assets/sample.bmp` does not exist at the repo root; validation used an equivalent BMP from `01_Host_API/01_Visual_Kernel/gradient_input.bmp` (256x256). The `--input` path is a CLI arg; no hardcoded path exists in source.
+- Speedup of ~21x (well above 1.20x gate) on NVIDIA RTX 4060 Laptop GPU — Gate: PASS.
 
 ### Changed Files
 | File | Change |
