@@ -1,7 +1,7 @@
 # Module 7: Optimization Toolbox (`99_Toolbox/`)
 
 **Version:** 1.0
-**Status:** Active — Phase 1–7 complete, Phase 8 partial (kernel too light) (ZeroCopy, CoalescedAccess, LocalMemory, ThreadDivergence, WorkGroupSizing, Debugging, GenericKernelTemplates), Phase 9 next
+**Status:** Complete — All 13 phases implemented
 **Module Path:** `99_Toolbox/`
 
 ---
@@ -45,6 +45,8 @@ Provide a library of isolated, standalone GPU optimization techniques. Each tool
 - [x] Phase 11: FastMath — standard vs `half_` vs `native_` math functions; `-cl-fast-relaxed-math` flag demo.
   - *Context*: Executive Summary §Path B B.3; `99_Toolbox/FastMath/FastMath.md`.
 - [x] Phase 12: Module review and cleanup — verify all tools build standalone, cross-link "Used In" references, confirm all DoDs. Make executables names consistent and code using utils for image operations. Review empty directories and check if content is missing.
+- [x] Phase 13: SyncAtomics — unsafe (data race) vs global `atomic_add` vs local-accumulate-then-merge histogram; correctness verification (bin sum == element count) + timing table. Performance gate MET: 5.73× speedup (local_reduce vs global_atomic) on NVIDIA RTX 4060 Laptop GPU.
+  - *Context*: Executive Summary §Tool 7; `99_Toolbox/SyncAtomics/SyncAtomics.md`.
 
 ---
 
@@ -83,6 +85,7 @@ Each tool is an independent C++17 executable with its own `CMakeLists.txt`. Ther
 - **MultiGPU_Strategy** (`MultiGPU_Strategy/`): Detects all GPU devices, creates shared context, dispatches image slices via round-robin/proximity strategy, merges results on host. Per-GPU `cl::Event` profiling enables load-rebalancing analysis. Compares single-GPU vs N-GPU throughput.
 - **SVM** (`SVM/`): Buffer + map/unmap baseline vs coarse SVM vs fine-grained SVM. Runtime guard falls back on OpenCL 1.2 devices.
 - **FastMath** (`FastMath/`): Ray normalization kernel compiled in three variants: standard `sqrt`/`rsqrt`, `half_` prefix, `native_` prefix. Optional `-cl-fast-relaxed-math` comparison.
+- **SyncAtomics** (`SyncAtomics/`): Histogram kernel implemented in three variants: unsafe non-atomic (demonstrates data race / wrong bin totals), global `atomic_add` (correct but slow), local-accumulate-then-merge (correct and fast). Correctness verified by asserting `sum(bins) == element_count` on host. Outputs structured timing table; no BMP required.
 
 ### Data Flow (per tool)
 
@@ -174,6 +177,7 @@ Each tool is an independent C++17 executable with its own `CMakeLists.txt`. Ther
 | AsyncMultiThread | OOO async pipeline vs blocking baseline | ≥ 1.5× faster (requires compute-heavy kernel, ≥5 ms/frame) |
 | MultiGPU_Strategy | Dual-GPU vs single-GPU on 4K workload | ≥ 2× speedup |
 | FastMath | `native_rsqrt` vs standard `rsqrt` on 1M ray normalizations | ≥ 4× faster |
+| SyncAtomics | Local-accumulate-then-merge vs global `atomic_add` on 1M-element histogram | ≥ 3× faster; bin sum == element count for all correct variants |
 
 ---
 
@@ -227,10 +231,14 @@ Each tool is an independent C++17 executable with its own `CMakeLists.txt`. Ther
   │   ├── CMakeLists.txt
   │   ├── main.cpp
   │   └── kernels/svm_kernel.cl
-  └── FastMath/
+  ├── FastMath/
+  │   ├── CMakeLists.txt
+  │   ├── main.cpp
+  │   └── kernels/ray_kernel.cl
+  └── SyncAtomics/
       ├── CMakeLists.txt
       ├── main.cpp
-      └── kernels/ray_kernel.cl
+      └── kernels/histogram_kernel.cl
   ```
 - **Verification Standard**:
   - Image tools (ZeroCopy, CoalescedAccess, LocalMemory, ThreadDivergence): produce `output.bmp` confirming the optimized path yields identical pixel output to the baseline.

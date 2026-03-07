@@ -28,7 +28,13 @@
       "Bash(./build/workgroup_sizing --help)",
       "Bash(timeout 30 ./build/coalesced_access --width 512 --height 512)",
       "Bash(timeout 30 ./build/local_memory --width 512 --height 512 --radius 3)",
-      "Bash(timeout 30 ./build/thread_divergence --width 512 --height 512)"
+      "Bash(timeout 30 ./build/thread_divergence --width 512 --height 512)",
+      "Skill(readme-creation)",
+      "Skill(readme-creation:*)",
+      "Bash(./build/sync_atomics --help)",
+      "Bash(./build/sync_atomics)",
+      "Bash(./build/sync_atomics --size 65536)",
+      "Bash(GPU=AMD ./build/sync_atomics)"
     ],
     "deny": [
       "Read(./vendor/**)"

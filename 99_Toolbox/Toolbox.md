@@ -34,6 +34,7 @@ Each tool is a standalone project with a measurable before/after. The workflow:
 | [Async Pipelines](AsyncMultiThread/AsyncMultiThread.md) | CPU blocks on GPU between stages | `AsyncMultiThread/` |
 | [Multi-GPU](MultiGPU_Strategy/MultiGPUStrategy.md) | Single GPU throughput ceiling reached | `MultiGPU_Strategy/` |
 | [Fast Math](FastMath/FastMath.md) | `sqrt`/`rsqrt`/`sin` calls dominating compute-bound kernel | `FastMath/` |
+| [Sync & Atomics](SyncAtomics/SyncAtomics.md) | Incorrect results with concurrent writes (histograms, counters, reductions) | `SyncAtomics/` |
 
 ## What's Next
 
