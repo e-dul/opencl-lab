@@ -18,7 +18,17 @@
 - Buffers: Always RAII (`cl::Buffer`).
 - Comments: Explain "WHY", not "WHAT".
 
-## Workflow Pipeline
+## Design Pipeline (Exec Summary → Task)
+```
+/create-readme  →  /create-design  →  /plan-tasks
+                      (revise loop)
+```
+- `/create-readme` (@educator): reads exec summary / user intent → generates `<module>/README.md` (student-facing, educational goals). Output: README or revision request.
+- `/create-design` (@architect): reads approved README → generates `workflow/design/<module>.md` (technical architecture). Output: design doc or revision request.
+- `/plan-tasks` (@architect): reads approved design doc → writes next atomic task file to `workflow/tasks/`. Output: task file path.
+- Revision loop: if design contradicts README intent, re-run `/create-design` with correction notes. Do NOT run `/plan-tasks` with an unapproved design.
+
+## Implementation Pipeline (Task → Product)
 ```
 /implement  →  /review  →  /implement  →  /validate  →  /implement  →  /sync
                (fix loop)                  (fix loop)
