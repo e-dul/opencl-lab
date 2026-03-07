@@ -10,6 +10,9 @@
 - [ ] Phase 1: [Milestone Name] — [Brief description]
   - *Context*: [Link to specific spec/section in Module README or Executive Summary if applicable]
 - [ ] Phase 2: [Milestone Name] — [Brief description]
+- [ ] Phase N (Last): Module review and cleanup — remove distraction, focus on what matters.
+  - Extract common utils
+  - Clean code to focus on key objectives
 
 ## Specifications
 > **Inherits**: `workflow/design/00_master_specs.md`

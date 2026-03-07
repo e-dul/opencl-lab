@@ -50,6 +50,7 @@ Build a production-grade GPU video pipeline that processes 1080p at ≥ 30 FPS. 
 - **Image Formats for Intermediate Verification**: BMP or PNG only (no JPEG). NV12 raw files loaded as flat byte buffers.
 - **Inference Backends**: OpenCV DNN (A3_1) and TensorFlow Lite GPU delegate (A3_2). These are mutually exclusive sub-projects.
 - **CLI**: All binaries must expose at minimum `--input` (file path) and a GPU selection path via the `GPU` env var. Webcam binaries expose `--device` (integer index) and `--width`/`--height`.
+- **Integer Safety (A2 kernels)**: When passing pixel count or buffer size as `cl_int` kernel args, throw `std::runtime_error` if `size > INT_MAX`. Silent truncation via `std::min` is forbidden (master_specs §7.1).
 
 ---
 
@@ -121,6 +122,9 @@ Build a production-grade GPU video pipeline that processes 1080p at ≥ 30 FPS. 
 6. **Model: MediaPipe Selfie Segmentation (A4 Bokeh), YuNet (A4 Privacy)**
    - **Why**: Selfie segmentation outputs a per-pixel float mask directly usable as a `cl::Buffer` argument with no postprocessing. YuNet outputs a bounding box — teaching `global_work_offset` use requires a box, not a mask.
 
+7. **TFLite GPU Delegate Acquisition (A3_2): FetchContent over find_library**
+   - **Why**: The ARM-packaged `.so` does not work on x86_64. `FetchContent` downloading the pre-built x86_64 `.so` from official TFLite release artifacts is the primary path. `find_library` fallback is allowed but must be documented in the task. This decision must be resolved in CMake before any A3_2 host code is written.
+
 ---
 
 ## Known Issues / Risks
@@ -137,12 +141,13 @@ Build a production-grade GPU video pipeline that processes 1080p at ≥ 30 FPS. 
 
 | Project | Metric | Target |
 | :--- | :--- | :--- |
-| A1 OpenCV Interop | Zero-copy vs copy speedup | Measurable reduction at 1080p (console-reported, `cl::Event`) |
+| A1 OpenCV Interop | Zero-copy vs copy speedup | Zero-copy path ≥ 20% faster than `clEnqueueWriteBuffer` at 1920×1080 (measured via `cl::Event`) |
 | A2 YUV Pipeline | NV12 → RGBA kernel time | < 2 ms @ 1920×1080 |
 | A3_1 / A3_2 | Inference + blur time | < 15 ms @ 1080p per frame |
 | A4 Bokeh Mode | Total frame time | < 33 ms @ 1080p (≥ 30 FPS) |
 | A4 Privacy Mode | Total frame time | < 20 ms @ 1080p (single face) |
 
+> **Hardware waiver**: Gates measured via `cl::Event` on a mid-range discrete GPU (≥ GTX 1060 / RX 580 equivalent). iGPU results must be documented and reported but are exempt from pass/fail.
 
 ---
 

@@ -34,7 +34,9 @@
       "Bash(./build/sync_atomics --help)",
       "Bash(./build/sync_atomics)",
       "Bash(./build/sync_atomics --size 65536)",
-      "Bash(GPU=AMD ./build/sync_atomics)"
+      "Bash(GPU=AMD ./build/sync_atomics)",
+      "Skill(design-creation)",
+      "Skill(design-creation:*)"
     ],
     "deny": [
       "Read(./vendor/**)"
