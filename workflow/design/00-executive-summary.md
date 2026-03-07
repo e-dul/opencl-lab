@@ -252,6 +252,16 @@ Success is defined by metrics, not just compilation.
 4.  Application: When a throughput/latency limit appears on a single GPU.
 5.  Performance Gate: Speedup ≥ 1.65x with 2x GPUs.
 
+#### Tool 7: Synchronization & Atomics (1.2h)
+1. **Race Conditions (Why threads overwrite each other).**
+  - Read-Modify-Write hazards in global and local memory.
+  - When a simple `x = x + 1` corrupts data (e.g., building histograms or BVH structures).
+2. **Atomic Operations (Resolving conflicts).**
+  - Core functions: `atomic_add`, `atomic_inc`, `atomic_max`.
+  - Global vs. Local atomics (differences in latency and practical use cases).
+3. **Compare-and-Swap (Advanced synchronization).**
+  - Using `atomic_cmpxchg` to build custom mechanisms (e.g., spinlocks in GPU memory).
+  - The performance cost of atomic operations — why they should be used as a last resort.
 
 ### MODULE 4: Add-ons (Bonus & Case Studies) – 5% / 2.0h
 
