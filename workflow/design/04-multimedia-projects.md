@@ -25,8 +25,10 @@ Build a production-grade GPU video pipeline that processes 1080p at ≥ 30 FPS. 
 
 - [ ] Phase 1: A1 — OpenCV Interop — Measure and eliminate `cv::Mat → GPU` copy overhead.
   - *Context*: Executive Summary §Path A item A.1; `Multimedia.md` §A1_OpenCV_Interop.
-- [ ] Phase 2: A2 — YUV Pipeline — NV12 → RGBA and Y-channel extraction kernels.
+- [ ] Phase 2: A2 — YUV Pipeline — NV12 → RGBA and Y-channel extraction kernels; CPU vs GPU comparison table.
   - *Context*: Executive Summary §Path A item A.2; `Multimedia.md` §A2_YUV_Pipeline.
+- [ ] Phase 2b: A2 YUYV Extension — Port kernels to YUYV (4:2:2) packed format; two-pass vs single-pass timing comparison.
+  - *Context*: `Multimedia.md` §A2_YUV_Pipeline Mini-challenge Parts 1 & 2.
 - [ ] Phase 3: A3_1 — OpenCV DNN (T-API) — High-level inference, UMat stays on GPU.
   - *Context*: Executive Summary §Path A item A.3.1; `Multimedia.md` §A3_1_OpenCV_DNN.
 - [ ] Phase 4: A3_2 — TFLite GPU Delegate — Explicit `clEnqueueMapBuffer` buffer handoff.
@@ -51,6 +53,7 @@ Build a production-grade GPU video pipeline that processes 1080p at ≥ 30 FPS. 
 - **Inference Backends**: OpenCV DNN (A3_1) and TensorFlow Lite GPU delegate (A3_2). These are mutually exclusive sub-projects.
 - **CLI**: All binaries must expose at minimum `--input` (file path) and a GPU selection path via the `GPU` env var. Webcam binaries expose `--device` (integer index) and `--width`/`--height`.
 - **Integer Safety (A2 kernels)**: When passing pixel count or buffer size as `cl_int` kernel args, throw `std::runtime_error` if `size > INT_MAX`. Silent truncation via `std::min` is forbidden (master_specs §7.1).
+- **A2 OpenCV dependency**: `find_package(OpenCV REQUIRED)` in A2's CMakeLists.txt. OpenCV is used only for the CPU comparison (`cv::cvtColor`) — NOT for loading the NV12 input (which remains a raw flat byte buffer).
 
 ---
 
@@ -59,7 +62,7 @@ Build a production-grade GPU video pipeline that processes 1080p at ≥ 30 FPS. 
 ### Components
 
 - **OpenCV Interop Layer** (`A1_OpenCV_Interop`): Benchmarks two transfer paths — `clEnqueueWriteBuffer` from a `cv::Mat` vs `UMat` zero-copy via `CL_MEM_USE_HOST_PTR`. Outputs timing to console; no visual kernel required (transfer benchmark only).
-- **YUV Conversion Kernel** (`A2_YUV_Pipeline`): Two kernels — `nv12_to_rgba` and `extract_y_channel`. Reads a flat NV12 byte buffer with explicit stride/pitch handling. Outputs `output_rgba.bmp` and `output_y_channel.bmp`.
+- **YUV Conversion Kernel** (`A2_YUV_Pipeline`): Two kernels — `nv12_to_rgba` and `extract_y_channel`. Reads a flat NV12 byte buffer with explicit stride/pitch handling. Also runs `cv::cvtColor` (CPU, `COLOR_YUV2RGBA_NV12`) for comparison — OpenCV is a dependency for A2. Outputs `output_rgba.bmp`, `output_y_channel.bmp`, and a console timing table (OpenCV CPU / OpenCL kernel / speedup).
 - **DNN T-API Bridge** (`A3_1_OpenCV_DNN`): Wraps OpenCV DNN with `DNN_TARGET_OPENCL`. Extracts the `cl_mem` handle from the output `cv::UMat` via `umat.handle(cv::ACCESS_READ)` and passes it directly to the blur kernel as a `cl::Buffer`.
 - **TFLite GPU Bridge** (`A3_2_TFLite_GPU`): Uses `TfLiteGpuDelegateV2` with `TFLITE_GPU_EXPERIMENTAL_FLAGS_CL_COMMAND_QUEUE_IMPORT`. Input/output tensors are bound to OpenCL buffers via `clEnqueueMapBuffer`. Buffer must be created with `CL_MEM_ALLOC_HOST_PTR`.
 - **Bokeh Kernel** (`A4_Smart_Webcam`): Full-frame conditional blur — `if (mask[id] == BACKGROUND)` applies Gaussian/box filter; foreground pixels pass through. Controlled by a binary segmentation mask from AI stage.
@@ -74,10 +77,11 @@ Build a production-grade GPU video pipeline that processes 1080p at ≥ 30 FPS. 
 4. Print comparison table to console.
 
 #### A2 (YUV Pipeline)
-1. Load raw NV12 file → flat `cl::Buffer` (device).
-2. `nv12_to_rgba` kernel → RGBA `cl::Buffer` → save `output_rgba.bmp`.
-3. `extract_y_channel` kernel → Grayscale `cl::Buffer` → save `output_y_channel.bmp`.
-4. Profile both kernels via `cl::Event`.
+1. Load raw NV12 file → flat byte vector (host) + `cl::Buffer` (device).
+2. CPU path: `cv::cvtColor` (COLOR_YUV2RGBA_NV12) → time with `std::chrono`.
+3. `nv12_to_rgba` kernel → RGBA `cl::Buffer` → save `output_rgba.bmp`. Profile via `cl::Event`.
+4. `extract_y_channel` kernel → Grayscale `cl::Buffer` → save `output_y_channel.bmp`. Profile via `cl::Event`.
+5. Print comparison table: OpenCV CPU time / OpenCL kernel time / speedup.
 
 #### A3_1 (DNN T-API)
 1. Load image → `cv::UMat` (stays on GPU).
@@ -108,7 +112,7 @@ Build a production-grade GPU video pipeline that processes 1080p at ≥ 30 FPS. 
    - **Why**: Educational contrast — T-API hides memory management (ease) vs explicit `cl_mem` wiring (control). Side-by-side snapshots let users diff the integration cost.
 
 2. **NV12 Input for A2 via Raw Byte File, Not OpenCV Decode**
-   - **Why**: `cv::imread` silently converts to BGR, hiding the raw memory layout. Loading a flat `.yuv` file forces the user to reason about stride, Y-plane size, and UV interleaving explicitly.
+   - **Why**: `cv::imread` silently converts to BGR, hiding the raw memory layout. Loading a flat `.yuv` file forces the user to reason about stride, Y-plane size, and UV interleaving explicitly. This layout knowledge is the prerequisite for writing a single-pass OpenCL kernel — the teaching payoff is the measured speedup over `cv::cvtColor` on CPU, which runs multi-pass with intermediate buffers. OpenCV is used in A2 only for the CPU comparison path (`cv::cvtColor`), not for decoding the input.
 
 3. **Bokeh Kernel Uses Full-Frame Dispatch (Not Two-Pass Masked)**
    - **Why**: Demonstrates the thread divergence problem concretely. The `if (mask[id] == BACKGROUND)` conditional is intentionally naive; the Toolbox: Thread Divergence mini-challenge replaces it with `select()`.
@@ -134,6 +138,7 @@ Build a production-grade GPU video pipeline that processes 1080p at ≥ 30 FPS. 
 - **UMat `cl_mem` Handle Stability (A3_1)**: The handle retrieved via `umat.handle(cv::ACCESS_READ)` is valid only while the `UMat` is alive and not modified. The blur kernel must complete before the `UMat` goes out of scope.
 - **Webcam Default Resolution**: `cv::VideoCapture` defaults to 640×480 on many devices. CLI args `--width`/`--height` with `cv::CAP_PROP_FRAME_WIDTH/HEIGHT` must be set before the first frame read.
 - **Thread Divergence in Bokeh Kernel**: The naive `if (mask[id] == BACKGROUND)` branch is a known inefficiency, intentionally left for the mini-challenge. It must not be pre-optimized in the base implementation.
+- **A2 Mini-challenge scope**: The YUYV port and two-pass timing comparison are Phase 2b — a separate task from Task 020 (NV12 pipeline). Not required for the A2 performance gate.
 
 ---
 
@@ -181,7 +186,7 @@ Build a production-grade GPU video pipeline that processes 1080p at ≥ 30 FPS. 
   ```
 - **Verification Standard**:
   - A1: Console timing table. No BMP required.
-  - A2: `output_rgba.bmp` (correct colors) + `output_y_channel.bmp` (grayscale). Green-pink output = failure.
+  - A2: `output_rgba.bmp` (correct colors) + `output_y_channel.bmp` (grayscale). Green-pink output = failure (UV plane offset wrong — check UV starts at byte `width * height`). Console prints three-row comparison table: OpenCV CPU time / OpenCL kernel time / speedup. Gate: OpenCL kernel < 2 ms @ 1920×1080.
   - A3_1 / A3_2: `output_mask.bmp` + `output_blurred.bmp`. Console prints inference and blur times separately.
   - A4: Live preview window with per-frame timing breakdown printed to console.
 - **Tooling** (module-specific additions to master_specs):

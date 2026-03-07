@@ -13,7 +13,7 @@ See [main README](../../README.md) for base requirements (OpenCL, CMake, Docker 
 ## Contents
 ```
 A1_OpenCV_Interop/      Measure and eliminate the cv::Mat → GPU copy overhead
-A2_YUV_Pipeline/        YUV color space kernels: NV12 → RGBA conversion
+A2_YUV_Pipeline/        NV12 layout → single-pass GPU conversion (faster than CPU cvtColor)
 A3_1_OpenCV_DNN/        Inference via OpenCV DNN T-API (UMat stays on GPU)
 A3_2_TFLite_GPU/        Inference via TFLite GPU delegate (explicit buffer mapping)
 A4_Smart_Webcam/        Flagship project: person segmentation + real-time Bokeh blur
@@ -49,9 +49,9 @@ Change the input image to `4096×4096` and re-run. At what resolution does the c
 
 ---
 
-## A2_YUV_Pipeline — See What the Camera Actually Sends
+## A2_YUV_Pipeline — One-Pass NV12 to RGBA on the GPU
 
-**Goal**: Write OpenCL kernels for YUV color space conversion and understand why raw camera frames look like a green-pink checkerboard before conversion.
+**Goal**: Write a single-pass OpenCL kernel that converts a raw NV12 camera frame to RGBA — faster than the equivalent CPU `cv::cvtColor` path — and understand why the raw layout knowledge is what makes this possible.
 
 ### Build & run
 ```bash
@@ -64,22 +64,67 @@ cmake --build build
 ### Verify
 Two output files appear:
 - `output_rgba.bmp` — correctly colored 1920×1080 image (green-pink = conversion bug)
+  - Green-pink means the Y/UV byte offsets are wrong — check that the UV plane starts at byte `width * height`, not at `width`.
 - `output_y_channel.bmp` — grayscale image (the Y luminance plane extracted without a copy)
 
-### Core Concept: Why YUV?
-Real cameras and codecs don't output RGB. They output YUV — luminance (Y) separate from chrominance (U, V) — because human vision is ~4× more sensitive to brightness than color. Chroma subsampling (4:2:0) stores one U/V sample per 2×2 pixel block, cutting bandwidth roughly in half with near-zero perceptual loss.
+Console prints a three-row comparison:
+```
+OpenCV CPU (cvtColor):   XX.X ms
+OpenCL kernel:            X.X ms
+Speedup:                  X.Xx
+```
 
-**NV12 layout (the format your webcam likely uses):**
+The performance gate is the OpenCL kernel time: it must be **< 2 ms** at 1080p. The CPU time will vary by machine and is shown for comparison only.
+
+### Core Concept: NV12 Layout and the Single-Pass Advantage
+
+Real cameras and codecs do not output RGB. They output YUV — luminance (Y) separate from chrominance (U, V) — because human vision is roughly 4x more sensitive to brightness than color. Chroma subsampling (4:2:0) stores one U/V sample per 2×2 pixel block, cutting bandwidth roughly in half with near-zero perceptual loss.
+
+**NV12 memory layout (the format your webcam likely uses):**
 ```
 Y plane:   YYYYYYYY   ← full resolution, 1 byte/pixel
 UV plane:  UVUVUVUV   ← half resolution, interleaved, 2 bytes per 2×2 block
 ```
-Your kernel receives a flat byte buffer. Stride (pitch) can be wider than width — always use `pitch` for row offsets, never `width`.
+Your kernel receives a flat byte buffer. Stride (pitch) can be wider than width — always use `pitch` for row offsets, never `width`. Pitch equals bytes per row; it may exceed `width` when the driver pads rows for memory alignment — pass it as an explicit kernel argument alongside `width` and `height`.
+
+**Why a single-pass kernel wins over CPU `cv::cvtColor`:**
+
+`cv::cvtColor` converts NV12 to RGBA using multiple passes internally — it reads the Y plane, reads the UV plane, computes the conversion, and writes the result with intermediate buffers and no control over memory access patterns. On the CPU this also serializes across pixels.
+
+The OpenCL kernel reads the NV12 buffer once per pixel, computes the YUV-to-RGBA conversion inline, and writes the result once. One pass, no intermediate copies, all pixels in parallel. This is only possible because you address the Y and UV planes directly at known byte offsets — which requires understanding the raw layout. The layout knowledge is not an end in itself; it is what unlocks the single-pass access pattern.
 
 ### Mini-challenge
-Extract only the U channel into a separate BMP. What does it look like on a natural image? What does it look like on a solid red patch?
 
-*Hint: In YUV, red maps to U ≈ 0 and V ≈ max. A uniform-red patch should show a near-black U plane and a near-white V plane. If both look grey, your channel extraction is blending U and V.*
+**Part 1 — Port to YUYV (4:2:2)**
+
+Webcams often output YUYV instead of NV12. The format is packed — no separate UV plane:
+```
+Byte stream: Y0 U0 Y1 V0 Y2 U1 Y3 V1 ...
+             ↑──────────↑  ← 4 bytes encode 2 pixels
+```
+Each pair of pixels shares one U and one V sample. Index arithmetic for pixel `x`:
+- `Y = buf[x * 2]`
+- `U = buf[(x & ~1) * 2 + 1]`  (even column's U, shared with odd neighbour)
+- `V = buf[(x & ~1) * 2 + 3]`
+
+Write a `yuyv_to_rgba` kernel using the same BT.601 coefficients. The math is identical — only the index arithmetic changes. Verify with `output_yuyv_rgba.bmp`.
+
+**Part 2 — Two-pass vs single-pass on YUYV**
+
+Split the YUYV conversion into two separate kernel dispatches:
+1. `extract_y_yuyv` — reads YUYV buffer, writes a Y-only grayscale buffer.
+2. `yuyv_rgba_from_y` — reads the Y buffer + original YUYV (for U/V), writes RGBA.
+
+Time both dispatches with `cl::Event` and sum them. (Sum the nanosecond durations from `CL_PROFILING_COMMAND_END - CL_PROFILING_COMMAND_START` for each event, then convert to ms — same pattern as Module 1.) Compare to your single-pass `yuyv_to_rgba` time.
+
+The two-pass path reads the YUYV buffer twice and writes an intermediate Y buffer — doubling memory traffic. On hardware with a large GPU L2 cache the gap may be smaller than 2x if the intermediate buffer stays cached, but the extra write always costs something.
+
+```
+Single-pass yuyv_to_rgba:    X.X ms
+Two-pass (Y extract + RGBA): X.X ms   ← expect ~2x
+```
+
+The extra pass reads the YUYV buffer twice and writes an intermediate Y buffer — pure memory bandwidth waste. This is the same cost that `cv::cvtColor` pays on CPU, now visible as a number.
 
 ---
 
@@ -223,6 +268,7 @@ This track is complete when:
 
 | Project | Metric | Target |
 |:--------|:-------|:-------|
+| A2 YUV Pipeline — nv12_to_rgba | Kernel time (cl::Event) | < 2 ms @ 1920×1080 |
 | AI Smart Webcam — Bokeh | Frame time | < 33 ms @ 1080p (30 FPS) |
 | AI Smart Webcam — Privacy ROI | Frame time | < 20 ms @ 1080p |
 
