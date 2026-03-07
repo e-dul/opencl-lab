@@ -71,7 +71,7 @@ cmake --build build
   ```
   Kernel (16 spheres, 1280x720):  4.2 ms
   ```
-- Framebuffer is never downloaded to CPU during the render loop — verify by watching GPU memory bandwidth in `nvtop` or `radeontop`
+- Framebuffer is never downloaded to CPU during the render loop — verify programmatically: add a `clEnqueueReadBuffer` call in a `--debug-download` mode and confirm frame time increases by several milliseconds. The baseline (no download) is your proof.
 
 ### Core Concept: OpenGL Interop
 Without interop, the loop is: render → download to CPU → upload to OpenGL texture → display. With `cl_khr_gl_sharing`, the OpenCL kernel writes directly into a GL texture object. The display path becomes: render → display. No PCIe transfer.
@@ -141,7 +141,7 @@ while (node != MISS) {
 
 Each node stores a `hit_link` (left child) and `miss_link` (right sibling or parent's right sibling), precomputed on the CPU during BVH build.
 
-**Thread divergence**: Rays in the same warp will follow different tree paths. Replace `if (intersects_aabb(...))` branching with `select()` where possible. See [Toolbox: Thread Divergence](../../99_Toolbox/ThreadDivergence/ThreadDivergence.md).
+**Thread divergence**: Rays in the same warp will follow different tree paths. This is inevitable in BVH traversal — you will see it in the profiler after hitting the gate.
 
 ### BVH Build (CPU side)
 The BVH is built on the CPU using Surface Area Heuristic (SAH) and uploaded once as a flat array. The kernel only traverses — it never modifies the structure.
@@ -151,13 +151,8 @@ CPU: build SAH-BVH → flatten to array → cl::Buffer upload (once)
 GPU: per-ray stackless traversal (every frame)
 ```
 
-### Privacy Mode Challenge — Dynamic Scene
-Make one object in the scene move per frame. The BVH must be rebuilt (or refitted) each frame. Compare:
-1. Full rebuild on CPU each frame
-2. BVH refit (update leaf AABBs without restructuring)
-3. Partial rebuild (only the subtree containing the moving object)
-
-Profile all three with `cl::Event` timing on the upload stage.
+### Dynamic Scene Challenge
+Make one object in the scene move per frame. The BVH must be updated each frame to stay correct. Measure the upload cost with `cl::Event` timing — then ask: is there a cheaper way to keep the BVH valid without a full rebuild?
 
 ### Mini-challenge
 Visualize BVH depth per pixel: color each pixel by how many nodes the ray visited (0 = blue, max = red). This is your hotspot map — the red regions tell you where the tree is unbalanced.
@@ -227,11 +222,7 @@ This track is complete when:
 
 **Measure with `cl::Event` profiling** on the kernel, not total frame time. The upload (BVH buffer) is a one-time cost — exclude it from the per-frame measurement.
 
-**Hint**: If you're under 60 FPS, profile first. Common culprits in order of frequency:
-1. Thread divergence in traversal (fix: `select()` in inner loop)
-2. Uncoalesced triangle data reads (fix: Structure-of-Arrays layout)
-3. Work-group size not tuned for occupancy (fix: [Toolbox: Work-Group Sizing](../../99_Toolbox/WorkGroupSizing/WorkGroupSizing.md))
-4. `rsqrt`/`sqrt` in ray normalisation still using IEEE path (fix: [Toolbox: Fast Math](../../99_Toolbox/FastMath/FastMath.md))
+**If you're under 60 FPS**: profile with `cl::Event` on the traversal kernel and identify which stage dominates — traversal, triangle intersection, or memory reads. Then consult the [Optimization Toolbox](../../99_Toolbox/Toolbox.md) for the technique that matches your bottleneck.
 
 ---
 

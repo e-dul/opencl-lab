@@ -79,6 +79,8 @@ Your kernel receives a flat byte buffer. Stride (pitch) can be wider than width 
 ### Mini-challenge
 Extract only the U channel into a separate BMP. What does it look like on a natural image? What does it look like on a solid red patch?
 
+*Hint: In YUV, red maps to U ≈ 0 and V ≈ max. A uniform-red patch should show a near-black U plane and a near-white V plane. If both look grey, your channel extraction is blending U and V.*
+
 ---
 
 ## A3_1_OpenCV_DNN — High-Level Inference (T-API)
@@ -105,7 +107,9 @@ cmake --build build
 cv::UMat mask_umat;
 net.forward(mask_umat);               // stays on GPU
 cl_mem raw = (cl_mem)mask_umat.handle(cv::ACCESS_READ);
-kernel.setArg(1, cl::Buffer(raw));    // hand off to your blur kernel
+// retain=true: cl::Buffer must not release a cl_mem it does not own
+cl::Buffer mask_buf(raw, /*retain=*/true);
+kernel.setArg(1, mask_buf);           // hand off to your blur kernel
 ```
 
 **When to use**: OpenCV is already in your stack and ease of integration matters. The T-API hides memory management but gives you less control over buffer layout.
@@ -140,12 +144,21 @@ Blur kernel:           3.4 ms
 TFLite GPU delegate can accept and return raw `cl_mem` handles, skipping the serialization step entirely.
 
 ```cpp
-// Map your cl::Buffer into the TFLite input tensor
-void* mapped = clEnqueueMapBuffer(queue, input_buf, CL_TRUE,
-                                  CL_MAP_WRITE, 0, size, 0, nullptr, nullptr, &err);
+// Import your OpenCL command queue into the delegate so inference and your
+// kernels share the same queue — no cross-queue synchronization needed.
 TfLiteGpuDelegateV2Options opts = TfLiteGpuDelegateV2OptionsDefault();
 opts.experimental_flags |= TFLITE_GPU_EXPERIMENTAL_FLAGS_CL_COMMAND_QUEUE_IMPORT;
-// ... bind queue, extract output cl_mem, pass to blur kernel
+
+auto* delegate = TfLiteGpuDelegateV2Create(&opts);
+TfLiteInterpreterOptionsAddDelegate(interp_opts, delegate);
+
+// After interpreter->Invoke(), extract the output tensor's underlying cl_mem
+// and pass it directly to your blur kernel — no host round-trip.
+const TfLiteTensor* out = interpreter->output_tensor(0);
+cl_mem mask_cl = static_cast<cl_mem>(TfLiteTensorData(out));
+// retain=true: cl::Buffer must not release a cl_mem it does not own
+cl::Buffer mask_buf(mask_cl, /*retain=*/true);
+blur_kernel.setArg(1, mask_buf);
 ```
 
 **When to use**: Edge targets (Raspberry Pi, Jetson, phones) where the OpenCV stack is too heavy, or when you need to control buffer alignment for the delegate's internal tiling.
@@ -195,12 +208,9 @@ Live preview window shows:
 ### Privacy Mode Challenge
 The main tutorial blurs the entire background. The challenge: blur only a detected face bounding box (ROI).
 
-1. Replace the segmentation model with YuNet face detector.
-2. Use `global_work_offset` and `global_work_size` to launch the blur kernel only over the ROI.
-3. Handle boundary conditions when the face is partially outside the frame.
-4. Compare Full-Frame vs ROI performance with `cl::Event` timing.
+Replace the segmentation model with a face detector (YuNet) that outputs a bounding box, then launch the blur kernel only over that region. Key API to explore: `global_work_offset` and `global_work_size` in `enqueueNDRangeKernel`. Use `cl::Event` timing to compare Full-Frame vs ROI performance.
 
-**Performance gate:** Privacy Mode < 20 ms/frame @ 1080p (single face).
+**Performance gate:** < 20 ms/frame @ 1080p (single face).
 
 ### Mini-challenge
 Inside the Bokeh kernel, the condition `if (mask[id] == BACKGROUND)` causes thread divergence — within one warp, some threads blur and others do nothing. Replace it with `select()` (branchless) and measure the kernel time difference. See [Toolbox: Thread Divergence](../../99_Toolbox/ThreadDivergence/ThreadDivergence.md).

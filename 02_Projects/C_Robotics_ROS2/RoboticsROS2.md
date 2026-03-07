@@ -94,7 +94,6 @@ Add a ROS 2 Lifecycle Node wrapper (`rclcpp_lifecycle::LifecycleNode`). Create t
 
 ### Build & run
 ```bash
-source /opt/ros/humble/setup.bash
 cd C2_Costmap_Inflation
 cmake -B build
 cmake --build build
@@ -139,10 +138,10 @@ __kernel void inflate(__global const uchar* obstacles,
 }
 ```
 
-**Memory access pattern**: the inner loop reads `obstacles` at scattered offsets. This is a classic case for Local Memory (LDS) tiling — load a tile of the obstacle map into `__local` memory once, then read neighbors from fast local memory. See [Toolbox: Local Memory](../../99_Toolbox/LocalMemory/LocalMemory.md).
+**Memory access pattern**: the inner loop reads `obstacles` at offsets scattered across a `2×radius` window. Run the kernel and look at the GPU memory bandwidth utilization — then ask why a neighborhood read pattern might be inefficient.
 
 ### Mini-challenge
-Profile the naive kernel (global memory reads) vs a tiled version (local memory). At what tile size does the LDS version peak? Does the crossover radius (below which LDS doesn't help) match your theoretical expectation?
+Write a second version of the kernel that loads a tile of the obstacle map into `__local` memory before the inner loop. Profile naive vs tiled — at what tile size does the local-memory version peak? Does the crossover radius (below which it doesn't help) match your expectation? See [Toolbox: Local Memory](../../99_Toolbox/LocalMemory/LocalMemory.md) if you need the tiling pattern.
 
 ---
 
@@ -206,24 +205,12 @@ sub_ = create_subscription<PointCloud2>("points", rclcpp::QoS(10),
 
 To reach < 5 ms you will need to use the loaned message path. The standard path typically adds 0.8–1.5 ms on a 1.6 MB message.
 
-### Filtering Kernel: What It Does
+### Filtering Kernel: The Problem
 
-**Ground removal**: reject points where `z < threshold` (configurable via `--ground-z`). In the kernel each work item processes one point; rejected points write a sentinel value (`NaN` or a flag byte) to an output mask.
-
-**Intensity filter**: reject points where `intensity < min_intensity`. Combined with ground removal in a single pass to avoid two kernel launches.
-
-**Compaction**: use `cl::Buffer` prefix-sum to compact the output (remove rejected points from the array without gaps). Compaction is the expensive step — see [Toolbox: Async Pipelines](../../99_Toolbox/AsyncMultiThread/AsyncMultiThread.md) for how to overlap it with the feature extraction pass.
+The filter must produce a dense output array — feature extraction expects contiguous points with no gaps. A naive approach that marks rejected points in-place with a sentinel leaves holes; a second pass is needed to close them. Think about how many kernel launches and buffer round-trips that requires, and whether any of them can be merged or overlapped.
 
 ### Challenge: Real-Time Guarantee
-Make the node miss-proof: if a new message arrives before the previous kernel finishes, the node must not block. Use a double-buffer strategy:
-
-```
-Buffer A: in use by GPU kernel
-Buffer B: receiving next message upload (non-blocking enqueue)
-On kernel complete (event callback): swap A ↔ B, dispatch next kernel
-```
-
-Profile the event callback latency on your platform — on some drivers it adds 0.2–0.5 ms.
+Make the node miss-proof: if a new message arrives before the previous kernel finishes, the node must not block the subscriber thread. The Troubleshooting section describes the symptom when it does block. Design a strategy that decouples message arrival from kernel dispatch, measure the event callback latency on your platform, and verify with `ros2 topic hz` that no messages are dropped under load.
 
 ### Mini-challenge
 Replace the point cloud data layout from Array-of-Structs (AoS: `XYZIXYZIXYZ...`) to Structure-of-Arrays (SoA: `XXX...YYY...ZZZ...III...`). Profile the filter kernel before and after. Which layout wins, and why? (Hint: memory coalescing — consecutive work items reading consecutive memory.)
@@ -240,11 +227,7 @@ This track is complete when:
 
 **Measure with `cl::Event` profiling** on every GPU stage. The deserialization and publish stages are CPU-bound — measure them with `std::chrono::steady_clock`. The gate applies to the sum of all stages.
 
-**If you are over 5 ms**, profile in this order:
-1. Is serialization (not GPU) the bottleneck? → Switch to Loaned Messages.
-2. Is upload dominating? → Check buffer flags (`CL_MEM_ALLOC_HOST_PTR` for pinned memory).
-3. Is the filter kernel slow? → Check AoS vs SoA layout and coalescing.
-4. Is compaction blocking the pipeline? → Overlap with feature extraction via async enqueue.
+**If you are over 5 ms**: break down the per-stage times from the console output and identify which stage dominates. Then consult the [Optimization Toolbox](../../99_Toolbox/Toolbox.md) for the technique that matches your bottleneck.
 
 ---
 
