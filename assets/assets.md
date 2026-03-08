@@ -8,6 +8,10 @@
 | `sample_1080p.bmp` | BMP (24-bit RGB) | 1920 × 1080 | 6.0 MB | Full-HD synthetic test pattern (`testsrc` via ffmpeg). Source for 1080p YUV assets. |
 | `sample_nv12_1080p.yuv` | Raw NV12 (YUV 4:2:0) | 1920 × 1080 | 3.0 MB | Derived from `sample_1080p.bmp` via ffmpeg (`-pix_fmt nv12`). Use with A2: `--width 1920 --height 1080`. |
 | `sample_yuyv_1080p.yuv` | Raw YUYV (YUV 4:2:2 packed) | 1920 × 1080 | 4.0 MB | Derived from `sample_1080p.bmp` via ffmpeg (`-pix_fmt yuyv422`). Use with A2b: `--width 1920 --height 1080`. |
+| `face.png` | Raw YUYV (YUV 4:2:2 packed) | 1920 × 1080 | 4.0 MB | Sample for selfie segmentation. |
+| `selfie_segmentation.onnx` | Raw YUYV (YUV 4:2:2 packed) | 1920 × 1080 | 4.0 MB | It's the official ONNX export of the MediaPipe Selfie Segmentation model, Apache-2.0 licensed, with a 1×3×256×256 input and a 1×1×256×256 float alpha mask output  [Source](https://huggingface.co/onnx-community/mediapipe_selfie_segmentation) |
+
+
 
 ## Format Notes
 
