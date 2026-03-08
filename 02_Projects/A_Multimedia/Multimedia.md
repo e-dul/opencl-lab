@@ -8,7 +8,7 @@ See [main README](../../README.md) for base requirements (OpenCL, CMake, Docker 
 **Additional:**
 - OpenCV 4.5+: `sudo apt install libopencv-dev` — verify: `pkg-config --modversion opencv4`
 - A3_2 only: TFLite GPU delegate library (`.so`). Pre-built or built from source with `-DTFLITE_ENABLE_GPU=ON`. ARM-packaged delegates do not work on x86.
-- Assets in repository root: `assets/sample.bmp`, `assets/sample_nv12.yuv`, `assets/person.jpg`, `assets/selfie_segmentation.onnx`, `assets/selfie_segmentation.tflite`.
+- Assets in repository root: `assets/sample.bmp`, `assets/sample_nv12.yuv`, `assets/face.png`, `assets/selfie_segmentation.onnx`, `assets/selfie_segmentation.tflite`.
 
 ## Contents
 ```
@@ -137,7 +137,7 @@ The extra pass reads the YUYV buffer twice and writes an intermediate Y buffer �
 cd A3_1_OpenCV_DNN
 cmake -B build
 cmake --build build
-./build/opencvdnn_demo --input ../../../assets/person.jpg --model ../../../assets/selfie_segmentation.onnx
+./build/opencvdnn_demo --input ../../../assets/face.png --model ../../../assets/selfie_segmentation.onnx
 ```
 
 ### Verify
@@ -173,7 +173,7 @@ Swap `DNN_TARGET_OPENCL` for `DNN_TARGET_CPU`. Compare inference times at 224×2
 cd A3_2_TFLite_GPU
 cmake -B build
 cmake --build build
-./build/tflite_gpu_demo --input ../../../assets/person.jpg --model ../../../assets/selfie_segmentation.tflite
+./build/tflite_gpu_demo --input ../../../assets/face.png --model ../../../assets/selfie_segmentation.tflite
 ```
 
 ### Verify
@@ -233,7 +233,7 @@ cd A4_Smart_Webcam
 cmake -B build
 cmake --build build
 ./build/smart_webcam --device 0
-# Offline test (no webcam): ./build/smart_webcam --input ../../../assets/person.jpg --loop
+# Offline test (no webcam): ./build/smart_webcam --input ../../../assets/face.png --loop
 # GPU=NVIDIA ./build/smart_webcam --device 0
 ```
 
