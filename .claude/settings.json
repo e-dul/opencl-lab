@@ -49,7 +49,8 @@
       "/home/emil/Projects/opencl-lab/99_Toolbox/LocalMemory",
       "/home/emil/Projects/opencl-lab/99_Toolbox/ThreadDivergence",
       "/home/emil/Projects/opencl-lab/99_Toolbox/WorkGroupSizing",
-      "/home/emil/Projects/opencl-lab/02_Projects/A_Multimedia"
+      "/home/emil/Projects/opencl-lab/02_Projects/A_Multimedia",
+      "/home/emil/Projects/opencl-lab/02_Projects/A_Multimedia/A2_YUV_Pipeline"
     ]
   },
   "theme": "dark",
