@@ -5,6 +5,9 @@
 | `sample.bmp` | BMP (24-bit RGB) | 256 × 256 | 192 KB | Reference colour image. Used as input for modules that expect packed RGB (e.g. A1 OpenCV interop). |
 | `sample_nv12.yuv` | Raw NV12 (YUV 4:2:0) | 256 × 256 | 96 KB | Luma-plane-first, interleaved UV semi-planar layout. Derived from `sample.bmp`. Used by A2 YUV pipeline and any module that exercises YUV↔RGB conversion. |
 | `sample_yuyv.yuv` | Raw YUYV (YUV 4:2:2 packed) | 256 × 256 | 128 KB | Packed macropixel layout `[Y0, U, Y1, V]` per 2-pixel pair. Converted from `sample.bmp` via ffmpeg (`-pix_fmt yuyv422`). Used by A2b YUYV Extension. Pass `--width 256 --height 256` at runtime. |
+| `sample_1080p.bmp` | BMP (24-bit RGB) | 1920 × 1080 | 6.0 MB | Full-HD synthetic test pattern (`testsrc` via ffmpeg). Source for 1080p YUV assets. |
+| `sample_nv12_1080p.yuv` | Raw NV12 (YUV 4:2:0) | 1920 × 1080 | 3.0 MB | Derived from `sample_1080p.bmp` via ffmpeg (`-pix_fmt nv12`). Use with A2: `--width 1920 --height 1080`. |
+| `sample_yuyv_1080p.yuv` | Raw YUYV (YUV 4:2:2 packed) | 1920 × 1080 | 4.0 MB | Derived from `sample_1080p.bmp` via ffmpeg (`-pix_fmt yuyv422`). Use with A2b: `--width 1920 --height 1080`. |
 
 ## Format Notes
 

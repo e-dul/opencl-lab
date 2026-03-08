@@ -27,7 +27,7 @@ Build a production-grade GPU video pipeline that processes 1080p at ≥ 30 FPS. 
   - *Context*: Executive Summary §Path A item A.1; `Multimedia.md` §A1_OpenCV_Interop.
 - [x] Phase 2: A2 — YUV Pipeline — NV12 → RGBA and Y-channel extraction kernels; CPU vs GPU comparison table.
   - *Context*: Executive Summary §Path A item A.2; `Multimedia.md` §A2_YUV_Pipeline.
-- [ ] Phase 2b: A2 YUYV Extension — Port kernels to YUYV (4:2:2) packed format; two-pass vs single-pass timing comparison.
+- [x] Phase 2b: A2 YUYV Extension — Port kernels to YUYV (4:2:2) packed format; two-pass vs single-pass timing comparison.
   - *Context*: `Multimedia.md` §A2_YUV_Pipeline Mini-challenge Parts 1 & 2.
 - [ ] Phase 3: A3_1 — OpenCV DNN (T-API) — High-level inference, UMat stays on GPU.
   - *Context*: Executive Summary §Path A item A.3.1; `Multimedia.md` §A3_1_OpenCV_DNN.
@@ -140,7 +140,13 @@ Build a production-grade GPU video pipeline that processes 1080p at ≥ 30 FPS. 
 - **Thread Divergence in Bokeh Kernel**: The naive `if (mask[id] == BACKGROUND)` branch is a known inefficiency, intentionally left for the mini-challenge. It must not be pre-optimized in the base implementation.
 - **A2 Mini-challenge scope**: The YUYV port and two-pass timing comparison are Phase 2b — a separate task from Task 020 (NV12 pipeline). Not required for the A2 performance gate.
 - **A2 Kernel Path Resolution (portability fragility)**: Kernel files are located relative to `argv[0]` at runtime. This is a pre-existing pattern across the lab; it works when the binary is invoked from its build directory but may fail when called via an absolute path from a different cwd. Documented as a known limitation — not fixed in A2.
-- **A2 GPU Timing at 0.014 ms (256×256, RTX 4060 Laptop)**: Extremely low kernel time (< 0.1 ms) suggests the GPU launch overhead dominates over compute at small resolutions. The performance gate (< 2 ms @ 1920×1080) was satisfied; at 1920×1080 this pattern may differ. The gate WAIVER clause covers iGPU scenarios where even 1080p timings fall in sub-millisecond range due to driver scheduling.
+- **A2 GPU Timing (RTX 4060 Laptop)**:
+  - 256×256: CPU 0.243 ms, GPU (nv12_to_rgba) 0.013 ms, speedup 18×. Kernel launch overhead dominates at this size.
+  - 1920×1080: CPU 8.690 ms, GPU (nv12_to_rgba) 0.053 ms, speedup **164×**. Gate PASS. At 1080p pixel throughput dominates; this is the representative benchmark.
+- **A2b GPU Timing (RTX 4060 Laptop)**:
+  - 256×256: CPU 0.210 ms, single-pass 0.013 ms, two-pass 0.010 ms. Speedup 21×. Two-pass marginally faster (launch overhead small at tiny size).
+  - 1920×1080: CPU 3.709 ms, single-pass 0.046 ms, two-pass 0.070 ms (P1: 0.033 ms + P2: 0.038 ms). Speedup **80×**. Gate PASS. Single-pass wins at 1080p (two-pass 1.53× slower — cost of two kernel dispatches outweighs compute savings).
+- **1080p canonical assets**: `assets/sample_1080p.bmp` (ffmpeg `testsrc`), `assets/sample_nv12_1080p.yuv`, `assets/sample_yuyv_1080p.yuv` are now committed. Use `--width 1920 --height 1080` at runtime.
 
 ---
 

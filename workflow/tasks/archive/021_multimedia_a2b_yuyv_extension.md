@@ -137,35 +137,76 @@ Port the YUV conversion pipeline to YUYV (4:2:2 packed) format, implementing bot
 ## Definition of Done (DoD)
 
 Standard items (master_specs §8):
-- [ ] `cmake -B build && cmake --build build` from `A2b_YUYV_Extension/` succeeds with zero errors and zero warnings.
-- [ ] Binary runs without error: `./build/A2b_YUYV_Extension --input ../../../assets/sample_yuyv.yuv --width 1920 --height 1080`.
-- [ ] `--help` prints CLI11-generated usage including `--input`, `--width`, `--height`, `--output-single`, `--output-two`.
-- [ ] `GPU=<vendor> ./build/A2b_YUYV_Extension --input ... --width 1920 --height 1080` selects correct device without crashing.
+- [x] `cmake -B build && cmake --build build` from `A2b_YUYV_Extension/` succeeds with zero errors and zero warnings.
+- [x] Binary runs without error: `./build/A2b_YUYV_Extension --input ../../../assets/sample_yuyv.yuv --width 256 --height 256` (asset is 256x256 per assets.md).
+- [x] `--help` prints CLI11-generated usage including `--input`, `--width`, `--height`, `--output-single`, `--output-two`.
+- [x] `GPU=NVIDIA ./build/A2b_YUYV_Extension --input ... --width 256 --height 256` selects correct device without crashing.
 
 Task-specific outcomes:
-- [ ] `output_rgba_singlepass.bmp` produced — correct colors (not green-pink), matches OpenCV reference visually.
-- [ ] `output_rgba_twopass.bmp` produced — visually identical to single-pass output.
-- [ ] Console prints timing table with CPU reference, single-pass, and two-pass (with per-pass breakdown) in ms to 3 decimal places.
-- [ ] GPU timings sourced from `cl::Event` profiling; CPU timing from `std::chrono::steady_clock`.
-- [ ] `width % 2 != 0` throws `std::runtime_error` before any processing.
-- [ ] Integer safety check throws `std::runtime_error` if `width * height > INT_MAX` before `cl_int` kernel args are set.
-- [ ] UV-plane and buffer size arithmetic uses `static_cast<size_t>(width) * height` (no 32-bit overflow).
-- [ ] `yuyv_to_rgba.cl` includes a `// WHY` comment explaining YUYV 4:2:2 macropixel stride.
-- [ ] Speedup gate printed: PASS (single-pass < 2.0 ms) or WAIVER with iGPU/topology note.
-- [ ] Kernel `.cl` files present in `build/kernels/` after build (POST_BUILD copy rule active).
+- [x] `output_rgba_singlepass.bmp` produced — correct colors (not green-pink), matches OpenCV reference visually.
+- [x] `output_rgba_twopass.bmp` produced — visually identical to single-pass output.
+- [x] Console prints timing table with CPU reference, single-pass, and two-pass (with per-pass breakdown) in ms to 3 decimal places.
+- [x] GPU timings sourced from `cl::Event` profiling; CPU timing from `std::chrono::steady_clock`.
+- [x] `width % 2 != 0` throws `std::runtime_error` before any processing.
+- [x] Integer safety check throws `std::runtime_error` if `width * height > INT_MAX` before `cl_int` kernel args are set.
+- [x] UV-plane and buffer size arithmetic uses `static_cast<size_t>(width) * height` (no 32-bit overflow).
+- [x] `yuyv_to_rgba.cl` includes a `// WHY` comment explaining YUYV 4:2:2 macropixel stride.
+- [x] Speedup gate printed: PASS (single-pass < 2.0 ms) or WAIVER with iGPU/topology note.
+- [x] Kernel `.cl` files present in `build/kernels/` after build (POST_BUILD copy rule active).
 
 ---
 
 ## Execution Report
 <!-- Filled by @coder after implementation. -->
 
-- **Status:** PENDING
-- **Session:** —
+- **Status:** COMPLETE
+- **Session:** 2026-03-08
 
 ### Validation
 ```
-[output here]
+pci id for fd 11: 10de:28e0, driver (null)
+pci id for fd 12: 10de:28e0, driver (null)
+Platform : NVIDIA CUDA
+Device   : NVIDIA GeForce RTX 4060 Laptop GPU
+Saved: output_rgba_singlepass.bmp
+Saved: output_rgba_twopass.bmp
+
+=== A2b YUYV Extension Benchmark ===
+Input:  ../../../assets/sample_yuyv.yuv  (256x256 YUYV 4:2:2)
+
+Stage                         Time (ms)
+-----------------------------------------------------
+OpenCV CPU cvtColor           0.277 ms
+OpenCL single-pass            0.013 ms
+OpenCL two-pass (P1 + P2)     0.010 ms  (P1: 0.005 ms, P2: 0.005 ms)
+-----------------------------------------------------
+Speedup CPU / single-pass:   21.106 x
+Speedup two-pass / single:   0.780 x  (>1.0 = single-pass wins)
+Gate: PASS   [single-pass < 2.000 ms at 256x256]
+
+--- Odd-width test ---
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  Width must be even for YUYV 4:2:2 format, got: 257
+
+--- GPU=NVIDIA test ---
+Platform : NVIDIA CUDA  [GPU=NVIDIA]
+Device   : NVIDIA GeForce RTX 4060 Laptop GPU
 ```
+
+### Post-session Notes
+
+**1080p benchmark** (`sample_yuyv_1080p.yuv`, 1920×1080, RTX 4060 Laptop):
+```
+OpenCV CPU cvtColor           3.709 ms
+OpenCL single-pass            0.046 ms
+OpenCL two-pass (P1 + P2)     0.070 ms  (P1: 0.033 ms, P2: 0.038 ms)
+Speedup CPU / single-pass:   80.488 x
+Speedup two-pass / single:   1.528 x  (single-pass wins)
+Gate: PASS
+```
+At 1080p single-pass clearly wins — the cost of two kernel dispatches (0.070 ms) outweighs any compute benefit vs one dispatch (0.046 ms). This reverses the 256×256 result where two-pass was marginally faster due to tiny workload.
+
+**`load_raw_binary()` refactor**: File-loading block extracted to `common/image_utils.hpp`. Both A2 and A2b `main.cpp` now delegate to `load_raw_binary(path, expected_bytes)`.
 
 ### Changed Files
 | File | Change |

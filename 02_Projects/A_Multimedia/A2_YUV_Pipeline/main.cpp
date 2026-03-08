@@ -21,7 +21,6 @@
 #include <chrono>
 #include <climits>
 #include <cstdint>
-#include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <stdexcept>
@@ -60,28 +59,7 @@ int main(int argc, char* argv[]) {
     // at resolutions larger than ~1.7 K × 1.7 K if both operands stayed int.
     const size_t yuv_bytes = static_cast<size_t>(width) * height * 3 / 2;
 
-    std::ifstream yuv_file(input_path, std::ios::binary);
-    if (!yuv_file.is_open()) {
-        throw std::runtime_error("Cannot open NV12 file: " + input_path);
-    }
-
-    yuv_file.seekg(0, std::ios::end);
-    const auto file_size = static_cast<size_t>(yuv_file.tellg());
-    yuv_file.seekg(0, std::ios::beg);
-
-    if (file_size != yuv_bytes) {
-        throw std::runtime_error(
-            "File size mismatch: expected " + std::to_string(yuv_bytes) +
-            " bytes for " + std::to_string(width) + "x" + std::to_string(height) +
-            " NV12, got " + std::to_string(file_size));
-    }
-
-    std::vector<uint8_t> yuv_data(yuv_bytes);
-    yuv_file.read(reinterpret_cast<char*>(yuv_data.data()),
-                  static_cast<std::streamsize>(yuv_bytes));
-    if (!yuv_file) {
-        throw std::runtime_error("Failed to read NV12 data from: " + input_path);
-    }
+    std::vector<uint8_t> yuv_data = load_raw_binary(input_path, yuv_bytes);
 
     // ── CPU path: OpenCV cvtColor (reference timing) ─────────────────────────
     // cv::Mat wraps yuv_data without copying — height*3/2 rows, width cols.

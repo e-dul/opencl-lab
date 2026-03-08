@@ -16,9 +16,40 @@
 // "redefinition" errors even with guards in place.
 
 #include <cstdint>
+#include <fstream>
 #include <stdexcept>
 #include <string>
 #include <vector>
+
+// Load a raw binary file into a byte vector.
+// Validates that the file size exactly matches expected_bytes. Throws on any
+// error (file not found, size mismatch, read failure).
+inline std::vector<uint8_t> load_raw_binary(const std::string& path,
+                                             size_t expected_bytes) {
+    std::ifstream f(path, std::ios::binary);
+    if (!f.is_open()) {
+        throw std::runtime_error("Cannot open file: " + path);
+    }
+
+    f.seekg(0, std::ios::end);
+    const auto file_size = static_cast<size_t>(f.tellg());
+    f.seekg(0, std::ios::beg);
+
+    if (file_size != expected_bytes) {
+        throw std::runtime_error(
+            "File size mismatch for '" + path + "': expected " +
+            std::to_string(expected_bytes) + " bytes, got " +
+            std::to_string(file_size));
+    }
+
+    std::vector<uint8_t> data(expected_bytes);
+    f.read(reinterpret_cast<char*>(data.data()),
+           static_cast<std::streamsize>(expected_bytes));
+    if (!f) {
+        throw std::runtime_error("Read error: " + path);
+    }
+    return data;
+}
 
 // Load image from disk, force-converted to RGB (3 channels, no alpha).
 // Returns pixel data in row-major order. Throws on failure.
