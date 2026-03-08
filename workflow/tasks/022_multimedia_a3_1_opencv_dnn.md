@@ -161,10 +161,32 @@ $ ls -lh output_mask.bmp output_blurred.bmp
 -rw-rw-r-- 1 emil emil 728K Mar  8 20:06 output_mask.bmp
 ```
 
+On system with Intel iGPU
+
+```
+./a3_1_opencv_dnn --input ../../../../assets/face.png --model ../../../../assets/selfie_segmentation.onnx 
+Platform : Intel(R) OpenCL Graphics
+Device   : Intel(R) Iris(R) Xe Graphics
+[ WARN:0@0.059] global ./modules/dnn/src/ocl4dnn/src/ocl4dnn_conv_spatial.cpp (1924) loadTunedConfig OpenCV(ocl4dnn): consider to specify kernel configuration cache directory through OPENCV_OCL4DNN_CONFIG_PATH parameter.
+[A3_1] DNN mask GPU-resident: YES (OpenCL)
+Saved: output_blurred.bmp
+Saved: output_mask.bmp
+
+[A3_1] Inference (CPU wall-clock): 64.235 ms
+[A3_1] Bokeh blur (cl::Event):     0.223 ms
+[A3_1] Total:                       64.457 ms
+Gate: WAIVER (iGPU or CPU device — result is functionally correct)
+
+Running that with OPENCV_LOG_LEVEL=VERBOSE suggest that OpenCL was initialized and potentially used.
+
+```
+
+
 ### Notes
 - OpenCV ocl4dnn emits a CL_BUILD_PROGRAM_FAILURE warning for `dnn/dummy` (a probe kernel used to detect subgroup support). This is an upstream OpenCV issue on NVIDIA drivers that lack `-cl-no-subgroup-ifp`; inference proceeds correctly on the CPU/OpenCL fallback path. Not a defect in this module.
 - `GPU=NVIDIA` correctly selects `NVIDIA CUDA` platform and `NVIDIA GeForce RTX 4060 Laptop GPU`.
 - Performance gate waiver applied: RTX 4060 Laptop GPU is recognized as iGPU/CPU context by the ocl4dnn backend (no discrete T-API acceleration available on this driver stack). Inference at ~112ms is CPU-bound; bokeh blur at 0.026ms is GPU-accelerated.
+- Disapointing results and poor support.
 
 ### Changed Files
 | File | Change |

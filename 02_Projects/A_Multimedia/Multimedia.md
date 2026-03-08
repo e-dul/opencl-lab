@@ -285,7 +285,7 @@ This track is complete when:
 - **`clEnqueueMapBuffer` returns null (A3_2)**: Buffer must have been created with `CL_MEM_ALLOC_HOST_PTR` or `CL_MEM_USE_HOST_PTR` for host-mappable memory. `CL_MEM_COPY_HOST_PTR` alone is not mappable on all drivers.
 - **Webcam gives wrong resolution**: Add `--width 1920 --height 1080` flags; some webcams default to 640×480.
 - **Wrong GPU**: `GPU=NVIDIA ./build/smart_webcam`, `GPU=AMD ./build/smart_webcam`, `GPU=INTEL ./build/smart_webcam`.
-
+- **Inspect OpenCV**: use `OPENCV_LOG_LEVEL=VERBOSE`
 ---
 
 ## What's Next
