@@ -122,3 +122,4 @@ This repository is optimized for collaboration with AI assistants.
 - Move B1 CLBlast section to addons
 - Summarize command, agents, skills and usage for this project
 - Mark sections with strict HW or OpenCL version dependencies
+- Add better asset with selfie - blur is not clearly visible

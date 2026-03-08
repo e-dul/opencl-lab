@@ -29,7 +29,7 @@ Build a production-grade GPU video pipeline that processes 1080p at ≥ 30 FPS. 
   - *Context*: Executive Summary §Path A item A.2; `Multimedia.md` §A2_YUV_Pipeline.
 - [x] Phase 2b: A2 YUYV Extension — Port kernels to YUYV (4:2:2) packed format; two-pass vs single-pass timing comparison.
   - *Context*: `Multimedia.md` §A2_YUV_Pipeline Mini-challenge Parts 1 & 2.
-- [ ] Phase 3: A3_1 — OpenCV DNN (T-API) — High-level inference, UMat stays on GPU.
+- [ ] Phase 3: A3_1 — OpenCV DNN (T-API) — High-level inference, UMat stays on GPU. **[BLOCKED: requires Intel iGPU for ocl4dnn GPU path; NVIDIA not supported]**
   - *Context*: Executive Summary §Path A item A.3.1; `Multimedia.md` §A3_1_OpenCV_DNN.
 - [ ] Phase 4: A3_2 — TFLite GPU Delegate — Explicit `clEnqueueMapBuffer` buffer handoff.
   - *Context*: Executive Summary §Path A item A.3.2; `Multimedia.md` §A3_2_TFLite_GPU.
@@ -146,6 +146,11 @@ Build a production-grade GPU video pipeline that processes 1080p at ≥ 30 FPS. 
 - **A2b GPU Timing (RTX 4060 Laptop)**:
   - 256×256: CPU 0.210 ms, single-pass 0.013 ms, two-pass 0.010 ms. Speedup 21×. Two-pass marginally faster (launch overhead small at tiny size).
   - 1920×1080: CPU 3.709 ms, single-pass 0.046 ms, two-pass 0.070 ms (P1: 0.033 ms + P2: 0.038 ms). Speedup **80×**. Gate PASS. Single-pass wins at 1080p (two-pass 1.53× slower — cost of two kernel dispatches outweighs compute savings).
+- **A3_1 ocl4dnn probe kernel failure (NVIDIA — DNN falls back to CPU)**: OpenCV emits `CL_BUILD_PROGRAM_FAILURE` for the `dnn/dummy` probe kernel (`-cl-no-subgroup-ifp` rejected by NVIDIA's compiler). This causes ocl4dnn to abort GPU kernel compilation; DNN inference runs on CPU (~90 ms). The bokeh blur kernel (our code) still executes on GPU (0.026 ms). Not a defect in this module — upstream OpenCV/NVIDIA driver incompatibility.
+- **A3_1 `mask_on_gpu=YES` does NOT confirm DNN ran on OpenCL**: `mask_on_gpu` reflects whether the resized mask UMat has a GPU `cl_mem` handle after `cv::resize` (which goes through the shared T-API context). Even with CPU-bound DNN inference, the subsequent `cv::resize` can produce a GPU-resident UMat. Use inference wall-clock time (~90 ms vs <5 ms expected for GPU) as the definitive indicator.
+- **A3_1 `cv::ocl::attachContext()` required before DNN init**: The OpenCL context created by `create_context()` must be attached via `cv::ocl::attachContext()` before `cv::dnn::readNetFromONNX()` so OpenCV DNN shares the same context. Calling it after model load causes a second context to be created, breaking handle extraction.
+- **A3_1 BGRA→RGBA T-API path**: Input is loaded as BGR, converted to RGBA entirely via `cv::UMat` T-API `cvtColor` + `cl_mem` handle extraction. No CPU round-trip. This avoids a `clEnqueueWriteBuffer` that would negate the zero-copy benefit of using UMat.
+- **A3_1 GPU Timing (RTX 4060 Laptop)**: Inference (CPU wall-clock) ~112 ms (ocl4dnn CPU-bound due to probe failure); bokeh blur (cl::Event) 0.026 ms. Performance gate WAIVER applied — iGPU/CPU context detected by ocl4dnn backend on this driver stack.
 - **1080p canonical assets**: `assets/sample_1080p.bmp` (ffmpeg `testsrc`), `assets/sample_nv12_1080p.yuv`, `assets/sample_yuyv_1080p.yuv` are now committed. Use `--width 1920 --height 1080` at runtime.
 
 ---
