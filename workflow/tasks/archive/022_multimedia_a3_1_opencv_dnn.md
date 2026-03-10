@@ -188,6 +188,26 @@ Running that with OPENCV_LOG_LEVEL=VERBOSE suggest that OpenCL was initialized a
 - Performance gate waiver applied: RTX 4060 Laptop GPU is recognized as iGPU/CPU context by the ocl4dnn backend (no discrete T-API acceleration available on this driver stack). Inference at ~112ms is CPU-bound; bokeh blur at 0.026ms is GPU-accelerated.
 - Disapointing results and poor support.
 
+### NVIDIA Verbose Log Analysis (`OPENCV_LOG_LEVEL=VERBOSE`)
+
+**Root cause — `-cl-no-subgroup-ifp` rejection:**
+```
+Status -11: CL_BUILD_PROGRAM_FAILURE
+Error in processing command line: Don't understand command line argument "-cl-no-subgroup-ifp"!
+```
+This flag is AMD/Intel-specific. OpenCV's ocl4dnn hardcodes it when compiling spatial convolution kernels. NVIDIA's OpenCL driver rejects it, causing `CL_BUILD_PROGRAM_FAILURE` for the `dnn/dummy` probe kernel before any layer executes.
+
+**What actually ran where:**
+| Stage | Backend | Time |
+|---|---|---|
+| DNN inference | CPU fallback (ocl4dnn build failed) | ~110 ms |
+| Bokeh blur kernel | GPU (OpenCL) via `cl::Event` | ~0.024 ms |
+
+**Key issues:**
+1. **No per-layer fallback visibility** — OpenCV does not log which layers fell back to CPU. Silent CPU execution is hard to detect without `cl::Event` profiling on inference.
+2. **`mask_on_gpu` check is misleading** — UMat GPU-residency ≠ DNN executed on GPU. The `YES (OpenCL)` message reflects T-API `cv::resize` promotion of the output UMat, not that convolution ran on GPU.
+3. **No fix possible with `DNN_TARGET_OPENCL` on NVIDIA** — upstream OpenCV/NVIDIA driver incompatibility. Remediation options: patch ocl4dnn to skip the flag on non-AMD/Intel platforms, switch to `DNN_TARGET_CUDA` (requires CUDA-enabled OpenCV), or use ONNX Runtime / TensorRT for NVIDIA inference.
+
 ### Changed Files
 | File | Change |
 |------|--------|
