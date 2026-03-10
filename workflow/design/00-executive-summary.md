@@ -128,9 +128,14 @@ Success is defined by metrics, not just compilation.
 3.  **A.3.1** AI Inference (Edge AI / DNN Backend) -  OpenCV DNN (T-API Approach): 
     1. Focuses on the ease of use with cv::UMat and DNN_TARGET_OPENCL.
     2. Postprocessing (NMS, bbox decoding) in OpenCL.
-4.  **A.3.2** TensorFlow Lite (Edge Approach): 
-    1. Focuses on explicit memory mapping (clEnqueueMapBuffer), passing raw OpenCL buffer pointers to TfLiteGpuDelegateV2, and edge optimization.
+4.  ~~**A.3.2** TensorFlow Lite (Edge Approach):~~
+    ~~1. Focuses on explicit memory mapping (clEnqueueMapBuffer), passing raw OpenCL buffer pointers to TfLiteGpuDelegateV2, and edge optimization.~~
+    ~~2. Postprocessing (NMS, bbox decoding) in OpenCL.~~
+    > ❌ **Cancelled:** TFLite GPU delegate `.so` is ARM-packaged — no official pre-built x86_64 binary exists. Building from source requires the Android NDK toolchain. Not feasible for a cross-platform educational module.
+4.  **A.3.2** OpenVINO GPU Plugin (Intel iGPU — Intel-only):
+    1. Intel-focused: pass `cl::Buffer` directly as input/output tensor via OpenVINO RemoteTensor API — zero host round-trip between inference and OpenCL kernel.
     2. Postprocessing (NMS, bbox decoding) in OpenCL.
+    3. Educational angle: OpenVINO internally runs on OpenCL — exposes what the T-API hides in A3_1, at the raw `cl_mem` handle level, on hardware where it reliably works.
 5.  **A.4:** **PROJECT #1: AI Smart Webcam.**
     1.  Pipeline: Camera (OpenCV) → AI Segmentation → OpenCL Blur → Screen.
     2.  **Main Tutorial: "Bokeh Mode" (Background Blur)**

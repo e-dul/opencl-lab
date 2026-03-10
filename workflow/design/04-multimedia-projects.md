@@ -31,8 +31,8 @@ Build a production-grade GPU video pipeline that processes 1080p at ≥ 30 FPS. 
   - *Context*: `Multimedia.md` §A2_YUV_Pipeline Mini-challenge Parts 1 & 2.
 - [x] Phase 3: A3_1 — OpenCV DNN (T-API) — High-level inference, UMat stays on GPU. **[DONE — performance gate waived; NVIDIA falls back to CPU via ocl4dnn probe failure; Intel iGPU tested at 64 ms]**
   - *Context*: Executive Summary §Path A item A.3.1; `Multimedia.md` §A3_1_OpenCV_DNN.
-- [ ] Phase 4: A3_2 — TFLite GPU Delegate — Explicit `clEnqueueMapBuffer` buffer handoff.
-  - *Context*: Executive Summary §Path A item A.3.2; `Multimedia.md` §A3_2_TFLite_GPU.
+- [ ] Phase 4: A3_2 — OpenVINO GPU Plugin — RemoteTensor API: pass `cl::Buffer` directly as input/output tensor. Intel iGPU only.
+  - *Context*: Executive Summary §Path A item A.3.2; `Multimedia.md` §A3_2_OpenVINO_GPU.
 - [ ] Phase 5: A4 — AI Smart Webcam (Flagship) — Full live pipeline: capture → AI → OpenCL blur → display.
   - *Context*: Executive Summary §Path A item A.4; `Multimedia.md` §A4_Smart_Webcam.
 - [ ] Phase 6: A4 Challenge — Privacy Mode — ROI-scoped blur via `global_work_offset`.
@@ -50,7 +50,8 @@ Build a production-grade GPU video pipeline that processes 1080p at ≥ 30 FPS. 
 
 - **OpenCV Version**: 4.5+ required. Detected via `find_package(OpenCV REQUIRED)`.
 - **Image Formats for Intermediate Verification**: BMP or PNG only (no JPEG). NV12 raw files loaded as flat byte buffers.
-- **Inference Backends**: OpenCV DNN (A3_1) and TensorFlow Lite GPU delegate (A3_2). These are mutually exclusive sub-projects.
+- **Inference Backends**: OpenCV DNN (A3_1) and OpenVINO GPU plugin (A3_2, Intel iGPU only). These are mutually exclusive sub-projects.
+  - A3_2 requires Intel iGPU. `find_package(OpenVINO REQUIRED)` in A3_2 CMakeLists.txt. No OpenCV dependency in A3_2.
 - **CLI**: All binaries must expose at minimum `--input` (file path) and a GPU selection path via the `GPU` env var. Webcam binaries expose `--device` (integer index) and `--width`/`--height`.
 - **Integer Safety (A2 kernels)**: When passing pixel count or buffer size as `cl_int` kernel args, throw `std::runtime_error` if `size > INT_MAX`. Silent truncation via `std::min` is forbidden (master_specs §7.1).
 - **A2 OpenCV dependency**: `find_package(OpenCV REQUIRED)` in A2's CMakeLists.txt. OpenCV is used only for the CPU comparison (`cv::cvtColor`) — NOT for loading the NV12 input (which remains a raw flat byte buffer).
@@ -64,7 +65,7 @@ Build a production-grade GPU video pipeline that processes 1080p at ≥ 30 FPS. 
 - **OpenCV Interop Layer** (`A1_OpenCV_Interop`): Benchmarks two transfer paths — `clEnqueueWriteBuffer` from a `cv::Mat` vs `UMat` zero-copy via `CL_MEM_USE_HOST_PTR`. Outputs timing to console; no visual kernel required (transfer benchmark only).
 - **YUV Conversion Kernel** (`A2_YUV_Pipeline`): Two kernels — `nv12_to_rgba` and `extract_y_channel`. Reads a flat NV12 byte buffer with explicit stride/pitch handling. Also runs `cv::cvtColor` (CPU, `COLOR_YUV2RGBA_NV12`) for comparison — OpenCV is a dependency for A2. Outputs `output_rgba.bmp`, `output_y_channel.bmp`, and a console timing table (OpenCV CPU / OpenCL kernel / speedup).
 - **DNN T-API Bridge** (`A3_1_OpenCV_DNN`): Wraps OpenCV DNN with `DNN_TARGET_OPENCL`. Extracts the `cl_mem` handle from the output `cv::UMat` via `umat.handle(cv::ACCESS_READ)` and passes it directly to the blur kernel as a `cl::Buffer`.
-- **TFLite GPU Bridge** (`A3_2_TFLite_GPU`): Uses `TfLiteGpuDelegateV2` with `TFLITE_GPU_EXPERIMENTAL_FLAGS_CL_COMMAND_QUEUE_IMPORT`. Input/output tensors are bound to OpenCL buffers via `clEnqueueMapBuffer`. Buffer must be created with `CL_MEM_ALLOC_HOST_PTR`.
+- **OpenVINO GPU Bridge** (`A3_2_OpenVINO_GPU`): Uses OpenVINO RemoteTensor API (`ov::intel_gpu::ocl::ClContext`). Input `cl::Buffer` imported via `remote_ctx.create_tensor()` with raw `cl_mem` handle. Output `cl_mem` extracted via `ov::intel_gpu::ocl::ClBufferTensor::get()`. No host copy between inference and blur kernel. Intel iGPU only.
 - **Bokeh Kernel** (`A4_Smart_Webcam`): Full-frame conditional blur — `if (mask[id] == BACKGROUND)` applies Gaussian/box filter; foreground pixels pass through. Controlled by a binary segmentation mask from AI stage.
 - **Privacy ROI Kernel** (A4 Challenge): Identical blur kernel launched over a sub-region using `global_work_offset` and a restricted `global_work_size` matching the detected face bounding box.
 
@@ -90,11 +91,11 @@ Build a production-grade GPU video pipeline that processes 1080p at ≥ 30 FPS. 
 4. Run blur kernel with mask buffer as arg.
 5. Save `output_mask.bmp` and `output_blurred.bmp`.
 
-#### A3_2 (TFLite GPU)
-1. Load image → `cl::Buffer` (`CL_MEM_ALLOC_HOST_PTR`).
-2. `clEnqueueMapBuffer` → bind to TFLite input tensor.
-3. Run TFLite inference on GPU delegate.
-4. `clEnqueueMapBuffer` (output) → extract as `cl::Buffer`.
+#### A3_2 (OpenVINO GPU)
+1. Load image → `cl::Buffer` (device memory).
+2. Wrap buffer as `ov::RemoteTensor` via `remote_ctx.create_tensor()` — no copy.
+3. Run OpenVINO inference (`req.infer()`).
+4. Extract output `cl_mem` via `ClBufferTensor::get()` → construct `cl::Buffer` (`retain=true`).
 5. Run blur kernel. Save outputs.
 
 #### A4 (Smart Webcam — Live Pipeline)
@@ -109,7 +110,7 @@ Build a production-grade GPU video pipeline that processes 1080p at ≥ 30 FPS. 
 ## Key Decisions (and Rationale)
 
 1. **Two Inference Sub-paths (A3_1 / A3_2) as Separate Snapshot Directories**
-   - **Why**: Educational contrast — T-API hides memory management (ease) vs explicit `cl_mem` wiring (control). Side-by-side snapshots let users diff the integration cost.
+   - **Why**: Educational contrast — T-API hides buffer ownership (OpenCV owns `cl_mem`) vs OpenVINO RemoteTensor (caller owns `cl_mem` from start). Intel-only scope is honest — the educational value is the raw `cl_mem` boundary, not cross-platform support. Side-by-side snapshots let users diff the integration cost.
 
 2. **NV12 Input for A2 via Raw Byte File, Not OpenCV Decode**
    - **Why**: `cv::imread` silently converts to BGR, hiding the raw memory layout. Loading a flat `.yuv` file forces the user to reason about stride, Y-plane size, and UV interleaving explicitly. This layout knowledge is the prerequisite for writing a single-pass OpenCL kernel — the teaching payoff is the measured speedup over `cv::cvtColor` on CPU, which runs multi-pass with intermediate buffers. OpenCV is used in A2 only for the CPU comparison path (`cv::cvtColor`), not for decoding the input.
@@ -120,22 +121,23 @@ Build a production-grade GPU video pipeline that processes 1080p at ≥ 30 FPS. 
 4. **A4 Privacy Mode Uses `global_work_offset`, Not a Separate Cropped Buffer**
    - **Why**: Demonstrates ROI processing as a kernel launch configuration problem, not a memory copy problem. Avoids creating a teaching moment that encourages unnecessary copies.
 
-5. **`CL_MEM_ALLOC_HOST_PTR` for TFLite Delegate Buffers (A3_2)**
-   - **Why**: Required for `clEnqueueMapBuffer` portability across discrete GPU (PCIe) and iGPU (UMA). `CL_MEM_COPY_HOST_PTR` alone is not mappable on all drivers.
+5. **`retain=true` when wrapping output `cl_mem` (A3_2)**
+   - **Why**: The `cl_mem` returned by `ClBufferTensor::get()` is owned by OpenVINO. `cl::Buffer(raw, retain=true)` increments the refcount so the buffer stays valid after `InferRequest` scope ends. `retain=false` would double-free.
 
 6. **Model: MediaPipe Selfie Segmentation (A4 Bokeh), YuNet (A4 Privacy)**
    - **Why**: Selfie segmentation outputs a per-pixel float mask directly usable as a `cl::Buffer` argument with no postprocessing. YuNet outputs a bounding box — teaching `global_work_offset` use requires a box, not a mask.
 
-7. **TFLite GPU Delegate Acquisition (A3_2): FetchContent over find_library**
-   - **Why**: The ARM-packaged `.so` does not work on x86_64. `FetchContent` downloading the pre-built x86_64 `.so` from official TFLite release artifacts is the primary path. `find_library` fallback is allowed but must be documented in the task. This decision must be resolved in CMake before any A3_2 host code is written.
+7. **OpenVINO Dependency (A3_2): `find_package(OpenVINO REQUIRED)`**
+   - **Why**: OpenVINO provides official CMake config files (`OpenVINOConfig.cmake`) via `libopenvino-dev` apt package. No FetchContent needed. `OpenVINOConfig.cmake` is installed to a system path — no env sourcing needed. If cmake cannot find it, set `export OpenVINO_DIR=/usr/lib/cmake/OpenVINO`. Setup documented in `A3_2_OpenVINO_GPU/SETUP.md`.
 
 ---
 
 ## Known Issues / Risks
 
 - **OpenCV DNN OpenCL Fallback (A3_1)**: `DNN_TARGET_OPENCL` silently falls back to CPU if OpenCV was not built with OpenCL support. DoD for A3_1 must include a build-info verification step.
-- **TFLite GPU Delegate x86 Availability (A3_2)**: The ARM-packaged `.so` does not work on x86. CMake must fetch or locate the correct delegate. This is a hard prerequisite; the task must document the exact FetchContent or find_library path.
 - **UMat `cl_mem` Handle Stability (A3_1)**: The handle retrieved via `umat.handle(cv::ACCESS_READ)` is valid only while the `UMat` is alive and not modified. The blur kernel must complete before the `UMat` goes out of scope.
+- **OpenVINO RemoteTensor `cl_mem` lifetime (A3_2)**: The `cl_mem` returned by `ClBufferTensor::get()` is valid only while the `InferRequest` is alive and not re-invoked. The blur kernel must complete (`queue.finish()`) before the next `req.infer()` call. Document in task DoD.
+- **OpenVINO Intel-only scope (A3_2)**: A3_2 will not run on NVIDIA or AMD. Binary must print a descriptive message and exit(0) if GPU device is not available via OpenVINO — do not crash.
 - **Webcam Default Resolution**: `cv::VideoCapture` defaults to 640×480 on many devices. CLI args `--width`/`--height` with `cv::CAP_PROP_FRAME_WIDTH/HEIGHT` must be set before the first frame read.
 - **Thread Divergence in Bokeh Kernel**: The naive `if (mask[id] == BACKGROUND)` branch is a known inefficiency, intentionally left for the mini-challenge. It must not be pre-optimized in the base implementation.
 - **A2 Mini-challenge scope**: The YUYV port and two-pass timing comparison are Phase 2b — a separate task from Task 020 (NV12 pipeline). Not required for the A2 performance gate.
@@ -189,8 +191,9 @@ Build a production-grade GPU video pipeline that processes 1080p at ≥ 30 FPS. 
   │   ├── CMakeLists.txt
   │   ├── main.cpp
   │   └── kernels/bokeh_blur.cl
-  ├── A3_2_TFLite_GPU/
+  ├── A3_2_OpenVINO_GPU/
   │   ├── CMakeLists.txt
+  │   ├── SETUP.md
   │   ├── main.cpp
   │   └── kernels/bokeh_blur.cl
   └── A4_Smart_Webcam/
@@ -213,7 +216,7 @@ Build a production-grade GPU video pipeline that processes 1080p at ≥ 30 FPS. 
 
 - Module 1 completed (`01_Host_API/`): `cl.hpp` usage, `cl::Event` profiling, `CL_CHECK` error handling.
 - OpenCV 4.5+ installed: `sudo apt install libopencv-dev`.
-- For A3_2: TFLite GPU delegate library available (pre-built `.so` or built from source with `-DTFLITE_ENABLE_GPU=ON`).
-- `assets/sample.bmp`, `assets/sample_nv12.yuv`, `assets/person.jpg`, `assets/selfie_segmentation.onnx`, `assets/selfie_segmentation.tflite` present in repository root.
+- For A3_2: Intel iGPU + `libopenvino-dev` installed. See `A3_2_OpenVINO_GPU/SETUP.md`.
+- `assets/face.png`, `assets/selfie_segmentation.onnx` present in repository root.
 
 See [main README](../../README.md) for base requirements (OpenCL 1.2+, CMake 3.18+, Docker setup).

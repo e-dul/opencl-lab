@@ -7,15 +7,15 @@ See [main README](../../README.md) for base requirements (OpenCL, CMake, Docker 
 
 **Additional:**
 - OpenCV 4.5+: `sudo apt install libopencv-dev` — verify: `pkg-config --modversion opencv4`
-- A3_2 only: TFLite GPU delegate library (`.so`). Pre-built or built from source with `-DTFLITE_ENABLE_GPU=ON`. ARM-packaged delegates do not work on x86.
-- Assets in repository root: `assets/sample.bmp`, `assets/sample_nv12.yuv`, `assets/face.png`, `assets/selfie_segmentation.onnx`, `assets/selfie_segmentation.tflite`.
+- A3_2 only: Intel iGPU required. See [A3_2_OpenVINO_GPU/SETUP.md](A3_2_OpenVINO_GPU/SETUP.md).
+- Assets in repository root: `assets/face.png`, `assets/selfie_segmentation.onnx`.
 
 ## Contents
 ```
 A1_OpenCV_Interop/      Measure and eliminate the cv::Mat → GPU copy overhead
 A2_YUV_Pipeline/        NV12 layout → single-pass GPU conversion (faster than CPU cvtColor)
 A3_1_OpenCV_DNN/        Inference via OpenCV DNN T-API (UMat stays on GPU)
-A3_2_TFLite_GPU/        Inference via TFLite GPU delegate (explicit buffer mapping)
+A3_2_OpenVINO_GPU/      Inference via OpenVINO GPU plugin (zero-copy cl_mem into RemoteTensor)
 A4_Smart_Webcam/        Flagship project: person segmentation + real-time Bokeh blur
 ```
 
@@ -164,62 +164,78 @@ Swap `DNN_TARGET_OPENCL` for `DNN_TARGET_CPU`. Compare inference times at 224×2
 
 ---
 
-## A3_2_TFLite_GPU — Low-Level Inference (Explicit Buffer Mapping)
+## A3_2_OpenVINO_GPU — Low-Level Inference (RemoteTensor API)
 
-**Goal**: Run the same model via TensorFlow Lite with the GPU delegate, using `clEnqueueMapBuffer` to hand off the OpenCL buffer pointer directly to `TfLiteGpuDelegateV2` — and back out again.
+**Goal**: Run the same segmentation model via OpenVINO GPU plugin, passing a `cl::Buffer` directly as an input tensor — the inference engine reads from and writes to your OpenCL-managed memory with no host round-trip. Intel iGPU required.
 
 ### Build & run
 ```bash
-cd A3_2_TFLite_GPU
+source /opt/intel/openvino/setupvars.sh   # once per shell session
+cd A3_2_OpenVINO_GPU
 cmake -B build
 cmake --build build
-./build/tflite_gpu_demo --input ../../../assets/face.png --model ../../../assets/selfie_segmentation.tflite
+./build/openvino_gpu_demo --input ../../../assets/face.png --model ../../../assets/selfie_segmentation.onnx
 ```
 
 ### Verify
-Same visual outputs as A3_1. Console additionally prints:
+- `output_mask.bmp` — binary mask (white = person, black = background)
+- `output_blurred.bmp` — background blurred, subject sharp
+- Console prints:
 ```
-Map buffer (input):    0.02 ms
-TFLite inference:      6.1 ms
-Map buffer (output):   0.02 ms
-Blur kernel:           3.4 ms
+OpenVINO inference:   X.X ms
+Blur kernel:          X.X ms
 ```
 
-### Core Concept: Explicit Buffer Handoff
-TFLite GPU delegate can accept and return raw `cl_mem` handles, skipping the serialization step entirely.
+Both times measured with `cl::Event` — no wall-clock estimates.
+
+### Core Concept: OpenVINO RemoteTensor API
+
+OpenVINO's GPU plugin runs inference internally on OpenCL. The RemoteTensor API exposes that internal `cl_mem` boundary: you can import your own `cl::Buffer` as an input tensor and export the output tensor's `cl_mem` handle directly into your next kernel call. Nothing leaves the GPU.
+
+This is what A3_1's T-API hides. In A3_1, OpenCV creates and owns the GPU buffer; you extract the handle after the fact. Here, you own the buffer from the start and hand it in.
 
 ```cpp
-// Import your OpenCL command queue into the delegate so inference and your
-// kernels share the same queue — no cross-queue synchronization needed.
-TfLiteGpuDelegateV2Options opts = TfLiteGpuDelegateV2OptionsDefault();
-opts.experimental_flags |= TFLITE_GPU_EXPERIMENTAL_FLAGS_CL_COMMAND_QUEUE_IMPORT;
+ov::Core core;
+ov::CompiledModel model = core.compile_model("selfie_segmentation.onnx", "GPU");
 
-auto* delegate = TfLiteGpuDelegateV2Create(&opts);
-TfLiteInterpreterOptionsAddDelegate(interp_opts, delegate);
+// Get the shared OpenCL context OpenVINO is using internally.
+auto remote_ctx = model.get_context().as<ov::intel_gpu::ocl::ClContext>();
 
-// After interpreter->Invoke(), extract the output tensor's underlying cl_mem
-// and pass it directly to your blur kernel — no host round-trip.
-const TfLiteTensor* out = interpreter->output_tensor(0);
-cl_mem mask_cl = static_cast<cl_mem>(TfLiteTensorData(out));
+// Wrap your existing cl::Buffer as an OpenVINO RemoteTensor.
+// OpenVINO reads from this buffer directly — no copy, no staging.
+auto input_tensor = remote_ctx.create_tensor(
+    model.input().get_element_type(),
+    model.input().get_shape(),
+    input_cl_buffer.get()    // raw cl_mem handle
+);
+
+ov::InferRequest req = model.create_infer_request();
+req.set_input_tensor(input_tensor);
+req.infer();
+
+// Extract the output tensor's cl_mem handle and pass to the blur kernel.
+auto output_tensor = req.get_output_tensor().as<ov::intel_gpu::ocl::ClBufferTensor>();
+cl_mem mask_cl = output_tensor.get();
 // retain=true: cl::Buffer must not release a cl_mem it does not own
 cl::Buffer mask_buf(mask_cl, /*retain=*/true);
-blur_kernel.setArg(1, mask_buf);
+CL_CHECK(blur_kernel.setArg(1, mask_buf));
 ```
 
-**When to use**: Edge targets (Raspberry Pi, Jetson, phones) where the OpenCV stack is too heavy, or when you need to control buffer alignment for the delegate's internal tiling.
+**When to use**: Intel iGPU in production pipelines where OpenCV is not in the stack, or where you need explicit control over tensor buffer lifetime and layout without the T-API abstraction overhead.
 
 ### Mini-challenge
-Profile the `clEnqueueMapBuffer` call with `CL_MAP_WRITE` vs `CL_MAP_READ`. Why does write-mapping cost more on discrete GPU than on iGPU? (Hint: UMA vs PCIe.)
+Compare `DNN_TARGET_OPENCL` (A3_1) vs OpenVINO GPU plugin (A3_2) inference latency at 224×224 and 1080p input. Run each 100 times and report the median. Which wins at each resolution, and why? Consider: T-API kernel caching, RemoteTensor import overhead on first call, and driver-level scheduling differences between the two paths.
 
 ### A3_1 vs A3_2 — When to Use Which
 
-| | A3_1 OpenCV DNN | A3_2 TFLite GPU |
+| | A3_1 OpenCV DNN | A3_2 OpenVINO GPU |
 |:--|:--|:--|
-| **Integration effort** | Low (T-API handles it) | High (explicit `cl_mem` wiring) |
-| **Control over buffers** | Low | High |
-| **Target platforms** | Desktop / server | Edge / embedded |
-| **Model format** | ONNX, Caffe, TF | `.tflite` only |
-| **Postprocessing in OpenCL** | Straightforward | Requires careful sync |
+| **Integration effort** | Low (T-API handles it) | Medium (explicit RemoteTensor wiring) |
+| **Control over buffers** | Low (OpenCV owns buffers) | High (you own the `cl_mem`) |
+| **Target platforms** | Desktop / server with OpenCV | Intel iGPU, production pipelines |
+| **Model format** | ONNX, Caffe, TF | ONNX (native), IR (converted) |
+| **OpenCV dependency** | Required | None |
+| **Postprocessing in OpenCL** | Straightforward | Zero-copy: output `cl_mem` wires directly |
 
 ---
 
@@ -281,8 +297,7 @@ This track is complete when:
 - **Green-pink checkerboard output**: NV12 buffer fed to an RGB kernel without conversion. Run `A2_YUV_Pipeline` first.
 - **`DNN_TARGET_OPENCL` silently falls back to CPU**: OpenCV not built with OpenCL support. Check: `python3 -c "import cv2; print(cv2.getBuildInformation())"` and look for `OpenCL: YES`.
 - **UMat interop crashes (A3_1)**: OpenCV and your OpenCL runtime must share the same ICD. Verify `clinfo -l` matches what OpenCV reports internally.
-- **TFLite GPU delegate not found (A3_2)**: Build TFLite from source with `-DTFLITE_ENABLE_GPU=ON`, or use a pre-built delegate `.so` from the TFLite nightly releases. ARM-only delegates will not work on x86.
-- **`clEnqueueMapBuffer` returns null (A3_2)**: Buffer must have been created with `CL_MEM_ALLOC_HOST_PTR` or `CL_MEM_USE_HOST_PTR` for host-mappable memory. `CL_MEM_COPY_HOST_PTR` alone is not mappable on all drivers.
+- **OpenVINO GPU plugin not found (A3_2)**: Install `libopenvino-dev` and run `source /opt/intel/openvino/setupvars.sh` before building. Verify GPU device is visible: `python3 -c "from openvino import Core; print(Core().available_devices)"` — expect `GPU` in the list.
 - **Webcam gives wrong resolution**: Add `--width 1920 --height 1080` flags; some webcams default to 640×480.
 - **Wrong GPU**: `GPU=NVIDIA ./build/smart_webcam`, `GPU=AMD ./build/smart_webcam`, `GPU=INTEL ./build/smart_webcam`.
 - **Inspect OpenCV**: use `OPENCV_LOG_LEVEL=VERBOSE`
