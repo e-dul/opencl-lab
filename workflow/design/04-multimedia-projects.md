@@ -31,7 +31,7 @@ Build a production-grade GPU video pipeline that processes 1080p at ≥ 30 FPS. 
   - *Context*: `Multimedia.md` §A2_YUV_Pipeline Mini-challenge Parts 1 & 2.
 - [x] Phase 3: A3_1 — OpenCV DNN (T-API) — High-level inference, UMat stays on GPU. **[DONE — performance gate waived; NVIDIA falls back to CPU via ocl4dnn probe failure; Intel iGPU tested at 64 ms]**
   - *Context*: Executive Summary §Path A item A.3.1; `Multimedia.md` §A3_1_OpenCV_DNN.
-- [ ] Phase 4: A3_2 — OpenVINO GPU Plugin — RemoteTensor API: pass `cl::Buffer` directly as input/output tensor. Intel iGPU only.
+- [x] Phase 4: A3_2 — OpenVINO GPU Plugin — RemoteTensor API: pass `cl::Buffer` directly as input/output tensor. Intel iGPU only. **[DONE — Intel Iris Xe: stable inference ~5 ms avg* (runs 2+, JIT warm-up ~80–110 ms on run 1), blur 1.4 ms (cl::Event). Performance gate waived (iGPU hardware-waiver clause). Post-task additions: GPU preprocess_nchw kernel (RGBA→NCHW on GPU, eliminates CPU round-trip), model input/output shape read dynamically from compiled model, --runs CLI arg for warm-up measurement, f32 ONNX confirmed fastest format on Xe (INT8 QDQ 2.5× slower — documented in Known Issues).]**
   - *Context*: Executive Summary §Path A item A.3.2; `Multimedia.md` §A3_2_OpenVINO_GPU.
 - [ ] Phase 5: A4 — AI Smart Webcam (Flagship) — Full live pipeline: capture → AI → OpenCL blur → display.
   - *Context*: Executive Summary §Path A item A.4; `Multimedia.md` §A4_Smart_Webcam.
@@ -157,6 +157,10 @@ Build a production-grade GPU video pipeline that processes 1080p at ≥ 30 FPS. 
 - **A3_1 per-layer CPU fallback not visible in DNN logs**: OpenCV DNN does not emit per-layer backend decisions. Total inference wall-clock time is the only reliable indicator (~90 ms+ = CPU-bound). cl::Event profiling is not available on the net.forward() call.
 - **1080p canonical assets**: `assets/sample_1080p.bmp` (ffmpeg `testsrc`), `assets/sample_nv12_1080p.yuv`, `assets/sample_yuyv_1080p.yuv` are now committed. Use `--width 1920 --height 1080` at runtime.
 
+- **A3_2 Output tensor must be pre-bound before infer**: `req.get_output_tensor().as<ClBufferTensor>()` throws if the output tensor has not been pre-allocated and bound via `req.set_output_tensor()` before the first `req.infer()` call. Always pre-allocate a RemoteTensor for output and call `req.set_output_tensor()` before inference.
+- **A3_2 OpenVINO GPU plugin rejects `CL_MEM_READ_ONLY` buffers**: `remote_ctx.create_tensor()` will throw at runtime if the `cl::Buffer` was created with `CL_MEM_READ_ONLY`. Use `CL_MEM_READ_WRITE` for all buffers passed to the OpenVINO GPU plugin, even input-only tensors.
+- **A3_2 `AnyMap` overload for `create_tensor()` not present in apt `libopenvino-dev`**: The `{ov::intel_gpu::ocl::mem_type::buffer, buf.get()}` AnyMap overload is not available in the `libopenvino-dev` package installed via apt. Use the explicit `remote_ctx.create_tensor(element_type, shape, const cl::Buffer&)` overload instead.
+
 ---
 
 ## Performance Gates (Path Completion)
@@ -196,6 +200,8 @@ Build a production-grade GPU video pipeline that processes 1080p at ≥ 30 FPS. 
   │   ├── SETUP.md
   │   ├── main.cpp
   │   └── kernels/bokeh_blur.cl
+  │   └── kernels/mask_resize.cl
+  │   └── kernels/preprocess_nchw.cl
   └── A4_Smart_Webcam/
       ├── CMakeLists.txt
       ├── main.cpp

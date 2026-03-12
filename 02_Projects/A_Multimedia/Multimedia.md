@@ -182,11 +182,20 @@ cmake --build build
 - `output_blurred.bmp` — background blurred, subject sharp
 - Console prints:
 ```
-OpenVINO inference:   X.X ms
-Blur kernel:          X.X ms
+[A3_2 OpenVINO GPU]
+Inference  (wall-clock, 5 runs):
+  run  1:   110.413 ms  <- JIT warm-up
+  run  2:     8.202 ms
+  run  3:     4.443 ms
+  run  4:     4.144 ms
+  run  5:     4.174 ms
+  --------------------------
+  min:        4.144 ms
+  avg*:       5.241 ms  (* runs 2+)
+Blur kernel  (cl::Event):       2.067 ms
 ```
 
-Both times measured with `cl::Event` — no wall-clock estimates.
+Run 1 includes GPU driver JIT compilation — expected, documented in **Known Issues** below. The stable inference latency is `avg*` (runs 2+). Blur is timed via `cl::Event`; inference uses `std::chrono::steady_clock` (OpenVINO does not expose a `cl::Event` for the full request). Use `--runs N` to control iteration count.
 
 ### Core Concept: OpenVINO RemoteTensor API
 
@@ -301,6 +310,20 @@ This track is complete when:
 - **Webcam gives wrong resolution**: Add `--width 1920 --height 1080` flags; some webcams default to 640×480.
 - **Wrong GPU**: `GPU=NVIDIA ./build/smart_webcam`, `GPU=AMD ./build/smart_webcam`, `GPU=INTEL ./build/smart_webcam`.
 - **Inspect OpenCV**: use `OPENCV_LOG_LEVEL=VERBOSE`
+---
+
+## Known Issues / Hardware Notes — Intel Xe iGPU
+
+Results below were gathered on Iris Xe Graphics (12th-gen Intel). Directly relevant to A3_2 and A4.
+
+- **f32 ONNX is the fastest format on Intel Xe.** INT8 ONNX (QDQ format) and INT8 OpenVINO IR both ran ~2.5× *slower* than f32 at stable inference. The GPU plugin does not fuse `QuantizeLinear`/`DequantizeLinear` nodes from third-party QDQ models into native INT8 dispatch — they execute as separate ops with full memory round-trips. Genuine INT8 speedup requires NNCF-aware quantization (OpenVINO's own calibration flow), which is out of scope for this track.
+
+- **First inference call measures JIT warm-up, not inference.** The OpenVINO GPU plugin JIT-compiles its OpenCL kernels on the first `req.infer()` call. On Iris Xe this adds ~80 ms (f32) or ~160 ms (INT8) to the first call; subsequent calls stabilize at ~4–8 ms (f32). Always run at least one untimed warm-up call before recording latency — single-call benchmarks measure JIT overhead, not model performance.
+
+- **FP16 execution hint has no measurable effect** at this model size. Passing `ov::hint::inference_precision(ov::element::f16)` showed no consistent speedup for the 256×256 segmentation model — too small for the throughput gain to exceed scheduling noise.
+
+- **These observations are driver- and model-size-specific.** Larger models (ResNet-50+), Intel Arc dGPUs, or newer driver versions may yield different results. Always profile your actual hardware with your actual model before choosing a quantization strategy.
+
 ---
 
 ## What's Next

@@ -1,7 +1,5 @@
 # A3_2 OpenVINO + OpenCL Setup — Ubuntu 24.04 / Intel Iris Xe
 
-**DRAFT - NOT TESTED**
-
 ## 1. Install Packages
 
 ```bash
@@ -26,7 +24,8 @@ echo "deb [signed-by=/usr/share/keyrings/intel-sw-products.gpg] https://apt.repo
     | sudo tee /etc/apt/sources.list.d/intel-openvino.list
 
 sudo apt update
-sudo apt install -y libopenvino-dev
+sudo apt install -y libopenvino-dev-2024.6.0 libopenvino-intel-cpu-plugin-2024.6.0 libopenvino-intel-gpu-plugin-2024.6.0
+
 ```
 
 ---
@@ -118,3 +117,75 @@ OpenCL platforms:
 ```
 
 Both stacks reporting the same device confirms the setup is ready for `RemoteContext` cl_mem interop.
+---
+
+## 4. A3_2 Module: Build and Run
+
+### Model
+
+The ONNX model is already committed to the repository at `assets/selfie_segmentation.onnx`.
+It expects input `[1, 3, 256, 256]` float32 (RGB, normalized [0,1], NCHW layout).
+No download required.
+
+### CMake — Finding OpenVINO
+
+`find_package(OpenVINO REQUIRED)` searches standard system paths.
+For the Intel APT install above, the config is at:
+
+```
+/usr/lib/cmake/openvino2024.6.0/OpenVINOConfig.cmake
+```
+
+If cmake reports "Could not find OpenVINO", set:
+
+```bash
+export OpenVINO_DIR=/usr/lib/cmake/openvino2024.6.0
+```
+
+### Build
+
+```bash
+cd 02_Projects/A_Multimedia/A3_2_OpenVINO_GPU
+cmake -B build && cmake --build build
+```
+
+### Run
+
+```bash
+# Intel iGPU required — GPU env var selects the OpenCL platform
+GPU=INTEL ./build/a3_2_openvino_gpu --input assets/sample_1080p.bmp
+
+# Custom model or threshold
+GPU=INTEL ./build/a3_2_openvino_gpu \
+    --input assets/sample_1080p.bmp \
+    --model assets/selfie_segmentation.onnx \
+    --threshold 0.5
+
+# Help
+./build/a3_2_openvino_gpu --help
+```
+
+### Expected output
+
+```
+Platform : Intel(R) OpenCL HD Graphics  [GPU=INTEL]
+Device   : Intel(R) Iris(R) Xe Graphics
+Saved: output_blurred.bmp
+Saved: output_mask.bmp
+
+[A3_2 OpenVINO GPU]
+Inference  (wall-clock): XX.XXX ms
+Blur kernel (cl::Event): XX.XXX ms
+```
+
+### Output files
+
+| File | Description |
+|------|-------------|
+| `output_mask.bmp` | Thresholded segmentation mask — white=person, black=background |
+| `output_blurred.bmp` | Bokeh blur — background blurred, foreground sharp |
+
+### Scope / Hardware
+
+Intel iGPU only. On systems without an Intel GPU the binary prints a descriptive
+message and exits with code 0 — this is expected behaviour, not a crash.

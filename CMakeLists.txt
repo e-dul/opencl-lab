@@ -23,7 +23,7 @@ endif()
 if(BUILD_MODULE_1)
     add_subdirectory(01_Host_API/01_Visual_Kernel)
     add_subdirectory(01_Host_API/02_Visual_Kernel_Events)
-    add_subdirectory(01_Host_API/03_Buffers_Layout)
+    add_subdirectory(01_Host_API/03_Buffer_Flags)
 endif()
 
 # Module 2

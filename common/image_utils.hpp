@@ -63,7 +63,25 @@ inline std::vector<uint8_t> load_rgb_image(const std::string& path,
                                  std::string(stbi_failure_reason()));
     }
     channels = 3;
-    const size_t n = static_cast<size_t>(width * height * 3);
+    const size_t n = static_cast<size_t>(width) * height * 3;  // §7.1: promote before multiply
+    std::vector<uint8_t> data(raw, raw + n);
+    stbi_image_free(raw);
+    return data;
+}
+
+// Load image from disk, force-converted to RGBA (4 channels).
+// Returns pixel data in row-major order. Throws on failure.
+inline std::vector<uint8_t> load_rgba_image(const std::string& path,
+                                             int& width, int& height,
+                                             int& channels) {
+    int loaded = 0;
+    uint8_t* raw = stbi_load(path.c_str(), &width, &height, &loaded, 4);
+    if (!raw) {
+        throw std::runtime_error("stbi_load failed: " +
+                                 std::string(stbi_failure_reason()));
+    }
+    channels = 4;
+    const size_t n = static_cast<size_t>(width) * height * 4;  // §7.1: promote before multiply
     std::vector<uint8_t> data(raw, raw + n);
     stbi_image_free(raw);
     return data;
