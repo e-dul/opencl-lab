@@ -8,7 +8,7 @@ See [main README](../../README.md) for base requirements (OpenCL, CMake, Docker 
 **Additional:**
 - OpenCV 4.5+: `sudo apt install libopencv-dev` — verify: `pkg-config --modversion opencv4`
 - A3_2 only: Intel iGPU required. See [A3_2_OpenVINO_GPU/SETUP.md](A3_2_OpenVINO_GPU/SETUP.md).
-- Assets in repository root: `assets/face.png`, `assets/selfie_segmentation.onnx`.
+- Assets in repository root: `assets/face.png`, `assets/selfie_segmentation.onnx` — included in the repository. See [assets/assets.md](../../assets/assets.md) for the full catalogue.
 
 ## Contents
 ```
@@ -35,12 +35,20 @@ cmake --build build
 ```
 
 ### Verify
-Console prints two transfer times:
+Console prints two transfer times. Expected output varies by hardware:
+
+**Discrete GPU:**
 ```
 [COPY]     cv::Mat → clEnqueueWriteBuffer:  8.4 ms
 [ZERO-COPY] UMat → cl::Buffer (map):        0.1 ms
 ```
-The zero-copy path should show a measurable reduction. On discrete GPU the gap is clear at 1080p; on integrated GPU (iGPU) the buffer may be physically shared, reducing it to near zero.
+
+**iGPU (Intel/ARM Mali — UMA):**
+```
+[COPY]     cv::Mat → clEnqueueWriteBuffer:  0.2 ms
+[ZERO-COPY] UMat → cl::Buffer (map):        0.1 ms
+```
+On iGPU, the GPU buffer shares physical memory with system RAM — both paths converge to near zero. This is expected, not a bug. The technique matters on discrete GPU or large buffers that exceed cache.
 
 The technique behind this demo: [Toolbox: Zero-Copy](../../99_Toolbox/ZeroCopy/ZeroCopy.md). On UMA hardware (Intel iGPU, ARM Mali), `CL_MEM_USE_HOST_PTR` makes the buffer physically shared — see [Toolbox: SVM](../../99_Toolbox/SVM/SVM.md) for the hardware explanation of why.
 
@@ -76,42 +84,28 @@ Speedup:                  X.Xx
 
 The performance gate is the OpenCL kernel time: it must be **< 2 ms** at 1080p. The CPU time will vary by machine and is shown for comparison only.
 
-### Core Concept: NV12 Layout and the Single-Pass Advantage
-
-Real cameras and codecs do not output RGB. They output YUV — luminance (Y) separate from chrominance (U, V) — because human vision is roughly 4x more sensitive to brightness than color. Chroma subsampling (4:2:0) stores one U/V sample per 2×2 pixel block, cutting bandwidth roughly in half with near-zero perceptual loss.
-
-**NV12 memory layout (the format your webcam likely uses):**
-```
-Y plane:   YYYYYYYY   ← full resolution, 1 byte/pixel
-UV plane:  UVUVUVUV   ← half resolution, interleaved, 2 bytes per 2×2 block
-```
-Your kernel receives a flat byte buffer. Stride (pitch) can be wider than width — always use `pitch` for row offsets, never `width`. Pitch equals bytes per row; it may exceed `width` when the driver pads rows for memory alignment — pass it as an explicit kernel argument alongside `width` and `height`.
-
-**Why a single-pass kernel wins over CPU `cv::cvtColor`:**
-
-`cv::cvtColor` converts NV12 to RGBA using multiple passes internally — it reads the Y plane, reads the UV plane, computes the conversion, and writes the result with intermediate buffers and no control over memory access patterns. On the CPU this also serializes across pixels.
-
-The OpenCL kernel reads the NV12 buffer once per pixel, computes the YUV-to-RGBA conversion inline, and writes the result once. One pass, no intermediate copies, all pixels in parallel. This is only possible because you address the Y and UV planes directly at known byte offsets — which requires understanding the raw layout. The layout knowledge is not an end in itself; it is what unlocks the single-pass access pattern.
-
-### Mini-challenge
+### Mini-challenge: YUYV Port
 
 **Part 1 — Port to YUYV (4:2:2)**
 
 Webcams often output YUYV instead of NV12. The format is packed — no separate UV plane:
-```
+
+```text
 Byte stream: Y0 U0 Y1 V0 Y2 U1 Y3 V1 ...
              ↑──────────↑  ← 4 bytes encode 2 pixels
 ```
 Each pair of pixels shares one U and one V sample. Index arithmetic for pixel `x`:
+
 - `Y = buf[x * 2]`
 - `U = buf[(x & ~1) * 2 + 1]`  (even column's U, shared with odd neighbour)
 - `V = buf[(x & ~1) * 2 + 3]`
 
 Write a `yuyv_to_rgba` kernel using the same BT.601 coefficients. The math is identical — only the index arithmetic changes. Verify with `output_yuyv_rgba.bmp`.
 
-**Part 2 — Two-pass vs single-pass on YUYV**
+#### Part 2 — Two-pass vs single-pass on YUYV
 
 Split the YUYV conversion into two separate kernel dispatches:
+
 1. `extract_y_yuyv` — reads YUYV buffer, writes a Y-only grayscale buffer.
 2. `yuyv_rgba_from_y` — reads the Y buffer + original YUYV (for U/V), writes RGBA.
 
@@ -119,12 +113,29 @@ Time both dispatches with `cl::Event` and sum them. (Sum the nanosecond duration
 
 The two-pass path reads the YUYV buffer twice and writes an intermediate Y buffer — doubling memory traffic. On hardware with a large GPU L2 cache the gap may be smaller than 2x if the intermediate buffer stays cached, but the extra write always costs something.
 
-```
+```text
 Single-pass yuyv_to_rgba:    X.X ms
 Two-pass (Y extract + RGBA): X.X ms   ← expect ~2x
 ```
 
-The extra pass reads the YUYV buffer twice and writes an intermediate Y buffer — pure memory bandwidth waste. This is the same cost that `cv::cvtColor` pays on CPU, now visible as a number.
+### Core Concept: NV12 Layout and the Single-Pass Advantage
+
+Real cameras and codecs do not output RGB. They output YUV — luminance (Y) separate from chrominance (U, V) — because human vision is roughly 4x more sensitive to brightness than color. Chroma subsampling (4:2:0) stores one U/V sample per 2×2 pixel block, cutting bandwidth roughly in half with near-zero perceptual loss.
+
+**NV12 memory layout (the format your webcam likely uses):**
+
+```text
+Y plane:   YYYYYYYY   ← full resolution, 1 byte/pixel
+UV plane:  UVUVUVUV   ← half resolution, interleaved, 2 bytes per 2×2 block
+```
+
+Your kernel receives a flat byte buffer. Stride (pitch) can be wider than width — always use `pitch` for row offsets, never `width`. Pitch equals bytes per row; it may exceed `width` when the driver pads rows for memory alignment — pass it as an explicit kernel argument alongside `width` and `height`.
+
+**Why a single-pass kernel wins over CPU `cv::cvtColor`:**
+
+`cv::cvtColor` converts NV12 to RGBA using multiple passes internally — it reads the Y plane, reads the UV plane, computes the conversion, and writes the result with intermediate buffers and no control over memory access patterns. On the CPU this also serializes across pixels.
+
+The OpenCL kernel reads the NV12 buffer once per pixel, computes the YUV-to-RGBA conversion inline, and writes the result once. One pass, no intermediate copies, all pixels in parallel. This is only possible because you address the Y and UV planes directly at known byte offsets — which requires understanding the raw layout. The layout knowledge is not an end in itself; it is what unlocks the single-pass access pattern.
 
 ---
 
@@ -145,7 +156,12 @@ cmake --build build
 - `output_blurred.bmp` — background blurred, subject sharp
 - Console prints inference time and blur kernel time separately
 
+### Mini-challenge: CPU vs GPU target
+
+Swap `DNN_TARGET_OPENCL` for `DNN_TARGET_CPU`. Compare inference times at 224×224 vs 1080p input. At what resolution does GPU start winning?
+
 ### Core Concept: OpenCV DNN T-API
+
 `setPreferableTarget(DNN_TARGET_OPENCL)` routes computation through OpenCL internally. The output blob stays in GPU memory as a `cv::UMat`. You pass its underlying `cl_mem` handle directly to your kernel — no CPU round-trip.
 
 ```cpp
@@ -158,9 +174,6 @@ kernel.setArg(1, mask_buf);           // hand off to your blur kernel
 ```
 
 **When to use**: OpenCV is already in your stack and ease of integration matters. The T-API hides memory management but gives you less control over buffer layout.
-
-### Mini-challenge
-Swap `DNN_TARGET_OPENCL` for `DNN_TARGET_CPU`. Compare inference times at 224×224 vs 1080p input. At what resolution does GPU start winning?
 
 ---
 
@@ -181,7 +194,8 @@ cmake --build build
 - `output_mask.bmp` — binary mask (white = person, black = background)
 - `output_blurred.bmp` — background blurred, subject sharp
 - Console prints:
-```
+
+```text
 [A3_2 OpenVINO GPU]
 Inference  (wall-clock, 5 runs):
   run  1:   110.413 ms  <- JIT warm-up
@@ -196,6 +210,10 @@ Blur kernel  (cl::Event):       2.067 ms
 ```
 
 Run 1 includes GPU driver JIT compilation — expected, documented in **Known Issues** below. The stable inference latency is `avg*` (runs 2+). Blur is timed via `cl::Event`; inference uses `std::chrono::steady_clock` (OpenVINO does not expose a `cl::Event` for the full request). Use `--runs N` to control iteration count.
+
+### Mini-challenge: A3_1 vs A3_2 Latency
+
+Compare `DNN_TARGET_OPENCL` (A3_1) vs OpenVINO GPU plugin (A3_2) inference latency at 224×224 and 1080p input. Run each 100 times and report the median. Which wins at each resolution, and why? Consider: T-API kernel caching, RemoteTensor import overhead on first call, and driver-level scheduling differences between the two paths.
 
 ### Core Concept: OpenVINO RemoteTensor API
 
@@ -232,9 +250,6 @@ CL_CHECK(blur_kernel.setArg(1, mask_buf));
 
 **When to use**: Intel iGPU in production pipelines where OpenCV is not in the stack, or where you need explicit control over tensor buffer lifetime and layout without the T-API abstraction overhead.
 
-### Mini-challenge
-Compare `DNN_TARGET_OPENCL` (A3_1) vs OpenVINO GPU plugin (A3_2) inference latency at 224×224 and 1080p input. Run each 100 times and report the median. Which wins at each resolution, and why? Consider: T-API kernel caching, RemoteTensor import overhead on first call, and driver-level scheduling differences between the two paths.
-
 ### A3_1 vs A3_2 — When to Use Which
 
 | | A3_1 OpenCV DNN | A3_2 OpenVINO GPU |
@@ -262,28 +277,77 @@ cmake --build build
 # GPU=NVIDIA ./build/smart_webcam --device 0
 ```
 
+A4 uses the RemoteTensor path from A3_2 internally. The first frame will show a JIT warm-up spike in the `Inference` column (~80–160 ms) — this is the OpenVINO GPU plugin compiling its OpenCL kernels on first use. It is expected, not a bug. Frames 2 onwards stabilize to ~4–8 ms inference (f32, 256×256 model, Intel Xe).
+
 ### Verify
 Live preview window shows:
 - Subject in sharp focus
 - Background blurred (Gaussian / box filter kernel applied only to background pixels)
 - Console prints per-frame breakdown:
   ```
-  Capture:    2.1 ms
-  Inference:  8.4 ms
-  Kernel:     3.2 ms
-  Display:    1.1 ms
-  Total:     14.8 ms  ← must be < 33 ms to pass
+  Frame 1 (JIT warm-up — expected, do not measure FPS here):
+    Capture:    2.1 ms
+    Inference: 143.2 ms   <- JIT compilation, one-time cost
+    Kernel:     3.2 ms
+    Display:    1.1 ms
+
+  Frame 2+ (stable):
+    Capture:    2.1 ms
+    Inference:  5.4 ms
+    Kernel:     3.2 ms
+    Display:    1.1 ms
+    Total:     11.8 ms  ← must be < 33 ms to pass
   ```
 
-### Privacy Mode Challenge
+When measuring FPS, skip frame 1 — its `Inference` time includes one-time GPU driver JIT compilation and is not representative of runtime throughput.
+
+### Stretch Challenge
+
 The main tutorial blurs the entire background. The challenge: blur only a detected face bounding box (ROI).
 
 Replace the segmentation model with a face detector (YuNet) that outputs a bounding box, then launch the blur kernel only over that region. Key API to explore: `global_work_offset` and `global_work_size` in `enqueueNDRangeKernel`. Use `cl::Event` timing to compare Full-Frame vs ROI performance.
 
 **Performance gate:** < 20 ms/frame @ 1080p (single face).
 
+### Core Concept: Pipeline Architecture
+
+A4 is where the individual lessons from A3_1 and A3_2 compose into a production-quality zero-copy pipeline. Understanding why each wiring decision was made is more useful than the API calls themselves.
+
+**How the stages chain:**
+
+```text
+OpenCL buffer (RGBA, full-res, GPU)
+        │
+        ├─── preprocess_nchw.cl ──► NCHW f32 buffer (model resolution, GPU)
+        │                                    │
+        │                             RemoteTensor input
+        │                             req.set_input_tensor()
+        │                                    │
+        │                             req.infer()   ← stays on GPU
+        │                                    │
+        │                             output ClBufferTensor
+        │                             mask cl_mem (GPU)
+        │                                    │
+        └─── bokeh_blur.cl  ◄────────────────┘
+             (RGBA buf + mask buf)
+                    │
+             display / output_blurred.bmp
+```
+
+Three decisions make this zero-copy:
+
+1. **Shared OpenCL context.** OpenVINO is initialized with `ClContext(core, ctx.get())` — the same `cl_context` your preprocessing kernel uses. Without this, the GPU plugin creates its own internal context and there is no shared address space to import buffers across.
+
+2. **Output tensor pre-allocated before `infer()`.** `req.set_output_tensor()` is called with a pre-allocated `cl::Buffer` wrapped as a `ClBufferTensor` *before* the first `req.infer()`. Without this, `get_output_tensor()` after inference returns a plain host `Tensor` — the GPU plugin silently falls back to host memory. Pre-allocation pins the output to device memory from the start.
+
+3. **`queue.finish()` gates the frame loop.** The blur kernel operates on a `cl_mem` owned by the `InferRequest`. That handle is only valid while the request is alive and not re-invoked. `CL_CHECK(queue.finish())` ensures the blur kernel has completed before the loop restarts or the request is destroyed. Omitting it causes undefined behaviour — typically corrupted output or a crash after an unpredictable number of frames, not on frame 1.
+
+**Why `CL_MEM_READ_WRITE` for both buffers.** The OpenVINO GPU plugin rejects `CL_MEM_READ_ONLY` and `CL_MEM_WRITE_ONLY` on imported buffers — it performs in-place layout transformations during dispatch and requires read-write access on both. Allocate with `CL_MEM_READ_WRITE` for any buffer that crosses the OpenVINO boundary.
+
 ### Mini-challenge
 Inside the Bokeh kernel, the condition `if (mask[id] == BACKGROUND)` causes thread divergence — within one warp, some threads blur and others do nothing. Replace it with `select()` (branchless) and measure the kernel time difference. See [Toolbox: Thread Divergence](../../99_Toolbox/ThreadDivergence/ThreadDivergence.md).
+
+When measuring the FPS improvement, discard frame 1 from your calculation — the JIT warm-up spike will otherwise dominate the average and hide the kernel-level gain you are measuring.
 
 ---
 
@@ -293,6 +357,7 @@ This track is complete when:
 
 | Project | Metric | Target |
 |:--------|:-------|:-------|
+| A1 OpenCV Interop | Zero-copy path faster than copy path (discrete GPU); near-equal on iGPU is expected | — |
 | A2 YUV Pipeline — nv12_to_rgba | Kernel time (cl::Event) | < 2 ms @ 1920×1080 |
 | AI Smart Webcam — Bokeh | Frame time | < 33 ms @ 1080p (30 FPS) |
 | AI Smart Webcam — Privacy ROI | Frame time | < 20 ms @ 1080p |
@@ -310,6 +375,11 @@ This track is complete when:
 - **Webcam gives wrong resolution**: Add `--width 1920 --height 1080` flags; some webcams default to 640×480.
 - **Wrong GPU**: `GPU=NVIDIA ./build/smart_webcam`, `GPU=AMD ./build/smart_webcam`, `GPU=INTEL ./build/smart_webcam`.
 - **Inspect OpenCV**: use `OPENCV_LOG_LEVEL=VERBOSE`
+- **First frame shows ~100–160 ms inference time (A4)**: JIT warm-up — the OpenVINO GPU plugin compiles its OpenCL kernels on the first `req.infer()` call. Normal behaviour. Frame 2+ stabilizes to ~4–8 ms. Do not measure FPS using frame 1.
+- **INT8 ONNX model is slower than f32 on Intel Xe (A4)**: QDQ-format INT8 (`QuantizeLinear`/`DequantizeLinear` nodes) is not fused by the GPU plugin into native INT8 dispatch — each node runs as a separate op with a full memory round-trip, making it ~2.5× slower than f32. Use the f32 ONNX model.
+- **Pipeline hangs or output corrupted after frame N (A4)**: Missing `queue.finish()` before the `InferRequest` goes out of scope or is reused. The blur kernel's `cl_mem` is owned by the request — if the kernel has not finished when the request is destroyed or re-invoked, the backing memory is freed or overwritten mid-kernel. Add `CL_CHECK(queue.finish())` immediately after `enqueueNDRangeKernel`.
+- **A1: both paths show similar timing (iGPU)**: On iGPU, the GPU buffer shares physical memory with system RAM — zero-copy and copy paths converge. This is expected behavior, not a bug. Repeat the experiment on a discrete GPU to see the full gap.
+
 ---
 
 ## Known Issues / Hardware Notes — Intel Xe iGPU

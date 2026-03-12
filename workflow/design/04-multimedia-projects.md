@@ -1,7 +1,7 @@
 # Module 4: Path A — Multimedia & AI
 
-**Version:** 1.0
-**Status:** Active — implementation not started
+**Version:** 1.1
+**Status:** Active — A1 done, A2 done, A2b done, A3_1 done, A3_2 done, A4 not started
 **Module Path:** `02_Projects/A_Multimedia/`
 
 ---
@@ -33,12 +33,20 @@ Build a production-grade GPU video pipeline that processes 1080p at ≥ 30 FPS. 
   - *Context*: Executive Summary §Path A item A.3.1; `Multimedia.md` §A3_1_OpenCV_DNN.
 - [x] Phase 4: A3_2 — OpenVINO GPU Plugin — RemoteTensor API: pass `cl::Buffer` directly as input/output tensor. Intel iGPU only. **[DONE — Intel Iris Xe: stable inference ~5 ms avg* (runs 2+, JIT warm-up ~80–110 ms on run 1), blur 1.4 ms (cl::Event). Performance gate waived (iGPU hardware-waiver clause). Post-task additions: GPU preprocess_nchw kernel (RGBA→NCHW on GPU, eliminates CPU round-trip), model input/output shape read dynamically from compiled model, --runs CLI arg for warm-up measurement, f32 ONNX confirmed fastest format on Xe (INT8 QDQ 2.5× slower — documented in Known Issues).]**
   - *Context*: Executive Summary §Path A item A.3.2; `Multimedia.md` §A3_2_OpenVINO_GPU.
-- [ ] Phase 5: A4 — AI Smart Webcam (Flagship) — Full live pipeline: capture → AI → OpenCL blur → display.
+- [ ] Phase 5: A4 — AI Smart Webcam (Flagship) — Full live pipeline: capture → preprocess_nchw → AI inference → OpenCL bokeh blur → display.
+  - CLI flags: `--device <int>` (webcam index), `--width`, `--height`, `--loop` (offline replay of a still image for testing without a webcam), `--input` (offline path).
+  - Per-frame timing output format (see Architecture §A4 Data Flow).
+  - JIT warm-up rule: print frame 1 timing with a `(JIT warm-up — do not measure FPS here)` annotation; skip frame 1 when computing FPS average.
+  - Uses RemoteTensor path (A3_2) internally — same shared `ClContext(core, ctx.get())` wiring.
   - *Context*: Executive Summary §Path A item A.4; `Multimedia.md` §A4_Smart_Webcam.
 - [ ] Phase 6: A4 Challenge — Privacy Mode — ROI-scoped blur via `global_work_offset`.
+  - Replace segmentation with YuNet face detector (bounding box output).
+  - Launch blur kernel only over the face bounding box: `global_work_offset = {x, y}`, `global_work_size = {w, h}`.
+  - Performance gate: < 20 ms/frame @ 1080p (single face).
+  - *Context*: `Multimedia.md` §A4_Smart_Webcam Stretch Challenge.
 - [ ] Phase 7: Module review and cleanup — remove distraction, focus on what matters.
   - Extract common utils
-  - Clean code to focus on key objectives 
+  - Clean code to focus on key objectives
 
 ---
 
@@ -52,7 +60,7 @@ Build a production-grade GPU video pipeline that processes 1080p at ≥ 30 FPS. 
 - **Image Formats for Intermediate Verification**: BMP or PNG only (no JPEG). NV12 raw files loaded as flat byte buffers.
 - **Inference Backends**: OpenCV DNN (A3_1) and OpenVINO GPU plugin (A3_2, Intel iGPU only). These are mutually exclusive sub-projects.
   - A3_2 requires Intel iGPU. `find_package(OpenVINO REQUIRED)` in A3_2 CMakeLists.txt. No OpenCV dependency in A3_2.
-- **CLI**: All binaries must expose at minimum `--input` (file path) and a GPU selection path via the `GPU` env var. Webcam binaries expose `--device` (integer index) and `--width`/`--height`.
+- **CLI**: All binaries must expose at minimum `--input` (file path) and a GPU selection path via the `GPU` env var. Webcam binaries expose `--device` (integer index), `--width`/`--height`, and `--loop` (replay `--input` image in a live preview loop without a physical webcam — required for offline testing).
 - **Integer Safety (A2 kernels)**: When passing pixel count or buffer size as `cl_int` kernel args, throw `std::runtime_error` if `size > INT_MAX`. Silent truncation via `std::min` is forbidden (master_specs §7.1).
 - **A2 OpenCV dependency**: `find_package(OpenCV REQUIRED)` in A2's CMakeLists.txt. OpenCV is used only for the CPU comparison (`cv::cvtColor`) — NOT for loading the NV12 input (which remains a raw flat byte buffer).
 
@@ -65,9 +73,9 @@ Build a production-grade GPU video pipeline that processes 1080p at ≥ 30 FPS. 
 - **OpenCV Interop Layer** (`A1_OpenCV_Interop`): Benchmarks two transfer paths — `clEnqueueWriteBuffer` from a `cv::Mat` vs `UMat` zero-copy via `CL_MEM_USE_HOST_PTR`. Outputs timing to console; no visual kernel required (transfer benchmark only).
 - **YUV Conversion Kernel** (`A2_YUV_Pipeline`): Two kernels — `nv12_to_rgba` and `extract_y_channel`. Reads a flat NV12 byte buffer with explicit stride/pitch handling. Also runs `cv::cvtColor` (CPU, `COLOR_YUV2RGBA_NV12`) for comparison — OpenCV is a dependency for A2. Outputs `output_rgba.bmp`, `output_y_channel.bmp`, and a console timing table (OpenCV CPU / OpenCL kernel / speedup).
 - **DNN T-API Bridge** (`A3_1_OpenCV_DNN`): Wraps OpenCV DNN with `DNN_TARGET_OPENCL`. Extracts the `cl_mem` handle from the output `cv::UMat` via `umat.handle(cv::ACCESS_READ)` and passes it directly to the blur kernel as a `cl::Buffer`.
-- **OpenVINO GPU Bridge** (`A3_2_OpenVINO_GPU`): Uses OpenVINO RemoteTensor API (`ov::intel_gpu::ocl::ClContext`). Input `cl::Buffer` imported via `remote_ctx.create_tensor()` with raw `cl_mem` handle. Output `cl_mem` extracted via `ov::intel_gpu::ocl::ClBufferTensor::get()`. No host copy between inference and blur kernel. Intel iGPU only.
+- **OpenVINO GPU Bridge** (`A3_2_OpenVINO_GPU`): Uses OpenVINO RemoteTensor API (`ov::intel_gpu::ocl::ClContext`). Includes a `preprocess_nchw.cl` kernel that converts RGBA to NCHW f32 on the GPU (eliminates the CPU preprocessing round-trip). Input `cl::Buffer` imported via `remote_ctx.create_tensor()` with raw `cl_mem` handle. Output `cl_mem` extracted via `ov::intel_gpu::ocl::ClBufferTensor::get()`. No host copy between preprocessing, inference, and blur kernel. Intel iGPU only.
 - **Bokeh Kernel** (`A4_Smart_Webcam`): Full-frame conditional blur — `if (mask[id] == BACKGROUND)` applies Gaussian/box filter; foreground pixels pass through. Controlled by a binary segmentation mask from AI stage.
-- **Privacy ROI Kernel** (A4 Challenge): Identical blur kernel launched over a sub-region using `global_work_offset` and a restricted `global_work_size` matching the detected face bounding box.
+- **Privacy ROI Kernel** (A4 Challenge): Identical blur kernel launched over a sub-region using `global_work_offset` and a restricted `global_work_size` matching the detected face bounding box. Face detection via YuNet.
 
 ### Data Flow
 
@@ -92,18 +100,58 @@ Build a production-grade GPU video pipeline that processes 1080p at ≥ 30 FPS. 
 5. Save `output_mask.bmp` and `output_blurred.bmp`.
 
 #### A3_2 (OpenVINO GPU)
-1. Load image → `cl::Buffer` (device memory).
-2. Wrap buffer as `ov::RemoteTensor` via `remote_ctx.create_tensor()` — no copy.
-3. Run OpenVINO inference (`req.infer()`).
-4. Extract output `cl_mem` via `ClBufferTensor::get()` → construct `cl::Buffer` (`retain=true`).
-5. Run blur kernel. Save outputs.
+1. Load image → `cl::Buffer` RGBA (device memory).
+2. `preprocess_nchw.cl` kernel: RGBA `cl::Buffer` → NCHW f32 `cl::Buffer` (model resolution, device). No CPU round-trip.
+3. Wrap NCHW buffer as `ov::RemoteTensor` via `remote_ctx.create_tensor()` — no copy.
+4. Pre-allocate output `cl::Buffer`; wrap as `ClBufferTensor`; call `req.set_output_tensor()` before first `infer()`.
+5. Run OpenVINO inference (`req.infer()`).
+6. Extract output `cl_mem` via `ClBufferTensor::get()` → construct `cl::Buffer` (`retain=true`).
+7. Run blur kernel. `CL_CHECK(queue.finish())` before request is reused or destroyed. Save outputs.
 
 #### A4 (Smart Webcam — Live Pipeline)
-1. `cv::VideoCapture` frame → `cv::UMat`.
-2. AI inference (A3_1 or A3_2 path, selected at build time) → mask `cl::Buffer`.
-3. Bokeh kernel: full-frame conditional blur using mask.
-4. Transfer result → `cv::Mat` → `cv::imshow`.
-5. Per-frame profiling: capture / inference / kernel / display printed to console.
+```
+OpenCL buffer (RGBA, full-res, GPU)
+        │
+        ├─── preprocess_nchw.cl ──► NCHW f32 buffer (model resolution, GPU)
+        │                                    │
+        │                             RemoteTensor input
+        │                             req.set_input_tensor()
+        │                                    │
+        │                             req.infer()   ← stays on GPU
+        │                                    │
+        │                             output ClBufferTensor
+        │                             mask cl_mem (GPU)
+        │                                    │
+        └─── bokeh_blur.cl  ◄────────────────┘
+             (RGBA buf + mask buf)
+                    │
+             CL_CHECK(queue.finish())   ← gates frame loop
+                    │
+             display / output_blurred.bmp
+```
+
+Three decisions make this zero-copy:
+1. **Shared OpenCL context.** OpenVINO initialized with `ClContext(core, ctx.get())` — same `cl_context` as preprocessing kernel. Without this, the GPU plugin creates its own context with no shared address space.
+2. **Output tensor pre-allocated before `infer()`.** `req.set_output_tensor()` called with a pre-allocated `ClBufferTensor` before the first `req.infer()`. Without this, the GPU plugin silently falls back to host memory for the output.
+3. **`queue.finish()` gates the frame loop.** The blur kernel's `cl_mem` is owned by the `InferRequest`. That handle is valid only while the request is alive and not re-invoked. `CL_CHECK(queue.finish())` must precede any loop restart or request destruction.
+
+Per-frame console output format:
+```
+Frame 1 (JIT warm-up — do not measure FPS here):
+  Capture:    X.X ms
+  Inference: XXX.X ms   <- JIT compilation, one-time cost
+  Kernel:     X.X ms
+  Display:    X.X ms
+
+Frame 2+ (stable):
+  Capture:    X.X ms
+  Inference:  X.X ms
+  Kernel:     X.X ms
+  Display:    X.X ms
+  Total:     XX.X ms  ← must be < 33 ms to pass
+```
+
+When `--loop` is used (offline test without webcam): replays `--input` image in a loop. Frame 1 is still annotated as JIT warm-up. FPS calculation starts from frame 2.
 
 ---
 
@@ -129,6 +177,12 @@ Build a production-grade GPU video pipeline that processes 1080p at ≥ 30 FPS. 
 
 7. **OpenVINO Dependency (A3_2): `find_package(OpenVINO REQUIRED)`**
    - **Why**: OpenVINO provides official CMake config files (`OpenVINOConfig.cmake`) via `libopenvino-dev` apt package. No FetchContent needed. `OpenVINOConfig.cmake` is installed to a system path — no env sourcing needed. If cmake cannot find it, set `export OpenVINO_DIR=/usr/lib/cmake/OpenVINO`. Setup documented in `A3_2_OpenVINO_GPU/SETUP.md`.
+
+8. **GPU Preprocessing Kernel (`preprocess_nchw.cl`) in A3_2 and A4**
+   - **Why**: Without it, the host must read RGBA back from the GPU, convert to NCHW f32, and re-upload — a round-trip that negates the zero-copy design. The preprocessing kernel keeps all data on device from capture to inference output.
+
+9. **`CL_MEM_READ_WRITE` for all buffers crossing the OpenVINO boundary**
+   - **Why**: The OpenVINO GPU plugin rejects `CL_MEM_READ_ONLY` and `CL_MEM_WRITE_ONLY` on imported buffers. It performs in-place layout transformations during dispatch and requires read-write access on both input and output buffers.
 
 ---
 
@@ -156,10 +210,19 @@ Build a production-grade GPU video pipeline that processes 1080p at ≥ 30 FPS. 
 - **A3_1 GPU Timing (Intel Iris Xe)**: Inference (CPU wall-clock) ~64 ms; bokeh blur (cl::Event) 0.223 ms. OPENCV_LOG_LEVEL=VERBOSE confirms OpenCL context initialized. Performance gate WAIVER applied — iGPU is exempt per hardware-waiver clause.
 - **A3_1 per-layer CPU fallback not visible in DNN logs**: OpenCV DNN does not emit per-layer backend decisions. Total inference wall-clock time is the only reliable indicator (~90 ms+ = CPU-bound). cl::Event profiling is not available on the net.forward() call.
 - **1080p canonical assets**: `assets/sample_1080p.bmp` (ffmpeg `testsrc`), `assets/sample_nv12_1080p.yuv`, `assets/sample_yuyv_1080p.yuv` are now committed. Use `--width 1920 --height 1080` at runtime.
-
 - **A3_2 Output tensor must be pre-bound before infer**: `req.get_output_tensor().as<ClBufferTensor>()` throws if the output tensor has not been pre-allocated and bound via `req.set_output_tensor()` before the first `req.infer()` call. Always pre-allocate a RemoteTensor for output and call `req.set_output_tensor()` before inference.
 - **A3_2 OpenVINO GPU plugin rejects `CL_MEM_READ_ONLY` buffers**: `remote_ctx.create_tensor()` will throw at runtime if the `cl::Buffer` was created with `CL_MEM_READ_ONLY`. Use `CL_MEM_READ_WRITE` for all buffers passed to the OpenVINO GPU plugin, even input-only tensors.
 - **A3_2 `AnyMap` overload for `create_tensor()` not present in apt `libopenvino-dev`**: The `{ov::intel_gpu::ocl::mem_type::buffer, buf.get()}` AnyMap overload is not available in the `libopenvino-dev` package installed via apt. Use the explicit `remote_ctx.create_tensor(element_type, shape, const cl::Buffer&)` overload instead.
+
+### Intel Xe iGPU — Hardware Notes (A3_2 and A4)
+
+Results gathered on Intel Iris Xe Graphics (12th-gen Intel).
+
+- **f32 ONNX is the fastest format on Intel Xe.** INT8 ONNX (QDQ format) ran ~2.5× *slower* than f32. The GPU plugin does not fuse `QuantizeLinear`/`DequantizeLinear` nodes from third-party QDQ models into native INT8 dispatch — each node runs as a separate op with full memory round-trips. Genuine INT8 speedup requires NNCF-aware quantization (OpenVINO's own calibration flow), which is out of scope for this track.
+- **First inference call measures JIT warm-up, not inference.** The OpenVINO GPU plugin JIT-compiles its OpenCL kernels on the first `req.infer()` call. On Iris Xe this adds ~80 ms (f32) or ~160 ms (INT8) to the first call; subsequent calls stabilize at ~4–8 ms (f32). Always run at least one untimed warm-up call before recording latency — single-call benchmarks measure JIT overhead, not model performance.
+- **FP16 execution hint has no measurable effect** at this model size. `ov::hint::inference_precision(ov::element::f16)` showed no consistent speedup for the 256×256 segmentation model — too small for the throughput gain to exceed scheduling noise.
+- **A4 pipeline hang / corrupted output (missing `queue.finish()`)**: If `queue.finish()` is omitted after the blur kernel, the `InferRequest` may be destroyed or re-invoked while the kernel is still reading its output `cl_mem`. This causes undefined behaviour — typically corrupted output or a crash after an unpredictable number of frames, not on frame 1. Add `CL_CHECK(queue.finish())` immediately after `enqueueNDRangeKernel` in the frame loop.
+- **These observations are driver- and model-size-specific.** Larger models (ResNet-50+), Intel Arc dGPUs, or newer driver versions may yield different results. Always profile your actual hardware with your actual model before choosing a quantization strategy.
 
 ---
 
@@ -206,13 +269,14 @@ Build a production-grade GPU video pipeline that processes 1080p at ≥ 30 FPS. 
       ├── CMakeLists.txt
       ├── main.cpp
       └── kernels/bokeh_blur.cl
+      └── kernels/preprocess_nchw.cl
       └── kernels/roi_blur.cl
   ```
 - **Verification Standard**:
   - A1: Console timing table. No BMP required.
   - A2: `output_rgba.bmp` (correct colors) + `output_y_channel.bmp` (grayscale). Green-pink output = failure (UV plane offset wrong — check UV starts at byte `width * height`). Console prints three-row comparison table: OpenCV CPU time / OpenCL kernel time / speedup. Gate: OpenCL kernel < 2 ms @ 1920×1080.
   - A3_1 / A3_2: `output_mask.bmp` + `output_blurred.bmp`. Console prints inference and blur times separately.
-  - A4: Live preview window with per-frame timing breakdown printed to console.
+  - A4: Live preview window (or looped offline preview with `--loop`) with per-frame timing breakdown printed to console. Frame 1 annotated as JIT warm-up.
 - **Tooling** (module-specific additions to master_specs):
   - `find_package(OpenCV REQUIRED)` — OpenCV 4.5+.
 
@@ -222,7 +286,7 @@ Build a production-grade GPU video pipeline that processes 1080p at ≥ 30 FPS. 
 
 - Module 1 completed (`01_Host_API/`): `cl.hpp` usage, `cl::Event` profiling, `CL_CHECK` error handling.
 - OpenCV 4.5+ installed: `sudo apt install libopencv-dev`.
-- For A3_2: Intel iGPU + `libopenvino-dev` installed. See `A3_2_OpenVINO_GPU/SETUP.md`.
+- For A3_2 and A4: Intel iGPU + `libopenvino-dev` installed. See `A3_2_OpenVINO_GPU/SETUP.md`.
 - `assets/face.png`, `assets/selfie_segmentation.onnx` present in repository root.
 
 See [main README](../../README.md) for base requirements (OpenCL 1.2+, CMake 3.18+, Docker setup).
