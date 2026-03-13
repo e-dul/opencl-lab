@@ -11,7 +11,7 @@
 - [x] Module 0: Setup (100%)
 - [x] Module 1: Host API (100% — 6/6)
 - [ ] Module 2: Projects (in progress)
-  - [~] A Multimedia: 3/8 (37%)
+  - [~] A Multimedia: 4/8 (50%)
   - [ ] B Graphics HPC: 0/6 (0%)
   - [ ] C Robotics ROS2: 0/7 (0%)
 - [x] Toolbox (100% — 13/13)

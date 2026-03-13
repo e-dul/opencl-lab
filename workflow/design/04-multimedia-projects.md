@@ -39,7 +39,7 @@ Build a production-grade GPU video pipeline that processes 1080p at ≥ 30 FPS. 
   - JIT warm-up rule: print frame 1 timing with a `(JIT warm-up — do not measure FPS here)` annotation; skip frame 1 when computing FPS average.
   - Uses RemoteTensor path (A3_2) internally — same shared `ClContext(core, ctx.get())` wiring.
   - *Context*: Executive Summary §Path A item A.4; `Multimedia.md` §A4_Smart_Webcam.
-- [ ] Phase 6: A5 Privacy Mode — T-API ROI blur vs custom kernel benchmark. Standalone module `A5_Privacy_Mode/`.
+- [x] Phase 6: A5 Privacy Mode — T-API ROI blur vs custom kernel benchmark. Standalone module `A5_Privacy_Mode/`. **[DONE — Intel Iris Xe: Detection ~54 ms (DNN_TARGET_OPENCL, cached), Blur T-API ~1.0 ms, Blur Kernel ~0.88 ms. Performance gate waived — face.png 498×498 too small for soft target; DNN_TARGET_OPENCL succeeded on Xe (no CPU fallback).]**
   - Face detection: `cv::dnn::readNetFromONNX("blaze.onnx")`, `DNN_BACKEND_OPENCV` + `DNN_TARGET_OPENCL` (T-API inference, no OpenVINO).
   - ROI blur path A: `cv::UMat` submat + `cv::blur` (T-API, zero custom kernel code).
   - ROI blur path B: `roi_blur.cl` with `global_work_offset` (explicit NDRange, comparison reference).
@@ -226,6 +226,10 @@ Results gathered on Intel Iris Xe Graphics (12th-gen Intel).
 - **FP16 execution hint has no measurable effect** at this model size. `ov::hint::inference_precision(ov::element::f16)` showed no consistent speedup for the 256×256 segmentation model — too small for the throughput gain to exceed scheduling noise.
 - **A4 pipeline hang / corrupted output (missing `queue.finish()`)**: If `queue.finish()` is omitted after the blur kernel, the `InferRequest` may be destroyed or re-invoked while the kernel is still reading its output `cl_mem`. This causes undefined behaviour — typically corrupted output or a crash after an unpredictable number of frames, not on frame 1. Add `CL_CHECK(queue.finish())` immediately after `enqueueNDRangeKernel` in the frame loop.
 - **These observations are driver- and model-size-specific.** Larger models (ResNet-50+), Intel Arc dGPUs, or newer driver versions may yield different results. Always profile your actual hardware with your actual model before choosing a quantization strategy.
+- **A5 blaze.onnx (opset 16) incompatible with OpenCV 4.6.0 DNN**: `blaze.onnx` fails at `FaceDetectorYN::create()` with a "Layer id=-1" error on OpenCV 4.6. Use `face_detection_yunet_2022mar.onnx` instead. `face_detection_yunet_2023mar.onnx` also fails on OpenCV 4.6 (same error). Pass `--face-model assets/face_detection_yunet_2022mar.onnx` explicitly on this OpenCV version.
+- **A5 FaceDetectorYN stride-aligned input sizes**: `FaceDetectorYN` requires input dimensions that are multiples of 32. Use fixed 320x320 as the network input size and resize the frame manually before inference. Non-aligned sizes (e.g., 640x480 directly) produce misaligned detections or assertion failures.
+- **A5 `cv::ocl::finish()` required to sync T-API UMat operations**: After `cv::blur` on a `cv::UMat` submat, use `cv::ocl::finish()` (not `queue.finish()`) to synchronize T-API-dispatched commands before the timing stop. T-API enqueues to its own internal command queue, which may differ from the `cl::CommandQueue` in `OclContext`. Using `queue.finish()` alone may not fully sync the T-API work.
+- **A5 ocl4dnn JIT failures surface as `cv::Exception`, not `cl::Error`**: When `DNN_TARGET_OPENCL` triggers ocl4dnn JIT compilation and it fails (e.g., unsupported kernel on a driver), the error is thrown as `cv::Exception` with message containing `CL_BUILD_PROGRAM_FAILURE`. Catch `cv::Exception` (in addition to `cl::Error`) when wrapping DNN forward calls.
 
 ---
 

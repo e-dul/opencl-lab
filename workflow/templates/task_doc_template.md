@@ -43,7 +43,19 @@
 ## Definition of Done (DoD)
 <!-- Standard items defined in .claude/rules/00_master_specs.md §8 apply to all tasks. -->
 <!-- Add ONLY task-specific outcomes below. -->
+<!--
+  Prefix convention:
+    (no prefix)  — agent-verifiable: build output, file existence, console output, exit code.
+    MANUAL:      — requires human eyes/hardware: live display windows, webcam, audio, physical device.
+                   The /validate agent MUST stop and leave these unchecked. The human checks and
+                   ticks them before /sync can run.
+  Examples:
+    - [ ] Binary runs without error; output BMP saved with blurred ROI.
+    - [ ] MANUAL: Run `./build/<bin> --device 0`; confirm live window opens, face blurred, 'q' exits.
+    - [ ] MANUAL: Run with `--loop --input assets/face.png`; confirm preview loops until 'q'.
+-->
 - [ ] [Task-specific outcome]
+- [ ] MANUAL: [Human-only verification step — describe exact command and what to look for]
 
 ---
 

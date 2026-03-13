@@ -30,6 +30,7 @@ Follow this cycle for every feature request:
     - Create a new file: workflow/tasks/[ID]_[NAME].md`.
     - Copy *minimal* relevant context from Design.
     - Define clear **Definition of Done (DoD)** (e.g., "Builds and passes test X").
+    - Mark agent-verifiable items with no prefix. Mark items requiring human eyes/hardware with `MANUAL:` prefix (live display, webcam, physical device). The `/validate` agent must leave `MANUAL:` items unchecked; the human ticks them before `/sync`.
 
 3.  **EXECUTE (Coder Mode)**
     - Implement code based **STRICTLY** on the Task file.

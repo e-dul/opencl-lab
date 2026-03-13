@@ -17,6 +17,7 @@ A2_YUV_Pipeline/        NV12 layout → single-pass GPU conversion (faster than 
 A3_1_OpenCV_DNN/        Inference via OpenCV DNN T-API (UMat stays on GPU)
 A3_2_OpenVINO_GPU/      Inference via OpenVINO GPU plugin (zero-copy cl_mem into RemoteTensor)
 A4_Smart_Webcam/        Flagship project: person segmentation + real-time Bokeh blur
+A5_Privacy_Mode/        [UNDER REVIEW — candidate for removal] Face detection + ROI blur (T-API vs custom kernel benchmark). Overlaps heavily with A3_1 (T-API + DNN on GPU) and A4 Stretch Challenge. Unique teaching point (global_work_offset) may be better served by a dedicated tiled-processing example. See README.md TODO.
 ```
 
 ---
@@ -360,7 +361,7 @@ This track is complete when:
 | A1 OpenCV Interop | Zero-copy path faster than copy path (discrete GPU); near-equal on iGPU is expected | — |
 | A2 YUV Pipeline — nv12_to_rgba | Kernel time (cl::Event) | < 2 ms @ 1920×1080 |
 | AI Smart Webcam — Bokeh | Frame time | < 33 ms @ 1080p (30 FPS) |
-| AI Smart Webcam — Privacy ROI | Frame time | < 20 ms @ 1080p |
+| AI Smart Webcam — Privacy ROI (A5) ⚠️ under review for removal | Frame time | < 20 ms @ 1080p |
 
 **Measure with `cl::Event` profiling**, not wall-clock estimates. Profile each stage: upload, inference, kernel, download. The bottleneck will tell you which Toolbox technique to apply.
 
