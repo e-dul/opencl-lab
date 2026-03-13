@@ -1,7 +1,7 @@
 # Module 4: Path A — Multimedia & AI
 
-**Version:** 1.1
-**Status:** Active — A1 done, A2 done, A2b done, A3_1 done, A3_2 done, A4 not started
+**Version:** 1.2
+**Status:** Active — A1 done, A2 done, A2b done, A3_1 done, A3_2 done, A4 done
 **Module Path:** `02_Projects/A_Multimedia/`
 
 ---
@@ -33,8 +33,8 @@ Build a production-grade GPU video pipeline that processes 1080p at ≥ 30 FPS. 
   - *Context*: Executive Summary §Path A item A.3.1; `Multimedia.md` §A3_1_OpenCV_DNN.
 - [x] Phase 4: A3_2 — OpenVINO GPU Plugin — RemoteTensor API: pass `cl::Buffer` directly as input/output tensor. Intel iGPU only. **[DONE — Intel Iris Xe: stable inference ~5 ms avg* (runs 2+, JIT warm-up ~80–110 ms on run 1), blur 1.4 ms (cl::Event). Performance gate waived (iGPU hardware-waiver clause). Post-task additions: GPU preprocess_nchw kernel (RGBA→NCHW on GPU, eliminates CPU round-trip), model input/output shape read dynamically from compiled model, --runs CLI arg for warm-up measurement, f32 ONNX confirmed fastest format on Xe (INT8 QDQ 2.5× slower — documented in Known Issues).]**
   - *Context*: Executive Summary §Path A item A.3.2; `Multimedia.md` §A3_2_OpenVINO_GPU.
-- [ ] Phase 5: A4 — AI Smart Webcam (Flagship) — Full live pipeline: capture → preprocess_nchw → AI inference → OpenCL bokeh blur → display.
-  - CLI flags: `--device <int>` (webcam index), `--width`, `--height`, `--loop` (offline replay of a still image for testing without a webcam), `--input` (offline path).
+- [x] Phase 5: A4 — AI Smart Webcam (Flagship) — Full live pipeline: capture → preprocess_nchw → AI inference → OpenCL bokeh blur → display. **[DONE — Intel Iris Xe: offline loop ~4.7–8.0 ms/frame (498×498 input), FPS avg ~170 (frames 2+). Live webcam @ 640×480: ~36 FPS avg sustained. All DoD items verified. Post-task addition: `--exposure` CLI flag for manual V4L2 absolute exposure control (100 µs units).]**
+  - CLI flags: `--device <int>` (webcam index), `--width`, `--height`, `--loop` (offline replay of a still image for testing without a webcam), `--input` (offline path), `--exposure` (manual V4L2 absolute exposure in 100 µs units; -1 = auto).
   - Per-frame timing output format (see Architecture §A4 Data Flow).
   - JIT warm-up rule: print frame 1 timing with a `(JIT warm-up — do not measure FPS here)` annotation; skip frame 1 when computing FPS average.
   - Uses RemoteTensor path (A3_2) internally — same shared `ClContext(core, ctx.get())` wiring.
@@ -213,6 +213,7 @@ When `--loop` is used (offline test without webcam): replays `--input` image in 
 - **A3_2 Output tensor must be pre-bound before infer**: `req.get_output_tensor().as<ClBufferTensor>()` throws if the output tensor has not been pre-allocated and bound via `req.set_output_tensor()` before the first `req.infer()` call. Always pre-allocate a RemoteTensor for output and call `req.set_output_tensor()` before inference.
 - **A3_2 OpenVINO GPU plugin rejects `CL_MEM_READ_ONLY` buffers**: `remote_ctx.create_tensor()` will throw at runtime if the `cl::Buffer` was created with `CL_MEM_READ_ONLY`. Use `CL_MEM_READ_WRITE` for all buffers passed to the OpenVINO GPU plugin, even input-only tensors.
 - **A3_2 `AnyMap` overload for `create_tensor()` not present in apt `libopenvino-dev`**: The `{ov::intel_gpu::ocl::mem_type::buffer, buf.get()}` AnyMap overload is not available in the `libopenvino-dev` package installed via apt. Use the explicit `remote_ctx.create_tensor(element_type, shape, const cl::Buffer&)` overload instead.
+- **A4 `--exposure` flag: V4L2 `auto_exposure` mode 1 required**: Setting `CAP_PROP_AUTO_EXPOSURE=1` (manual mode) before `CAP_PROP_EXPOSURE` is mandatory; some drivers silently ignore `CAP_PROP_EXPOSURE` when auto-exposure mode is not first disabled. Driver-negotiated values should be read back and printed at startup to confirm the setting took effect.
 
 ### Intel Xe iGPU — Hardware Notes (A3_2 and A4)
 
