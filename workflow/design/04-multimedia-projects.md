@@ -39,10 +39,12 @@ Build a production-grade GPU video pipeline that processes 1080p at ≥ 30 FPS. 
   - JIT warm-up rule: print frame 1 timing with a `(JIT warm-up — do not measure FPS here)` annotation; skip frame 1 when computing FPS average.
   - Uses RemoteTensor path (A3_2) internally — same shared `ClContext(core, ctx.get())` wiring.
   - *Context*: Executive Summary §Path A item A.4; `Multimedia.md` §A4_Smart_Webcam.
-- [ ] Phase 6: A4 Challenge — Privacy Mode — ROI-scoped blur via `global_work_offset`.
-  - Replace segmentation with YuNet face detector (bounding box output).
-  - Launch blur kernel only over the face bounding box: `global_work_offset = {x, y}`, `global_work_size = {w, h}`.
-  - Performance gate: < 20 ms/frame @ 1080p (single face).
+- [ ] Phase 6: A5 Privacy Mode — T-API ROI blur vs custom kernel benchmark. Standalone module `A5_Privacy_Mode/`.
+  - Face detection: `cv::dnn::readNetFromONNX("blaze.onnx")`, `DNN_BACKEND_OPENCV` + `DNN_TARGET_OPENCL` (T-API inference, no OpenVINO).
+  - ROI blur path A: `cv::UMat` submat + `cv::blur` (T-API, zero custom kernel code).
+  - ROI blur path B: `roi_blur.cl` with `global_work_offset` (explicit NDRange, comparison reference).
+  - Teaching point: T-API gives GPU acceleration without writing OpenCL kernels — including for inference. Custom kernel for explicit control.
+  - Performance gate: < 20 ms/frame @ 1080p (single face), T-API path.
   - *Context*: `Multimedia.md` §A4_Smart_Webcam Stretch Challenge.
 - [ ] Phase 7: Module review and cleanup — remove distraction, focus on what matters.
   - Extract common utils
@@ -75,7 +77,7 @@ Build a production-grade GPU video pipeline that processes 1080p at ≥ 30 FPS. 
 - **DNN T-API Bridge** (`A3_1_OpenCV_DNN`): Wraps OpenCV DNN with `DNN_TARGET_OPENCL`. Extracts the `cl_mem` handle from the output `cv::UMat` via `umat.handle(cv::ACCESS_READ)` and passes it directly to the blur kernel as a `cl::Buffer`.
 - **OpenVINO GPU Bridge** (`A3_2_OpenVINO_GPU`): Uses OpenVINO RemoteTensor API (`ov::intel_gpu::ocl::ClContext`). Includes a `preprocess_nchw.cl` kernel that converts RGBA to NCHW f32 on the GPU (eliminates the CPU preprocessing round-trip). Input `cl::Buffer` imported via `remote_ctx.create_tensor()` with raw `cl_mem` handle. Output `cl_mem` extracted via `ov::intel_gpu::ocl::ClBufferTensor::get()`. No host copy between preprocessing, inference, and blur kernel. Intel iGPU only.
 - **Bokeh Kernel** (`A4_Smart_Webcam`): Full-frame conditional blur — `if (mask[id] == BACKGROUND)` applies Gaussian/box filter; foreground pixels pass through. Controlled by a binary segmentation mask from AI stage.
-- **Privacy ROI Kernel** (A4 Challenge): Identical blur kernel launched over a sub-region using `global_work_offset` and a restricted `global_work_size` matching the detected face bounding box. Face detection via YuNet.
+- **Privacy Mode** (`A5_Privacy_Mode`): Standalone app. Face detection via `cv::dnn` + `blaze.onnx` (`DNN_BACKEND_OPENCV`, `DNN_TARGET_OPENCL` — T-API inference). ROI blur path A: `cv::UMat` submat + `cv::blur` (T-API). ROI blur path B: `roi_blur.cl` with `global_work_offset` (custom kernel comparison). No OpenVINO dependency.
 
 ### Data Flow
 
@@ -172,8 +174,8 @@ When `--loop` is used (offline test without webcam): replays `--input` image in 
 5. **`retain=true` when wrapping output `cl_mem` (A3_2)**
    - **Why**: The `cl_mem` returned by `ClBufferTensor::get()` is owned by OpenVINO. `cl::Buffer(raw, retain=true)` increments the refcount so the buffer stays valid after `InferRequest` scope ends. `retain=false` would double-free.
 
-6. **Model: MediaPipe Selfie Segmentation (A4 Bokeh), YuNet (A4 Privacy)**
-   - **Why**: Selfie segmentation outputs a per-pixel float mask directly usable as a `cl::Buffer` argument with no postprocessing. YuNet outputs a bounding box — teaching `global_work_offset` use requires a box, not a mask.
+6. **Model: MediaPipe Selfie Segmentation (A4 Bokeh), BlazeFace `blaze.onnx` (A5 Privacy)**
+   - **Why**: Selfie segmentation outputs a per-pixel float mask usable directly as a `cl::Buffer`. BlazeFace outputs a bounding box — coordinates drive the T-API submat crop and, in path B, the `global_work_offset`. `blaze.onnx` is already in `assets/`. Using `cv::dnn` with `DNN_TARGET_OPENCL` (not OpenVINO) for A5 keeps OpenVINO as an A4-only concept and demonstrates T-API as a self-contained GPU path for both inference and post-processing.
 
 7. **OpenVINO Dependency (A3_2): `find_package(OpenVINO REQUIRED)`**
    - **Why**: OpenVINO provides official CMake config files (`OpenVINOConfig.cmake`) via `libopenvino-dev` apt package. No FetchContent needed. `OpenVINOConfig.cmake` is installed to a system path — no env sourcing needed. If cmake cannot find it, set `export OpenVINO_DIR=/usr/lib/cmake/OpenVINO`. Setup documented in `A3_2_OpenVINO_GPU/SETUP.md`.
