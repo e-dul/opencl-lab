@@ -28,7 +28,7 @@ If APPROVED is never reached after $MAX_REVIEW_ITERS iterations → **stop and r
 ### Step 3 — Validate
 Run `/validate` for $TASK_ID.
 - If it fails → **stop immediately, do not run sync**.
-- If DoD MANUAL are not defined → **stop immediately, do not run sync. Instead show summary of MANUAL DoD**. 
+- If DoD MANUAL are defined → **stop immediately, do not run sync. Instead show summary of MANUAL DoD**. 
 
 ### Step 4 — Sync
 Run `/sync` for $TASK_ID.

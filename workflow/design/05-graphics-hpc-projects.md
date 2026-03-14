@@ -27,7 +27,7 @@ Build a ray tracer from first principles and scale it to render complex triangle
 
 - [x] Phase 1: B1 — CLBlast MatMul — Benchmark CLBlast GEMM vs naive kernel; establish "library vs custom kernel" decision instinct.
   - *Context*: Executive Summary §Path B item B.1; `GraphicsHPC.md` §B1_CLBlast_MatMul.
-- [ ] Phase 2: B2 — Basic Ray Tracer — Minimal sphere scene rendered via OpenGL interop; framebuffer stays on GPU.
+- [x] Phase 2: B2 — Basic Ray Tracer — Minimal sphere scene rendered via OpenGL interop; framebuffer stays on GPU.
   - *Context*: Executive Summary §Path B item B.2; `GraphicsHPC.md` §B2_Ray_Tracer_Basic.
 - [ ] Phase 3: B3 — Advanced Ray Tracer with Stackless BVH (Flagship) — CPU SAH-BVH build, flat array upload, per-ray iterative traversal kernel; 60 FPS gate.
   - *Context*: Executive Summary §Path B item B.3; `GraphicsHPC.md` §B3_Ray_Tracer_BVH.
@@ -145,6 +145,8 @@ Build a ray tracer from first principles and scale it to render complex triangle
 - **Triangle Data Layout vs Coalescing**: Array-of-Structs `{float3 v0, v1, v2}` per triangle is easy to build but causes uncoalesced reads when all threads access different triangle indices. SoA (`float* v0x, *v0y, *v0z, ...`) must be used in the final BVH kernel to satisfy the performance gate.
 - **GLFW Dependency in Headless Docker**: Docker images used in CI must have `libGL` and `libEGL` present or the CMake `find_package(OpenGL)` call will fail even when building in headless mode. CMake auto-sets `NO_GL_INTEROP` when these packages are missing (emitting a `WARNING`), so the headless binary still builds cleanly.
 - **NVIDIA RTX 4060 Laptop GPU — Small-Matrix Speedup Anomaly (B1)**: At N=1024, the naive kernel already achieves ~853 GFLOPS (driver auto-vectorization), yielding only 1.58× CLBlast speedup. The gate passes at N=4096 (NVIDIA 6.09×, AMD 300×). Future speedup gates must include a hardware-waiver clause tied to matrix size, rather than a fixed ratio that depends on driver internals.
+- **GL Interop Requires PRIME Render Offload on Optimus Laptops**: On systems with an Intel iGPU + NVIDIA dGPU (Optimus), `cl_khr_gl_sharing` requires the GLFW window to be running on the dGPU. Without `__NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia`, the GL context binds to the iGPU and the OpenCL context (on the dGPU) cannot share it, causing interop init to fail. Mitigation: prefix the binary with the PRIME env vars, or use headless mode.
+- **rusticl/AMD Does Not Support `cl_khr_gl_sharing`**: The Mesa rusticl OpenCL implementation does not expose `cl_khr_gl_sharing`. The B2 runtime check correctly detects the missing extension and falls back to headless mode without crashing. This is expected behaviour; headless output verified on AMD via `GPU=AMD ./build/b2_ray_tracer`.
 
 ---
 

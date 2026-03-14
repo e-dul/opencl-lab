@@ -228,6 +228,10 @@ This track is complete when:
 
 ## Troubleshooting
 
+- **OpenGL interop on Optimus/hybrid GPU laptops**: GLFW creates a GL context on the iGPU (drives the display); the NVIDIA OpenCL driver can only share with a GL context it owns. Force GLFW onto the NVIDIA GPU with PRIME render offload:
+  ```bash
+  __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia GPU=NVIDIA ./build/b2_ray_tracer --live
+  ```
 - **OpenGL interop init fails**: Verify `cl_khr_gl_sharing` extension: `clinfo | grep gl_sharing`. Not available on all CPU-fallback runtimes (PoCL).
 - **BVH renders black patches**: Miss-link pointers are wrong — draw the BVH tree to a file and verify parent-child-sibling linkage before running on GPU.
 - **`enqueue_kernel` returns `CL_INVALID_OPERATION` (B4)**: Your runtime does not support Device Enqueue. Check: `clinfo | grep "Device OpenCL C"` for `2.0+`. AMD ROCm and Intel NEO both support it; Nvidia OpenCL typically does not.
