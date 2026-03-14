@@ -7,15 +7,14 @@
 - **GPU Selection:** `GPU` env var (vendor substring, case-insensitive). Implemented in `common/ocl_wrapper.hpp::create_context()`. Matches `CL_PLATFORM_VENDOR` or `CL_DEVICE_VENDOR`. Examples: `GPU=NVIDIA`, `GPU=AMD`, `GPU=INTEL`. Default: first GPU found, CPU fallback. Hard-coded device indices are FORBIDDEN.
 
 ## Progress Tracking
-**Overall: 23/48 tasks → 48%** (see `scripts/progress.sh`)
+**Overall: 28/48 tasks → 58%** (run `scripts/progress.sh`)
 - [x] Module 0: Setup (100%)
 - [x] Module 1: Host API (100% — 6/6)
-- [ ] Module 2: Projects (in progress)
-  - [~] A Multimedia: 5/8 (63%)
-  - [ ] B Graphics HPC: 0/6 (0%)
-  - [ ] C Robotics ROS2: 0/7 (0%)
-- [x] Toolbox (100% — 13/13)
-- [ ] Addons: 0/8 (0%)
+- [x] Module 4: Path A — Multimedia & AI (100% — 8/8)
+- [~] Module 5: Path B — Graphics & HPC (1/6 — 16%)
+- [ ] Module 6: Path C — Robotics & ROS2 (0/7 — 0%)
+- [x] Module 7: Optimization Toolbox (100% — 13/13)
+- [ ] Module 8: Add-ons (0/8 — 0%)
 
 ## Style Guide (Coding Conventions)
 - Naming: `snake_case` for variables, `PascalCase` for classes.

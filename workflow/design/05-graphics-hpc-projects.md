@@ -24,7 +24,7 @@ Build a ray tracer from first principles and scale it to render complex triangle
 
 ## Roadmap / Status
 
-- [ ] Phase 1: B1 — CLBlast MatMul — Benchmark CLBlast GEMM vs naive kernel; establish "library vs custom kernel" decision instinct.
+- [x] Phase 1: B1 — CLBlast MatMul — Benchmark CLBlast GEMM vs naive kernel; establish "library vs custom kernel" decision instinct.
   - *Context*: Executive Summary §Path B item B.1; `GraphicsHPC.md` §B1_CLBlast_MatMul.
 - [ ] Phase 2: B2 — Basic Ray Tracer — Minimal sphere scene rendered via OpenGL interop; framebuffer stays on GPU.
   - *Context*: Executive Summary §Path B item B.2; `GraphicsHPC.md` §B2_Ray_Tracer_Basic.
@@ -134,6 +134,7 @@ Build a ray tracer from first principles and scale it to render complex triangle
 - **SAH Split Quality vs Build Time**: For very large meshes (1M+ triangles), SAH median-split may be too slow for interactive loading. Out of scope for this module (~70k triangle baseline; denser meshes are optional).
 - **Triangle Data Layout vs Coalescing**: Array-of-Structs `{float3 v0, v1, v2}` per triangle is easy to build but causes uncoalesced reads when all threads access different triangle indices. SoA (`float* v0x, *v0y, *v0z, ...`) must be used in the final BVH kernel to satisfy the performance gate.
 - **GLFW Dependency in Headless Docker**: Docker images used in CI must have `libGL` and `libEGL` present or the CMake `find_package(OpenGL)` call will fail even when building in headless mode. CMake must gate the OpenGL interop build on `CL_KHR_GL_SHARING` availability, not unconditionally.
+- **NVIDIA RTX 4060 Laptop GPU — Small-Matrix Speedup Anomaly (B1)**: At N=1024, the naive kernel already achieves ~853 GFLOPS (driver auto-vectorization), yielding only 1.58× CLBlast speedup. The gate passes at N=4096 (NVIDIA 6.09×, AMD 300×). Future speedup gates must include a hardware-waiver clause tied to matrix size, rather than a fixed ratio that depends on driver internals.
 
 ---
 
