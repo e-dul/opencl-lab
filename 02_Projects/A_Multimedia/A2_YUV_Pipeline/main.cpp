@@ -20,6 +20,7 @@
 
 #include <chrono>
 #include <climits>
+#include <filesystem>
 #include <cstdint>
 #include <iomanip>
 #include <iostream>
@@ -82,11 +83,10 @@ int main(int argc, char* argv[]) {
 
     // Locate kernel files relative to the binary — POST_BUILD copies them to
     // <binary_dir>/kernels/.
-    const std::string bin_path = argv[0];
-    const auto        sep      = bin_path.find_last_of("/\\");
-    const std::string bin_dir  = (sep != std::string::npos)
-                                     ? bin_path.substr(0, sep + 1)
-                                     : "./";
+    // WHY std::filesystem: argv[0] string splitting is fragile on paths
+    // with multiple slashes or relative prefixes. parent_path() handles all cases.
+    const std::string bin_dir =
+        std::filesystem::path(argv[0]).parent_path().string() + "/";
 
     const std::string src_rgba = load_kernel_source(bin_dir + "kernels/nv12_to_rgba.cl");
     const std::string src_y    = load_kernel_source(bin_dir + "kernels/extract_y.cl");

@@ -46,9 +46,7 @@ Build a production-grade GPU video pipeline that processes 1080p at ≥ 30 FPS. 
   - Teaching point: T-API gives GPU acceleration without writing OpenCL kernels — including for inference. Custom kernel for explicit control.
   - Performance gate: < 20 ms/frame @ 1080p (single face), T-API path.
   - *Context*: `Multimedia.md` §A4_Smart_Webcam Stretch Challenge.
-- [ ] Phase 7: Module review and cleanup — remove distraction, focus on what matters.
-  - Extract common utils
-  - Clean code to focus on key objectives
+- [x] Phase 7: Module cleanup — legacy scaffold dirs removed, A2 kernel-path fixed, stale TODO removed. **[DONE — 2026-03-14]**
 
 ---
 
@@ -197,7 +195,7 @@ When `--loop` is used (offline test without webcam): replays `--input` image in 
 - **Webcam Default Resolution**: `cv::VideoCapture` defaults to 640×480 on many devices. CLI args `--width`/`--height` with `cv::CAP_PROP_FRAME_WIDTH/HEIGHT` must be set before the first frame read.
 - **Thread Divergence in Bokeh Kernel**: The naive `if (mask[id] == BACKGROUND)` branch is a known inefficiency, intentionally left for the mini-challenge. It must not be pre-optimized in the base implementation.
 - **A2 Mini-challenge scope**: The YUYV port and two-pass timing comparison are Phase 2b — a separate task from Task 020 (NV12 pipeline). Not required for the A2 performance gate.
-- **A2 Kernel Path Resolution (portability fragility)**: Kernel files are located relative to `argv[0]` at runtime. This is a pre-existing pattern across the lab; it works when the binary is invoked from its build directory but may fail when called via an absolute path from a different cwd. Documented as a known limitation — not fixed in A2.
+- **A2 Kernel Path Resolution**: RESOLVED (Task 027) — Replaced manual `rfind`-based string split with `std::filesystem::path(argv[0]).parent_path()`, matching the pattern used in A3_1+.
 - **A2 GPU Timing (RTX 4060 Laptop)**:
   - 256×256: CPU 0.243 ms, GPU (nv12_to_rgba) 0.013 ms, speedup 18×. Kernel launch overhead dominates at this size.
   - 1920×1080: CPU 8.690 ms, GPU (nv12_to_rgba) 0.053 ms, speedup **164×**. Gate PASS. At 1080p pixel throughput dominates; this is the representative benchmark.
