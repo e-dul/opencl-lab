@@ -11,7 +11,8 @@
 | `face.png` | PNG (24-bit RGB) | 498 × 498 | 325 KB | Sample portrait used as `--input` for A3_1 (OpenCV DNN) and A3_2 (TFLite GPU). |
 | `selfie_segmentation.onnx` | ONNX model | — | 452 KB | Official ONNX export of the MediaPipe Selfie Segmentation model (Apache-2.0). Input: `1×3×256×256` float; output: `1×1×256×256` float alpha mask. Required by A3_1. [Source](https://huggingface.co/onnx-community/mediapipe_selfie_segmentation) |
 | `face_detection_yunet_2022mar.onnx` | ONNX model | — | — | YuNet face detector (`cv::FaceDetectorYN`). Output: `[N, 15]` mat — `[x, y, w, h, landmarks×5, score]`. Compatible with OpenCV 4.6. Used by A5 Privacy Mode (under review). Requires fixed 320×320 input; scale bbox coords back to display resolution. [Source](https://github.com/opencv/opencv_zoo/tree/main/models/face_detection_yunet) |
-
+| `bunny.obj` | OBJ (Wavefront) | — | ~2.5 MB | Stanford Bunny (~70k faces). Primary scene for B3 BVH Ray Tracer performance gate. Pass via `--scene assets/bunny.obj`. [Source](https://github.com/alecjacobson/common-3d-test-models) |
+| `cornell_box.obj` | OBJ (Wavefront) | — | ~10 KB | Cornell Box reference scene (coloured walls, two boxes). Used by B4 Device Enqueue for multi-bounce reflection verification. Pass via `--scene assets/cornell_box.obj`. [Source](https://github.com/vaffeine/vulkano-raytracing/blob/master/assets/cornell-box.obj) |
 
 ## Format Notes
 

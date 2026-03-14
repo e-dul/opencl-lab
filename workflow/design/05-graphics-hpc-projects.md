@@ -8,7 +8,7 @@
 
 ## Goal
 
-Build a ray tracer from first principles and scale it to render 100k-triangle scenes at 60 FPS. The core engineering problem across every step is compute throughput: naive per-ray brute-force triangle testing is O(N) per ray — at 100k triangles it is non-interactive. Each step teaches a concrete technique to reduce that cost, culminating in a flagship stackless BVH traversal implementation. An advanced capstone (B4) showcases OpenCL 2.0 Device Enqueue — GPU-spawned secondary kernels eliminating CPU round-trips between ray bounces.
+Build a ray tracer from first principles and scale it to render complex triangle scenes at 60 FPS. The default benchmark scene is `assets/bunny.obj` (~70k triangles, Stanford Bunny) — sufficient to make brute-force intersection non-interactive and validate the BVH gate. Denser meshes can be dropped in to push the gate harder. The core engineering problem across every step is compute throughput: naive per-ray brute-force triangle testing is O(N) per ray. Each step teaches a concrete technique to reduce that cost, culminating in a flagship stackless BVH traversal implementation. An advanced capstone (B4) showcases OpenCL 2.0 Device Enqueue — GPU-spawned secondary kernels eliminating CPU round-trips between ray bounces.
 
 ## Non-goals
 
@@ -131,7 +131,7 @@ Build a ray tracer from first principles and scale it to render 100k-triangle sc
 - **`cl_khr_gl_sharing` Unavailable on PoCL / CPU Runtimes**: The interop path silently fails init on CPU-only drivers. Headless mode (`--output`) is the mitigation; the DoD for B2/B3 must include a headless verification step.
 - **Nvidia OpenCL 2.0 Device Enqueue**: `enqueue_kernel` returns `CL_INVALID_OPERATION` on most Nvidia drivers. B4 must detect this at runtime and exit with a descriptive error, not a crash.
 - **BVH `miss_link` Correctness**: Incorrectly computed `miss_link` pointers produce black patches (rays terminate early) or infinite loops. The BVH builder must include a CPU-side self-test (traverse a known ray, assert expected leaf is reached) before the kernel is written.
-- **SAH Split Quality vs Build Time**: For very large meshes (1M+ triangles), SAH median-split may be too slow for interactive loading. Out of scope for this module (100k triangle gate is the target).
+- **SAH Split Quality vs Build Time**: For very large meshes (1M+ triangles), SAH median-split may be too slow for interactive loading. Out of scope for this module (~70k triangle baseline; denser meshes are optional).
 - **Triangle Data Layout vs Coalescing**: Array-of-Structs `{float3 v0, v1, v2}` per triangle is easy to build but causes uncoalesced reads when all threads access different triangle indices. SoA (`float* v0x, *v0y, *v0z, ...`) must be used in the final BVH kernel to satisfy the performance gate.
 - **GLFW Dependency in Headless Docker**: Docker images used in CI must have `libGL` and `libEGL` present or the CMake `find_package(OpenGL)` call will fail even when building in headless mode. CMake must gate the OpenGL interop build on `CL_KHR_GL_SHARING` availability, not unconditionally.
 
@@ -143,8 +143,8 @@ Build a ray tracer from first principles and scale it to render 100k-triangle sc
 | :--- | :--- | :--- |
 | B1 CLBlast MatMul | CLBlast speedup over naive GEMM | ≥ 5× at matrix size 1024×1024 |
 | B2 Basic Ray Tracer | Kernel time | < 10 ms per frame @ 1280×720, 16 spheres |
-| B3 BVH Ray Tracer | Render time | ≥ 60 FPS @ 100k triangles, 1920×1080 |
-| B3 BVH vs Naive | Speedup | Reported in console (expected ~100–250×) |
+| B3 BVH Ray Tracer | Render time | ≥ 60 FPS @ bunny.obj (~70k triangles), 1920×1080 |
+| B3 BVH vs Naive | Speedup | Reported in console (expected ~100–200×; scales with scene density) |
 | B4 Device Enqueue | Per-bounce latency vs CPU-dispatched | GPU-spawned path ≤ 50% of CPU-dispatched time (3 bounces) |
 
 ---
@@ -192,6 +192,6 @@ Build a ray tracer from first principles and scale it to render 100k-triangle sc
 - Module 1 completed (`01_Host_API/`): `cl.hpp` usage, `cl::Event` profiling, `CL_CHECK` error handling.
 - OpenGL + GLFW (for live window in B2/B3): `sudo apt install libglfw3-dev libgl-dev`. Not required for headless build.
 - CLBlast and tinyobjloader are fetched automatically by CMake at configure time (internet required on first build).
-- `assets/bunny.obj` (or equivalent 100k-triangle OBJ) and `assets/cornell_box.obj` present in repository root.
+- `assets/bunny.obj` (Stanford Bunny, ~70k triangles — baseline scene for B3 gate) and `assets/cornell_box.obj` present in repository root. Denser OBJ files can be substituted to increase difficulty.
 
 See [main README](../../README.md) for base requirements (OpenCL 1.2+, CMake 3.18+, Docker setup).

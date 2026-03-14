@@ -8,7 +8,7 @@ See [main README](../../README.md) for base requirements (OpenCL, CMake, Docker 
 **Additional:**
 - OpenGL + GLFW (live window in B2/B3): `sudo apt install libglfw3-dev libgl-dev` — optional; headless `--output render.bmp` works without it.
 - CLBlast (B1) and tinyobjloader (B3/B4) are fetched automatically by CMake at configure time. Offline: `-DCMAKE_PREFIX_PATH=/path/to/clblast/install`.
-- Assets in repository root: `assets/bunny.obj` (or equivalent 100k-triangle OBJ), `assets/cornell_box.obj` (for B4).
+- Assets in repository root: `assets/bunny.obj` (Stanford Bunny, ~70k triangles — sufficient for the gate; swap for a denser mesh if you want to push further), `assets/cornell_box.obj` (for B4).
 
 ## Contents
 ```
@@ -93,7 +93,7 @@ Add a second light source. Where does the kernel time increase — linearly with
 
 ## B3_Ray_Tracer_BVH — Flagship Project
 
-**Goal**: Extend the basic ray tracer with a Bounding Volume Hierarchy to render scenes with 100k+ triangles at 60 FPS, hitting the performance gate.
+**Goal**: Extend the basic ray tracer with a Bounding Volume Hierarchy to render complex triangle scenes at 60 FPS, hitting the performance gate. The default scene (`bunny.obj`) has ~70k triangles — already well beyond what brute-force intersection can handle interactively. Swap in a denser mesh if the gate feels too easy.
 
 ### Build & run
 ```bash
@@ -109,10 +109,10 @@ cmake --build build
 - Scene renders correctly (no missing triangles, no black artifacts)
 - Console prints traversal statistics:
   ```
-  Scene: 100k triangles, BVH depth: 17
-  [NAIVE ] Render time:  3240.0 ms   (0.3 FPS)
+  Scene: bunny.obj (~70k triangles), BVH depth: 16
+  [NAIVE ] Render time:  2180.0 ms   (0.5 FPS)
   [BVH   ] Render time:    14.8 ms   (67.6 FPS) ← must be ≥ 60 FPS to pass
-  BVH speedup: 219x
+  BVH speedup: 147x
   ```
 
 ### Core Concept: Why Stackless BVH?
@@ -218,7 +218,7 @@ This track is complete when:
 
 | Project | Metric | Target |
 |:--------|:-------|:-------|
-| Advanced Ray Tracer (B3) | Render time | 60 FPS @ 100k triangles, 1920×1080 |
+| Advanced Ray Tracer (B3) | Render time | 60 FPS @ bunny.obj (~70k triangles), 1920×1080 |
 
 **Measure with `cl::Event` profiling** on the kernel, not total frame time. The upload (BVH buffer) is a one-time cost — exclude it from the per-frame measurement.
 
