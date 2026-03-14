@@ -29,6 +29,19 @@ if(NOT NO_GL_INTEROP)
     if(glfw3_FOUND AND OpenGL_FOUND)
         target_link_libraries(b2_ray_tracer PRIVATE glfw OpenGL::GL)
         message(STATUS "GL interop: enabled (GLFW + OpenGL found)")
+
+        # WHY conditional EGL: Intel NEO (intel-opencl-icd) only supports
+        # cl_khr_gl_sharing for EGL-backed GL contexts, not GLX. Detecting EGL
+        # at configure time lets us compile the fallback path only when available,
+        # without affecting NVIDIA/GLX builds that lack EGL headers.
+        find_package(OpenGL COMPONENTS EGL)
+        if(OpenGL_EGL_FOUND)
+            target_link_libraries(b2_ray_tracer PRIVATE OpenGL::EGL)
+            target_compile_definitions(b2_ray_tracer PRIVATE HAS_EGL)
+            message(STATUS "EGL found — Intel GL interop fallback enabled")
+        else()
+            message(STATUS "EGL not found — Intel GL interop fallback disabled")
+        endif()
     else()
         message(WARNING "glfw3/OpenGL not found — building without GL interop (NO_GL_INTEROP). Install libglfw3-dev to enable live mode.")
         target_compile_definitions(b2_ray_tracer PRIVATE NO_GL_INTEROP)

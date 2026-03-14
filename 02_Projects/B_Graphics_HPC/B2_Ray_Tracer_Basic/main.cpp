@@ -29,8 +29,18 @@
 // context with OpenCL. Must be defined before glfw3native.h.
 #  define GLFW_EXPOSE_NATIVE_X11
 #  define GLFW_EXPOSE_NATIVE_GLX
+// WHY GLFW_EXPOSE_NATIVE_EGL before the first include of glfw3native.h:
+// glfw3native.h uses a file-level include guard (_glfw3_native_h_), so a
+// second include after defining GLFW_EXPOSE_NATIVE_EGL would be a no-op.
+// All EXPOSE_NATIVE_* defines must precede the single include.
+#  ifdef HAS_EGL
+#    define GLFW_EXPOSE_NATIVE_EGL
+#  endif
 #  include <GLFW/glfw3.h>
-#  include <GLFW/glfw3native.h>
+#  include <GLFW/glfw3native.h>   // glfwGetGLXContext/X11Display + EGL when HAS_EGL
+#  ifdef HAS_EGL
+#    include <EGL/egl.h>
+#  endif
 // WHY #undef Success: X11/Xlib.h (included transitively by glfw3native.h)
 // defines `Success` as the integer 0. This conflicts with any later C++
 // identifier named Success. Undefining it here avoids silent shadowing bugs.
@@ -218,7 +228,9 @@ static void render_live(int width, int height, const std::string& output_path) {
     cl::Context  cl_ctx;
     cl::Device   gl_device;
     bool         sharing_ok = false;
+    bool         egl_path   = false;  // true when EGL fallback succeeded
 
+    // ── Attempt 1: GLX path (preserves NVIDIA behaviour) ─────────────────────
     for (auto& p : platforms) {
         cl_context_properties props[] = {
             CL_GL_CONTEXT_KHR,   (cl_context_properties)glfwGetGLXContext(window),
@@ -246,10 +258,57 @@ static void render_live(int width, int height, const std::string& output_path) {
         }
     }
 
+#ifdef HAS_EGL
+    // ── Attempt 2: EGL path (Intel NEO fallback) ─────────────────────────────
+    // WHY second window with GLFW_EGL_CONTEXT_API:
+    // Intel NEO (intel-opencl-icd) implements cl_khr_gl_sharing only for EGL-backed GL
+    // contexts; it does not implement the GLX variant. Destroying and re-creating the
+    // GLFW window with GLFW_EGL_CONTEXT_API is the minimal change that gives NEO a
+    // valid EGL display handle without altering the NVIDIA/GLX path (Attempt 1).
+    if (!sharing_ok) {
+        glfwDestroyWindow(window);
+        window = nullptr;
+        glfwWindowHint(GLFW_CONTEXT_CREATION_API, GLFW_EGL_CONTEXT_API);
+        glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+        window = glfwCreateWindow(width, height, "B2 Ray Tracer", nullptr, nullptr);
+        if (window) {
+            glfwMakeContextCurrent(window);
+            for (auto& p : platforms) {
+                auto fn = reinterpret_cast<clGetGLContextInfoKHR_fn_t>(
+                    clGetExtensionFunctionAddressForPlatform(p(), "clGetGLContextInfoKHR"));
+                if (!fn) continue;
+
+                cl_context_properties egl_props[] = {
+                    CL_GL_CONTEXT_KHR,   (cl_context_properties)glfwGetEGLContext(window),
+                    CL_EGL_DISPLAY_KHR,  (cl_context_properties)glfwGetEGLDisplay(),
+                    CL_CONTEXT_PLATFORM, (cl_context_properties)(cl_platform_id)p(),
+                    0
+                };
+
+                cl_device_id dev_id = nullptr;
+                cl_int err = fn(egl_props, CL_CURRENT_DEVICE_FOR_GL_CONTEXT_KHR,
+                                sizeof(dev_id), &dev_id, nullptr);
+                if (err != CL_SUCCESS || !dev_id) continue;
+
+                gl_device = cl::Device(dev_id);
+                try {
+                    cl_ctx     = cl::Context(gl_device, egl_props);
+                    sharing_ok = true;
+                    egl_path   = true;
+                    std::cout << "[GL-interop] EGL fallback succeeded (Intel NEO path)\n";
+                    break;
+                } catch (const cl::Error&) {
+                    continue;
+                }
+            }
+        }
+    }
+#endif  // HAS_EGL
+
     if (!sharing_ok) {
         std::cout << "[Notice] cl_khr_gl_sharing context creation failed on all platforms — "
                      "falling back to headless mode.\n";
-        glfwDestroyWindow(window);
+        if (window) glfwDestroyWindow(window);
         glfwTerminate();
         render_headless(width, height, output_path);
         return;
@@ -259,8 +318,16 @@ static void render_live(int width, int height, const std::string& output_path) {
     glGenTextures(1, &tex);
     glBindTexture(GL_TEXTURE_2D, tex);
     // Allocate storage without initial data — CL will fill it each frame.
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, width, height,
-                 0, GL_RGBA, GL_FLOAT, nullptr);
+    // WHY GL_RGBA8 on EGL path: Intel NEO clCreateFromGLTexture does not support
+    // GL_RGBA32F (floating-point) internal formats via EGL interop; GL_RGBA8
+    // (UNORM_INT8) is universally supported. write_imagef clamps [0,1] → [0,255].
+    if (egl_path) {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height,
+                     0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    } else {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, width, height,
+                     0, GL_RGBA, GL_FLOAT, nullptr);
+    }
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glFinish();  // WHY glFinish before CL: ensures GL texture allocation is done
@@ -272,13 +339,6 @@ static void render_live(int width, int height, const std::string& output_path) {
     {
         cl::CommandQueue queue(cl_ctx, gl_device, CL_QUEUE_PROFILING_ENABLE);
 
-        // ── Wrap GL texture as CL image (cl::ImageGL, OpenCL 1.2+) ──────────────
-        // WHY ImageGL not Image2DGL: Image2DGL is deprecated in OpenCL 1.2;
-        // ImageGL wraps clCreateFromGLTexture which handles both 2D and 3D.
-        cl_int cl_err = CL_SUCCESS;
-        cl::ImageGL cl_img(cl_ctx, CL_MEM_WRITE_ONLY, GL_TEXTURE_2D, 0, tex, &cl_err);
-        CL_CHECK(cl_err);
-
         cl::Program prog = build_program(cl_ctx, gl_device, binary_dir());
         cl::Kernel  kernel(prog, "ray_trace");
 
@@ -287,8 +347,41 @@ static void render_live(int width, int height, const std::string& output_path) {
                               SPHERES.size() * sizeof(float),
                               const_cast<float*>(SPHERES.data()));
 
+        // ── CL framebuffer — two strategies depending on interop path ─────────────
+        // GLX path (NVIDIA): cl::ImageGL wraps the GL texture directly — zero-copy,
+        //   CL writes land in VRAM that GL reads without any PCIe transfer.
+        // EGL path (Intel NEO): Intel stores GL textures in a GPU-tiled memory layout.
+        //   clCreateFromGLTexture succeeds but write_imagef addresses tiles linearly,
+        //   producing stripe artifacts. Zero-copy is therefore BROKEN on this driver;
+        //   we fall back to cl::Image2D (CL-owned, linear) + enqueueReadImage +
+        //   glTexSubImage2D per frame. Kernel time still reflects pure CL cost;
+        //   the readback adds ~1–3 ms of host-GPU transfer not shown in the profiling.
+        cl_int cl_err = CL_SUCCESS;
+        cl::ImageGL             cl_gl_img;    // GLX path only
+        cl::Image2D             cl_plain_img; // EGL path only
+        std::vector<cl::Memory> gl_objects;   // empty on EGL path
+        std::vector<uint8_t>    readback;     // EGL path staging buffer
+
+        if (egl_path) {
+            cl::ImageFormat fmt(CL_RGBA, CL_UNORM_INT8);
+            cl_plain_img = cl::Image2D(cl_ctx, CL_MEM_WRITE_ONLY, fmt,
+                                       width, height, 0, nullptr, &cl_err);
+            CL_CHECK(cl_err);
+            CL_CHECK(kernel.setArg(0, cl_plain_img));
+            readback.resize(static_cast<size_t>(width) * height * 4);
+        } else {
+            // WHY ImageGL not Image2DGL: Image2DGL is deprecated in OpenCL 1.2;
+            // ImageGL wraps clCreateFromGLTexture which handles both 2D and 3D.
+            cl_gl_img = cl::ImageGL(cl_ctx, CL_MEM_WRITE_ONLY, GL_TEXTURE_2D, 0, tex, &cl_err);
+            CL_CHECK(cl_err);
+            CL_CHECK(kernel.setArg(0, cl_gl_img));
+            // TODO: check if this can be fixed
+            // WHY vector<Memory>: enqueueAcquireGLObjects takes a vector of cl::Memory
+            // base-class objects; ImageGL is a subclass of Memory.
+            gl_objects = {cl_gl_img};
+        }
+
         int num_spheres = static_cast<int>(SPHERES.size() / 8);
-        CL_CHECK(kernel.setArg(0, cl_img));
         CL_CHECK(kernel.setArg(1, sphere_buf));
         CL_CHECK(kernel.setArg(2, num_spheres));
         CL_CHECK(kernel.setArg(3, width));
@@ -298,25 +391,38 @@ static void render_live(int width, int height, const std::string& output_path) {
         cl::NDRange global(round_up(static_cast<size_t>(width),  TILE),
                            round_up(static_cast<size_t>(height), TILE));
         cl::NDRange local(TILE, TILE);
-        // WHY vector<Memory>: enqueueAcquireGLObjects takes a vector of cl::Memory
-        // base-class objects; ImageGL is a subclass of Memory.
-        std::vector<cl::Memory> gl_objects = {cl_img};
 
         // ── Render loop ───────────────────────────────────────────────────────────
         while (!glfwWindowShouldClose(window)) {
             if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) break;
 
-            // Acquire ownership of the GL texture for CL writes.
-            CL_CHECK(queue.enqueueAcquireGLObjects(&gl_objects));
+            if (!egl_path) {
+                // Acquire ownership of the GL texture for CL writes.
+                CL_CHECK(queue.enqueueAcquireGLObjects(&gl_objects));
+            }
 
             cl::Event ev;
             CL_CHECK(queue.enqueueNDRangeKernel(kernel, cl::NullRange, global, local, nullptr, &ev));
-            CL_CHECK(queue.enqueueReleaseGLObjects(&gl_objects));
+
+            if (!egl_path) {
+                CL_CHECK(queue.enqueueReleaseGLObjects(&gl_objects));
+            }
             CL_CHECK(queue.finish());
 
             double ms = duration_ms(ev);
             std::cout << std::fixed << std::setprecision(3)
                       << "Frame kernel time: " << ms << " ms\r" << std::flush;
+
+            if (egl_path) {
+                // Read CL image back and upload to the GL texture (breaks zero-copy —
+                // see comment above; correctness wins over performance on this path).
+                std::array<size_t, 3> origin = {0, 0, 0};
+                std::array<size_t, 3> region = {(size_t)width, (size_t)height, 1};
+                CL_CHECK(queue.enqueueReadImage(cl_plain_img, CL_TRUE,
+                                                origin, region, 0, 0, readback.data()));
+                glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height,
+                                GL_RGBA, GL_UNSIGNED_BYTE, readback.data());
+            }
 
             // Blit the CL-written texture to the full screen quad via legacy GL.
             glClear(GL_COLOR_BUFFER_BIT);
