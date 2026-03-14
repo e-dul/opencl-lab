@@ -89,7 +89,12 @@
 ### 7.5 WHY Comments
 - Non-obvious flag combinations (e.g. `CL_MEM_ALLOC_HOST_PTR | CL_MEM_COPY_HOST_PTR`) must have a comment explaining why both flags are combined, not just what they do.
 
-### 7.6 Other
+### 7.6 GL Interop Teardown
+- When using `cl_khr_gl_sharing`, **all** CL objects that reference GL resources (`cl::ImageGL`, `cl::Context` created with GL props, `cl::CommandQueue` on that context) must be destroyed **before** `glfwTerminate()` / `glDeleteTextures()`.
+- Scope inner objects (`cl::ImageGL`, `cl::CommandQueue`, kernels, buffers) in an explicit `{}` block that ends before GL teardown.
+- Explicitly reset the shared `cl::Context` itself — `cl_ctx = cl::Context();` — after the inner scope, before `glfwTerminate`. A `cl::Context` declared outside the inner scope is not destroyed by the inner scope's exit and will crash in `clReleaseContext` after the GL context is gone.
+
+### 7.7 Other
 - Throw exceptions instead of using `std::exit`
 - Remove unused headers
 - Always wrap enqueueUnmapMemObject and getInfo (two-arg overload) in CL_CHECK — they are silent cl_int returners, not covered by CL_HPP_ENABLE_EXCEPTIONS.

@@ -105,3 +105,6 @@ To ensure consistency between educational goals and technical implementation:
 ## 6. General remarks
 - When asked to plan a task, write the plan and store in `workflow/tasks/`. Never implement unless explicitly told to proceed.
 - Consider task completed only after explicitly told.
+
+## Future improvement
+- consider different name formats: T<id>_*.md for tasks and D<id>_*.md for designs for easier filtering.
