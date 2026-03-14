@@ -1,6 +1,7 @@
 # Module 5: Path B — Graphics & HPC
 
-**Version:** 1.0
+**Version:** 1.1
+**Changelog:** v1.1 — inverted GL interop flag (NO_GL_INTEROP, ON by default); added B3 interactive camera; fixed B4 exit-code to 0 (master_specs §4 alignment); added cl::Event gate note for B3 FPS.
 **Status:** Active — implementation not started
 **Module Path:** `02_Projects/B_Graphics_HPC/`
 
@@ -43,7 +44,7 @@ Build a ray tracer from first principles and scale it to render complex triangle
 
 **Additional constraints for this path:**
 
-- **OpenGL Interop**: Required for B2 and B3 live window path. Extension `cl_khr_gl_sharing` must be checked at runtime. Headless fallback (`--output render.bmp`) must always be available via CLI11.
+- **OpenGL Interop**: Enabled by default for B2 and B3. Compile-time flag `-DNO_GL_INTEROP` disables GL interop and forces headless-only mode. CMake must emit a `WARNING` and auto-set `NO_GL_INTEROP` when `find_package(glfw3)` or `find_package(OpenGL)` fails. Extension `cl_khr_gl_sharing` must be checked at runtime even when the flag is not set. Headless fallback (`--output` file path) must always be available via CLI11 regardless of interop mode.
 - **CLBlast**: Fetched at CMake configure time via `FetchContent`. Must not be pre-installed as a system dependency. Offline note: `-DCMAKE_PREFIX_PATH=/path/to/clblast/install`.
 - **OBJ Loading**: Scenes for B3/B4 are loaded from `.obj` files. A lightweight single-header loader (e.g., `tinyobjloader`) is the approved option. No dependency on Assimp or OpenMesh.
 - **OpenCL 2.0 Gating (B4)**: All `enqueue_kernel` / device-enqueue code must be wrapped in `#ifdef CL_VERSION_2_0`. B4 must emit a clear runtime error and exit gracefully if the device reports OpenCL C < 2.0.
@@ -85,11 +86,20 @@ Build a ray tracer from first principles and scale it to render complex triangle
 1. Load `.obj` → triangle list (CPU).
 2. Build SAH-BVH (CPU) → flatten to `BvhNode[]` with `hit_link` / `miss_link`.
 3. Upload `cl::Buffer`: triangles + BVH nodes (one-time cost).
-4. Per-frame loop (identical to B2 OpenGL path):
+4. Per-frame loop:
+   - Poll GLFW events; update camera state from input (see §Interactive Camera below).
+   - Re-upload camera uniform buffer (small; `CL_MEM_USE_HOST_PTR` or `setArg` scalar).
    - Acquire GL image.
    - Dispatch `ray_trace_bvh` kernel.
    - Release GL image. Print kernel time.
 5. Report: naive render time (brute force) vs BVH render time, speedup multiplier.
+
+**Interactive Camera (live mode only)**:
+- **Orbit**: left-mouse drag rotates camera around the scene origin (spherical coords: azimuth + elevation).
+- **Zoom**: scroll wheel moves camera along the forward axis.
+- **Pan**: middle-mouse drag translates the look-at target in the view plane.
+- Camera state (`cam_pos`, `cam_target`, `fov`) uploaded each frame as kernel args (not hardcoded `#define` — unlike B2, this must be runtime-variable).
+- Headless path uses a fixed default camera pose (compile-time constants in host code) — no interaction required.
 
 #### B4 (Device Enqueue)
 1. Create context with `CL_QUEUE_ON_DEVICE_DEFAULT` flag (guarded by `#ifdef CL_VERSION_2_0`).
@@ -128,12 +138,12 @@ Build a ray tracer from first principles and scale it to render complex triangle
 
 ## Known Issues / Risks
 
-- **`cl_khr_gl_sharing` Unavailable on PoCL / CPU Runtimes**: The interop path silently fails init on CPU-only drivers. Headless mode (`--output`) is the mitigation; the DoD for B2/B3 must include a headless verification step.
+- **`cl_khr_gl_sharing` Unavailable on PoCL / CPU Runtimes**: The interop path silently fails init on CPU-only drivers. Build with `-DNO_GL_INTEROP` (or rely on CMake auto-detection) to compile without GL interop. Headless mode (`--output`) is the mitigation; the DoD for B2/B3 must include a headless verification step.
 - **Nvidia OpenCL 2.0 Device Enqueue**: `enqueue_kernel` returns `CL_INVALID_OPERATION` on most Nvidia drivers. B4 must detect this at runtime and exit with a descriptive error, not a crash.
 - **BVH `miss_link` Correctness**: Incorrectly computed `miss_link` pointers produce black patches (rays terminate early) or infinite loops. The BVH builder must include a CPU-side self-test (traverse a known ray, assert expected leaf is reached) before the kernel is written.
 - **SAH Split Quality vs Build Time**: For very large meshes (1M+ triangles), SAH median-split may be too slow for interactive loading. Out of scope for this module (~70k triangle baseline; denser meshes are optional).
 - **Triangle Data Layout vs Coalescing**: Array-of-Structs `{float3 v0, v1, v2}` per triangle is easy to build but causes uncoalesced reads when all threads access different triangle indices. SoA (`float* v0x, *v0y, *v0z, ...`) must be used in the final BVH kernel to satisfy the performance gate.
-- **GLFW Dependency in Headless Docker**: Docker images used in CI must have `libGL` and `libEGL` present or the CMake `find_package(OpenGL)` call will fail even when building in headless mode. CMake must gate the OpenGL interop build on `CL_KHR_GL_SHARING` availability, not unconditionally.
+- **GLFW Dependency in Headless Docker**: Docker images used in CI must have `libGL` and `libEGL` present or the CMake `find_package(OpenGL)` call will fail even when building in headless mode. CMake auto-sets `NO_GL_INTEROP` when these packages are missing (emitting a `WARNING`), so the headless binary still builds cleanly.
 - **NVIDIA RTX 4060 Laptop GPU — Small-Matrix Speedup Anomaly (B1)**: At N=1024, the naive kernel already achieves ~853 GFLOPS (driver auto-vectorization), yielding only 1.58× CLBlast speedup. The gate passes at N=4096 (NVIDIA 6.09×, AMD 300×). Future speedup gates must include a hardware-waiver clause tied to matrix size, rather than a fixed ratio that depends on driver internals.
 
 ---
@@ -144,7 +154,7 @@ Build a ray tracer from first principles and scale it to render complex triangle
 | :--- | :--- | :--- |
 | B1 CLBlast MatMul | CLBlast speedup over naive GEMM | ≥ 5× at matrix size 1024×1024 |
 | B2 Basic Ray Tracer | Kernel time | < 10 ms per frame @ 1280×720, 16 spheres |
-| B3 BVH Ray Tracer | Render time | ≥ 60 FPS @ bunny.obj (~70k triangles), 1920×1080 |
+| B3 BVH Ray Tracer | Render time (cl::Event, includes per-frame camera upload) | ≥ 60 FPS @ bunny.obj (~70k triangles), 1920×1080 |
 | B3 BVH vs Naive | Speedup | Reported in console (expected ~100–200×; scales with scene density) |
 | B4 Device Enqueue | Per-bounce latency vs CPU-dispatched | GPU-spawned path ≤ 50% of CPU-dispatched time (3 bounces) |
 
@@ -184,14 +194,14 @@ Build a ray tracer from first principles and scale it to render complex triangle
   - CLBlast: `FetchContent_Declare` in B1 `CMakeLists.txt`.
   - GLFW + OpenGL: `find_package(glfw3)` + `find_package(OpenGL)`, gated on availability.
   - tinyobjloader: `FetchContent_Declare` in B3/B4 `CMakeLists.txt`.
-- **B4 OpenCL 2.0 Runtime Check**: B4 binary must emit a human-readable error and exit with code 1 if the device does not support OpenCL C 2.0 (hard requirement — no graceful fallback for B4).
+- **B4 OpenCL 2.0 Runtime Check**: B4 binary must emit a human-readable error and exit with code 0 if the device does not support OpenCL C 2.0 (per master_specs §4 Graceful Fallback — crashes and silent hangs are forbidden).
 
 ---
 
 ## Prerequisites
 
 - Module 1 completed (`01_Host_API/`): `cl.hpp` usage, `cl::Event` profiling, `CL_CHECK` error handling.
-- OpenGL + GLFW (for live window in B2/B3): `sudo apt install libglfw3-dev libgl-dev`. Not required for headless build.
+- OpenGL + GLFW (for live window in B2/B3): `sudo apt install libglfw3-dev libgl-dev`. Not required for headless build. When missing, CMake auto-sets `NO_GL_INTEROP` and emits a `WARNING`; pass `-DNO_GL_INTEROP=ON` explicitly to suppress the warning.
 - CLBlast and tinyobjloader are fetched automatically by CMake at configure time (internet required on first build).
 - `assets/bunny.obj` (Stanford Bunny, ~70k triangles — baseline scene for B3 gate) and `assets/cornell_box.obj` present in repository root. Denser OBJ files can be substituted to increase difficulty.
 
