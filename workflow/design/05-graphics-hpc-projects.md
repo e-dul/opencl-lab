@@ -1,7 +1,7 @@
 # Module 5: Path B — Graphics & HPC
 
-**Version:** 1.1
-**Changelog:** v1.1 — inverted GL interop flag (NO_GL_INTEROP, ON by default); added B3 interactive camera; fixed B4 exit-code to 0 (master_specs §4 alignment); added cl::Event gate note for B3 FPS.
+**Version:** 1.2
+**Changelog:** v1.2 — EGL fallback for Intel NEO gl_sharing (Task 030); v1.1 — inverted GL interop flag, B3 interactive camera, B4 exit-code fix.
 **Status:** Active — implementation not started
 **Module Path:** `02_Projects/B_Graphics_HPC/`
 
@@ -147,6 +147,7 @@ Build a ray tracer from first principles and scale it to render complex triangle
 - **NVIDIA RTX 4060 Laptop GPU — Small-Matrix Speedup Anomaly (B1)**: At N=1024, the naive kernel already achieves ~853 GFLOPS (driver auto-vectorization), yielding only 1.58× CLBlast speedup. The gate passes at N=4096 (NVIDIA 6.09×, AMD 300×). Future speedup gates must include a hardware-waiver clause tied to matrix size, rather than a fixed ratio that depends on driver internals.
 - **GL Interop Requires PRIME Render Offload on Optimus Laptops**: On systems with an Intel iGPU + NVIDIA dGPU (Optimus), `cl_khr_gl_sharing` requires the GLFW window to be running on the dGPU. Without `__NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia`, the GL context binds to the iGPU and the OpenCL context (on the dGPU) cannot share it, causing interop init to fail. Mitigation: prefix the binary with the PRIME env vars, or use headless mode.
 - **rusticl/AMD Does Not Support `cl_khr_gl_sharing`**: The Mesa rusticl OpenCL implementation does not expose `cl_khr_gl_sharing`. The B2 runtime check correctly detects the missing extension and falls back to headless mode without crashing. This is expected behaviour; headless output verified on AMD via `GPU=AMD ./build/b2_ray_tracer`.
+- **Intel NEO Requires EGL-Backed GL Context for `cl_khr_gl_sharing` (RESOLVED B2)**: Intel NEO (`intel-opencl-icd`) implements `cl_khr_gl_sharing` only for EGL-backed GL contexts; the GLX variant is not supported. Fixed in Task 030 via a two-attempt strategy in `render_live()`: Attempt 1 uses GLX props (preserves NVIDIA path); Attempt 2 destroys the GLFW window and re-creates it with `GLFW_EGL_CONTEXT_API`, then probes with `CL_EGL_DISPLAY_KHR` props. EGL support is conditional (`#ifdef HAS_EGL`), detected by CMake `find_package(OpenGL COMPONENTS EGL)`.
 
 ---
 

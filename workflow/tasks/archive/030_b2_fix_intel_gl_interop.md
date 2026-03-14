@@ -134,7 +134,7 @@ Standard DoD from `.claude/rules/00_master_specs.md §8` applies. Task-specific 
 - [x] `./build/b2_ray_tracer --output output.bmp` produces `output.bmp` (headless path unaffected).
 - [x] `./build/b2_ray_tracer --help` prints CLI11-generated usage.
 - [x] MANUAL: On a system with Intel NEO (`GPU=INTEL`), run `./build/b2_ray_tracer --live`; confirm live window opens and renders spheres (EGL fallback engaged — verify via console "Attempt 2" or equivalent log line).
-- [ ] MANUAL: On NVIDIA with PRIME offload (`__NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia ./build/b2_ray_tracer --live`), confirm live window still opens via GLX path (Attempt 1 succeeds; Attempt 2 never runs).
+- [x] MANUAL: On NVIDIA with PRIME offload (`__NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia ./build/b2_ray_tracer --live`), confirm live window still opens via GLX path (Attempt 1 succeeds; Attempt 2 never runs).
 - [x] When compiled without EGL (`HAS_EGL` absent), the binary behaviour is identical to pre-fix: GLX only, headless fallback on failure.
 
 ---
@@ -181,6 +181,13 @@ Options:
 # compiles cleanly with HAS_EGL defined (EGL present on this system).
 
 # Live mode on Intel runs with time 1-3ms
+
+# Live mode for Nvidia still works
+__NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia GPU=NVIDIA ./build/b2_ray_tracer --live
+pci id for fd 35: 10de:28e0, driver (null)
+pci id for fd 36: 10de:28e0, driver (null)
+Frame kernel time: 0.106 ms
+
 ```
 
 ### Changed Files
