@@ -22,6 +22,7 @@
 #include "opencl_utils.hpp"   // CL_CHECK, load_kernel_source, duration_ms
 #include "ocl_wrapper.hpp"    // create_context()
 #include "image_utils.hpp"    // save_bmp
+#include "graphics_hpc_utils.hpp"
 
 #ifndef NO_GL_INTEROP
 // WHY GLFW_EXPOSE_NATIVE_*: these macros unlock GLFW's native platform
@@ -88,43 +89,6 @@ static const std::array<float, 16 * 8> SPHERES = {{
      1.5f,  1.5f,  3.5f, 0.65f,0.2f, 0.7f, 0.9f, 56.0f,  // sky-blue
 }};
 
-// ---------------------------------------------------------------------------
-// Build OpenCL program from source file adjacent to the binary.
-// WHY binary-relative path: the binary may be run from any working directory;
-// cmake copy_kernels ensures kernels/ ends up next to the executable.
-// ---------------------------------------------------------------------------
-static cl::Program build_program(const cl::Context& ctx,
-                                 const cl::Device& dev,
-                                 const std::filesystem::path& bin_dir) {
-    auto kernel_path = (bin_dir / "kernels" / "ray_trace.cl").string();
-    std::string src  = load_kernel_source(kernel_path);
-    cl::Program prog(ctx, src);
-    try {
-        prog.build({dev}, "-cl-std=CL1.2");
-    } catch (const cl::Error& e) {
-        // Surface compiler errors — essential for debugging kernel issues.
-        std::string log = prog.getBuildInfo<CL_PROGRAM_BUILD_LOG>(dev);
-        throw std::runtime_error(std::string("Kernel build failed:\n") + log);
-    }
-    return prog;
-}
-
-// ---------------------------------------------------------------------------
-// Get the directory that contains the running executable.
-// ---------------------------------------------------------------------------
-static std::filesystem::path binary_dir() {
-    return std::filesystem::canonical("/proc/self/exe").parent_path();
-}
-
-// ---------------------------------------------------------------------------
-// Round n up to the next multiple of `multiple`.
-// WHY: OpenCL requires global work size to be an exact multiple of local work
-// size when both are specified. We pad the global range and guard in the kernel
-// (gid >= width/height) so the extra work-items do nothing.
-// ---------------------------------------------------------------------------
-static size_t round_up(size_t n, size_t multiple) {
-    return ((n + multiple - 1) / multiple) * multiple;
-}
 
 // ---------------------------------------------------------------------------
 // Headless render: writes output_path BMP and prints kernel time.
@@ -136,7 +100,8 @@ static void render_headless(int width, int height,
     // Profiling-enabled queue — mandatory for cl::Event timing (§6).
     cl::CommandQueue queue(ocl.context, ocl.device, CL_QUEUE_PROFILING_ENABLE);
 
-    cl::Program prog = build_program(ocl.context, ocl.device, binary_dir());
+    cl::Program prog = build_program(ocl.context, ocl.device,
+        (get_binary_dir() / "kernels" / "ray_trace.cl").string());
     cl::Kernel  kernel(prog, "ray_trace");
 
     // WHY cl::Image2D with CL_MEM_WRITE_ONLY: the kernel only writes pixels;
@@ -339,7 +304,8 @@ static void render_live(int width, int height, const std::string& output_path) {
     {
         cl::CommandQueue queue(cl_ctx, gl_device, CL_QUEUE_PROFILING_ENABLE);
 
-        cl::Program prog = build_program(cl_ctx, gl_device, binary_dir());
+        cl::Program prog = build_program(cl_ctx, gl_device,
+        (get_binary_dir() / "kernels" / "ray_trace.cl").string());
         cl::Kernel  kernel(prog, "ray_trace");
 
         cl::Buffer sphere_buf(cl_ctx,

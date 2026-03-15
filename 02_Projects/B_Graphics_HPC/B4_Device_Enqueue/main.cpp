@@ -23,6 +23,7 @@
 #include "opencl_utils.hpp"
 #include "ocl_wrapper.hpp"
 #include "image_utils.hpp"
+#include "graphics_hpc_utils.hpp"
 #include "bvh_builder.hpp"
 
 #include <algorithm>
@@ -59,13 +60,6 @@ static int parse_opencl_c_major(const std::string& ver_str) {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-static std::filesystem::path binary_dir() {
-    return std::filesystem::canonical("/proc/self/exe").parent_path();
-}
-
-static size_t round_up(size_t n, size_t multiple) {
-    return ((n + multiple - 1) / multiple) * multiple;
-}
 
 // ---------------------------------------------------------------------------
 // OBJ scene loader — produces TriangleCpu list with normals.
@@ -86,12 +80,6 @@ static std::vector<TriangleCpu> load_obj(const std::string& path) {
     std::vector<TriangleCpu> tris;
     tris.reserve(10000);
 
-    auto cross3 = [](const std::array<float,3>& a, const std::array<float,3>& b) {
-        return std::array<float,3>{a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]};
-    };
-    auto sub3 = [](const std::array<float,3>& a, const std::array<float,3>& b) {
-        return std::array<float,3>{a[0]-b[0], a[1]-b[1], a[2]-b[2]};
-    };
     auto norm3 = [](std::array<float,3> a) {
         float len = std::sqrt(a[0]*a[0]+a[1]*a[1]+a[2]*a[2]);
         if (len < 1e-8f) return std::array<float,3>{0.0f, 1.0f, 0.0f};
@@ -290,24 +278,6 @@ static SoaBuffers upload_soa(const cl::Context& ctx, const TriangleSoa& soa) {
     };
 }
 
-// ---------------------------------------------------------------------------
-// Build OpenCL program from a single kernel file.
-// ---------------------------------------------------------------------------
-static cl::Program build_program_from_file(const cl::Context& ctx,
-                                            const cl::Device&  dev,
-                                            const std::string& kernel_path,
-                                            const std::string& build_opts)
-{
-    auto src = load_kernel_source(kernel_path);
-    cl::Program prog(ctx, src);
-    try {
-        prog.build({dev}, build_opts.c_str());
-    } catch (const cl::Error&) {
-        std::string log = prog.getBuildInfo<CL_PROGRAM_BUILD_LOG>(dev);
-        throw std::runtime_error("Kernel build failed (" + kernel_path + "):\n" + log);
-    }
-    return prog;
-}
 
 // ---------------------------------------------------------------------------
 // Set kernel args shared by both primary_ray and reflection_ray kernels.
@@ -361,12 +331,12 @@ static std::vector<double> render_cpu_dispatched(
     cl::Buffer ray_buf(ctx, CL_MEM_READ_WRITE, ray_buf_size);
 
     // Build primary kernel (CL 1.2 build opts — device enqueue guards are compile-time)
-    auto prog_primary = build_program_from_file(ctx, dev,
+    auto prog_primary = build_program(ctx, dev,
         (bin_dir / "kernels" / "primary_ray.cl").string(), "-cl-std=CL1.2");
     cl::Kernel k_primary(prog_primary, "primary_ray");
 
     // Build reflection kernel
-    auto prog_reflect = build_program_from_file(ctx, dev,
+    auto prog_reflect = build_program(ctx, dev,
         (bin_dir / "kernels" / "reflection_ray.cl").string(), "-cl-std=CL1.2");
     cl::Kernel k_reflect(prog_reflect, "reflection_ray");
 
@@ -463,7 +433,7 @@ static std::vector<double> render_gpu_spawned(
     } dev_queue_guard{raw_dev_queue};
 
     // Build primary kernel with CL2.0 flag to enable enqueue_kernel support
-    auto prog_primary = build_program_from_file(ctx, dev,
+    auto prog_primary = build_program(ctx, dev,
         (bin_dir / "kernels" / "primary_ray.cl").string(),
         "-cl-std=CL2.0");
     cl::Kernel k_primary(prog_primary, "primary_ray");
@@ -512,27 +482,6 @@ static void clear_framebuffer(const cl::Context& ctx, const cl::Buffer& fb_buf,
                                   zeros.size() * sizeof(float), zeros.data()));
 }
 
-// Read framebuffer back and write BMP
-// ---------------------------------------------------------------------------
-static void save_framebuffer(const cl::CommandQueue& queue,
-                              const cl::Buffer&       fb_buf,
-                              int width, int height,
-                              const std::string&      output_path)
-{
-    // §7.1: promote to size_t before multiply
-    std::vector<float> pixel_f(static_cast<size_t>(width) * height * 4);
-    CL_CHECK(queue.enqueueReadBuffer(fb_buf, CL_TRUE, 0,
-                                     pixel_f.size() * sizeof(float),
-                                     pixel_f.data()));
-
-    std::vector<uint8_t> pixel_u8(pixel_f.size());
-    for (size_t i = 0; i < pixel_f.size(); ++i) {
-        float c = pixel_f[i] < 0.0f ? 0.0f : (pixel_f[i] > 1.0f ? 1.0f : pixel_f[i]);
-        pixel_u8[i] = static_cast<uint8_t>(c * 255.0f + 0.5f);
-    }
-    save_bmp(output_path, pixel_u8, width, height, 4);
-    std::cout << "Saved: " << output_path << "\n";
-}
 
 // ---------------------------------------------------------------------------
 // Entry point
@@ -672,7 +621,7 @@ int main(int argc, char* argv[]) {
                 width, height,
                 cam_pos_x, cam_pos_y, cam_pos_z,
                 cam_tx, cam_ty, cam_tz, fov_deg,
-                bounces, binary_dir());
+                bounces, get_binary_dir());
 
             if (f == 0) {
                 cpu_times_total = times;
@@ -707,7 +656,7 @@ int main(int argc, char* argv[]) {
                     width, height,
                     cam_pos_x, cam_pos_y, cam_pos_z,
                     cam_tx, cam_ty, cam_tz, fov_deg,
-                    bounces, binary_dir());
+                    bounces, get_binary_dir());
 
                 if (f == 0) {
                     gpu_times = times;

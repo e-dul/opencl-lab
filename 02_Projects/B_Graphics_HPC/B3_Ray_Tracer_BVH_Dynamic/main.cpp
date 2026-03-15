@@ -25,6 +25,7 @@
 #include "opencl_utils.hpp"
 #include "ocl_wrapper.hpp"
 #include "image_utils.hpp"
+#include "graphics_hpc_utils.hpp"
 #include "bvh_builder.hpp"
 
 #include <array>
@@ -101,14 +102,6 @@ static std::vector<TriangleCpu> load_obj(const std::string& path) {
 
             // Recompute face normal when vertex normals absent
             if (shape.mesh.indices[index_offset].normal_index < 0) {
-                auto sub3 = [](const std::array<float,3>& a,
-                               const std::array<float,3>& b) -> std::array<float,3> {
-                    return {a[0]-b[0], a[1]-b[1], a[2]-b[2]};
-                };
-                auto cross3 = [](const std::array<float,3>& a,
-                                 const std::array<float,3>& b) -> std::array<float,3> {
-                    return {a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]};
-                };
                 auto norm3 = [](std::array<float,3> a) -> std::array<float,3> {
                     float len = std::sqrt(a[0]*a[0]+a[1]*a[1]+a[2]*a[2]);
                     if (len < 1e-8f) return {0.0f, 1.0f, 0.0f};
@@ -161,27 +154,6 @@ static std::vector<TriangleCpu> rotate_vertices(const std::vector<TriangleCpu>& 
     return dst;
 }
 
-static std::filesystem::path binary_dir() {
-    return std::filesystem::canonical("/proc/self/exe").parent_path();
-}
-
-static size_t round_up(size_t n, size_t multiple) {
-    return ((n + multiple - 1) / multiple) * multiple;
-}
-
-static cl::Program build_program(const cl::Context& ctx,
-                                  const cl::Device&  dev,
-                                  const std::filesystem::path& bin_dir) {
-    auto src = load_kernel_source((bin_dir / "kernels" / "ray_trace_bvh.cl").string());
-    cl::Program prog(ctx, src);
-    try {
-        prog.build({dev}, "-cl-std=CL1.2");
-    } catch (const cl::Error&) {
-        std::string log = prog.getBuildInfo<CL_PROGRAM_BUILD_LOG>(dev);
-        throw std::runtime_error("Kernel build failed:\n" + log);
-    }
-    return prog;
-}
 
 // ---------------------------------------------------------------------------
 // SoA buffer container for GPU
@@ -339,7 +311,8 @@ static void run_benchmark(const std::string& scene_path,
     // ── OpenCL setup ─────────────────────────────────────────────────────────
     auto ocl = create_context();
     cl::CommandQueue queue(ocl.context, ocl.device, CL_QUEUE_PROFILING_ENABLE);
-    auto prog = build_program(ocl.context, ocl.device, binary_dir());
+    auto prog = build_program(ocl.context, ocl.device,
+        (get_binary_dir() / "kernels" / "ray_trace_bvh.cl").string());
     cl::Kernel bvh_kernel(prog, "ray_trace_bvh");
 
     // Pre-allocate GPU BVH node buffer with worst-case capacity.

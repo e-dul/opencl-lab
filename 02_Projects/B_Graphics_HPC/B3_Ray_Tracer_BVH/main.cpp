@@ -25,6 +25,7 @@
 #include "opencl_utils.hpp"
 #include "ocl_wrapper.hpp"
 #include "image_utils.hpp"
+#include "graphics_hpc_utils.hpp"
 #include "bvh_builder.hpp"
 
 #ifndef NO_GL_INTEROP
@@ -134,14 +135,6 @@ static std::vector<TriangleCpu> load_obj(const std::string& path) {
 
             // Recompute face normal when normals were not provided
             if (shape.mesh.indices[index_offset].normal_index < 0) {
-                auto sub3 = [](const std::array<float,3>& a,
-                               const std::array<float,3>& b) -> std::array<float,3> {
-                    return {a[0]-b[0], a[1]-b[1], a[2]-b[2]};
-                };
-                auto cross3 = [](const std::array<float,3>& a,
-                                 const std::array<float,3>& b) -> std::array<float,3> {
-                    return {a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]};
-                };
                 auto norm3 = [](std::array<float,3> a) -> std::array<float,3> {
                     float len = std::sqrt(a[0]*a[0]+a[1]*a[1]+a[2]*a[2]);
                     if (len < 1e-8f) return {0.0f, 1.0f, 0.0f};
@@ -160,37 +153,6 @@ static std::vector<TriangleCpu> load_obj(const std::string& path) {
     return tris;
 }
 
-// ---------------------------------------------------------------------------
-// Get directory containing the running executable.
-// ---------------------------------------------------------------------------
-static std::filesystem::path binary_dir() {
-    return std::filesystem::canonical("/proc/self/exe").parent_path();
-}
-
-// ---------------------------------------------------------------------------
-// Round n up to the nearest multiple of `multiple`.
-// WHY: OpenCL NDRange global must be a multiple of local when both are given.
-// ---------------------------------------------------------------------------
-static size_t round_up(size_t n, size_t multiple) {
-    return ((n + multiple - 1) / multiple) * multiple;
-}
-
-// ---------------------------------------------------------------------------
-// Build OpenCL program (both BVH and naive kernels are in the same file).
-// ---------------------------------------------------------------------------
-static cl::Program build_program(const cl::Context& ctx,
-                                  const cl::Device&  dev,
-                                  const std::filesystem::path& bin_dir) {
-    auto src = load_kernel_source((bin_dir / "kernels" / "ray_trace_bvh.cl").string());
-    cl::Program prog(ctx, src);
-    try {
-        prog.build({dev}, "-cl-std=CL1.2");
-    } catch (const cl::Error&) {
-        std::string log = prog.getBuildInfo<CL_PROGRAM_BUILD_LOG>(dev);
-        throw std::runtime_error("Kernel build failed:\n" + log);
-    }
-    return prog;
-}
 
 // ---------------------------------------------------------------------------
 // Upload SoA triangle data to 18 cl::Buffer objects (v0x..n2z).
@@ -328,7 +290,8 @@ static void render_headless(const std::string& scene_path,
     // ── OpenCL setup ─────────────────────────────────────────────────────────
     auto ocl = create_context();
     cl::CommandQueue queue(ocl.context, ocl.device, CL_QUEUE_PROFILING_ENABLE);
-    auto prog = build_program(ocl.context, ocl.device, binary_dir());
+    auto prog = build_program(ocl.context, ocl.device,
+        (get_binary_dir() / "kernels" / "ray_trace_bvh.cl").string());
 
     cl::Kernel bvh_kernel(prog, "ray_trace_bvh");
     cl::Kernel naive_kernel(prog, "ray_trace_naive");
@@ -628,7 +591,8 @@ static void render_live(const std::string& scene_path,
     // destroyed before glDeleteTextures / glfwTerminate (§7.6).
     {
         cl::CommandQueue queue(cl_ctx, gl_device, CL_QUEUE_PROFILING_ENABLE);
-        auto prog = build_program(cl_ctx, gl_device, binary_dir());
+        auto prog = build_program(cl_ctx, gl_device,
+        (get_binary_dir() / "kernels" / "ray_trace_bvh.cl").string());
         cl::Kernel bvh_kernel(prog, "ray_trace_bvh");
 
         cl::Buffer nodes_buf(cl_ctx,

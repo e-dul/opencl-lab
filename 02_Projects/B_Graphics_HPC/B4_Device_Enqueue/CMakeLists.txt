@@ -25,45 +25,14 @@ endif()
 # Module is 3 levels deep: 02_Projects/B_Graphics_HPC/B4_Device_Enqueue/
 include(${CMAKE_CURRENT_SOURCE_DIR}/../../../common/common.cmake)
 
-# ── tinyobjloader ─────────────────────────────────────────────────────────────
-FetchContent_Declare(
-    tinyobjloader
-    GIT_REPOSITORY https://github.com/tinyobjloader/tinyobjloader.git
-    GIT_TAG        v2.0.0rc13
-)
-FetchContent_MakeAvailable(tinyobjloader)
-
 add_executable(b4_device_enqueue main.cpp)
 
 opencl_lab_target(b4_device_enqueue)
-target_link_libraries(b4_device_enqueue PRIVATE tinyobjloader)
+
+# ── tinyobjloader ─────────────────────────────────────────────────────────────
+opencl_lab_fetch_tinyobjloader(b4_device_enqueue)
 
 # ── Optional GL interop ───────────────────────────────────────────────────────
-option(NO_GL_INTEROP "Disable OpenGL interop (headless only)" OFF)
-
-if(NOT NO_GL_INTEROP)
-    find_package(glfw3 QUIET)
-    find_package(OpenGL QUIET)
-
-    if(glfw3_FOUND AND OpenGL_FOUND)
-        target_link_libraries(b4_device_enqueue PRIVATE glfw OpenGL::GL)
-        message(STATUS "GL interop: enabled (GLFW + OpenGL found)")
-
-        find_package(OpenGL COMPONENTS EGL)
-        if(OpenGL_EGL_FOUND)
-            target_link_libraries(b4_device_enqueue PRIVATE OpenGL::EGL)
-            target_compile_definitions(b4_device_enqueue PRIVATE HAS_EGL)
-            message(STATUS "EGL found — Intel GL interop fallback enabled")
-        else()
-            message(STATUS "EGL not found — Intel GL interop fallback disabled")
-        endif()
-    else()
-        message(WARNING "glfw3/OpenGL not found — building without GL interop (NO_GL_INTEROP). Install libglfw3-dev to enable live mode.")
-        target_compile_definitions(b4_device_enqueue PRIVATE NO_GL_INTEROP)
-    endif()
-else()
-    message(STATUS "GL interop: disabled by -DNO_GL_INTEROP=ON")
-    target_compile_definitions(b4_device_enqueue PRIVATE NO_GL_INTEROP)
-endif()
+opencl_lab_optional_gl_interop(b4_device_enqueue)
 
 copy_kernels(b4_device_enqueue)

@@ -17,38 +17,6 @@ add_executable(b2_ray_tracer main.cpp)
 opencl_lab_target(b2_ray_tracer)
 
 # ── Optional GL interop ───────────────────────────────────────────────────────
-# WHY find_package optional: GL interop requires both GLFW and OpenGL; if either
-# is absent the binary still works in headless (--output) mode. User can also
-# force-disable with -DNO_GL_INTEROP=ON for CI or CPU-only environments.
-option(NO_GL_INTEROP "Disable OpenGL interop (always headless)" OFF)
-
-if(NOT NO_GL_INTEROP)
-    find_package(glfw3 QUIET)
-    find_package(OpenGL QUIET)
-
-    if(glfw3_FOUND AND OpenGL_FOUND)
-        target_link_libraries(b2_ray_tracer PRIVATE glfw OpenGL::GL)
-        message(STATUS "GL interop: enabled (GLFW + OpenGL found)")
-
-        # WHY conditional EGL: Intel NEO (intel-opencl-icd) only supports
-        # cl_khr_gl_sharing for EGL-backed GL contexts, not GLX. Detecting EGL
-        # at configure time lets us compile the fallback path only when available,
-        # without affecting NVIDIA/GLX builds that lack EGL headers.
-        find_package(OpenGL COMPONENTS EGL)
-        if(OpenGL_EGL_FOUND)
-            target_link_libraries(b2_ray_tracer PRIVATE OpenGL::EGL)
-            target_compile_definitions(b2_ray_tracer PRIVATE HAS_EGL)
-            message(STATUS "EGL found — Intel GL interop fallback enabled")
-        else()
-            message(STATUS "EGL not found — Intel GL interop fallback disabled")
-        endif()
-    else()
-        message(WARNING "glfw3/OpenGL not found — building without GL interop (NO_GL_INTEROP). Install libglfw3-dev to enable live mode.")
-        target_compile_definitions(b2_ray_tracer PRIVATE NO_GL_INTEROP)
-    endif()
-else()
-    message(STATUS "GL interop: disabled by -DNO_GL_INTEROP=ON")
-    target_compile_definitions(b2_ray_tracer PRIVATE NO_GL_INTEROP)
-endif()
+opencl_lab_optional_gl_interop(b2_ray_tracer)
 
 copy_kernels(b2_ray_tracer)
