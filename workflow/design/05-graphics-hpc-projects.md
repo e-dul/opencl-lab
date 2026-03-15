@@ -29,12 +29,12 @@ Build a ray tracer from first principles and scale it to render complex triangle
   - *Context*: Executive Summary §Path B item B.1; `GraphicsHPC.md` §B1_CLBlast_MatMul.
 - [x] Phase 2: B2 — Basic Ray Tracer — Minimal sphere scene rendered via OpenGL interop; framebuffer stays on GPU.
   - *Context*: Executive Summary §Path B item B.2; `GraphicsHPC.md` §B2_Ray_Tracer_Basic.
-- [ ] Phase 3: B3 — Advanced Ray Tracer with Stackless BVH (Flagship) — CPU SAH-BVH build, flat array upload, per-ray iterative traversal kernel; 60 FPS gate.
+- [x] Phase 3: B3 — Advanced Ray Tracer with Stackless BVH (Flagship) — CPU SAH-BVH build, flat array upload, per-ray iterative traversal kernel; 60 FPS gate.
   - *Context*: Executive Summary §Path B item B.3; `GraphicsHPC.md` §B3_Ray_Tracer_BVH.
 - [ ] Phase 4: B3 Challenge — Dynamic Scene — BVH rebuild vs refit vs partial rebuild per frame; profile upload stage with `cl::Event`.
 - [ ] Phase 5: B4 — Device Enqueue (Advanced) — OpenCL 2.0 `enqueue_kernel` for GPU-to-GPU recursive ray bounces; no CPU dispatch between bounces.
   - *Context*: Executive Summary §Path B item B.4; `GraphicsHPC.md` §B4_Device_Enqueue.
-- [ ] Phase 6: Module review and cleanup — extract common utils, align naming, verify standalone build.
+- [ ] Phase 6: Module review and cleanup — extract common utils(binary_dir, round_up, build_program), align naming, verify standalone build. Consider extracting CMake `Optional GL interop ` to common instructions and reuse. 
 
 ---
 

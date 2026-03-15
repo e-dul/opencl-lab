@@ -1,5 +1,6 @@
 # Build artifacts
 build/
+build_*/
 cmake-build-*/
 *.o
 *.so
@@ -29,4 +30,4 @@ Thumbs.db
 
 # Claude
 .claude/settings.json
-02_Projects/A_Multimedia/A4_Smart_Webcam/kernel.errors.txt
+kernel.errors.txt
