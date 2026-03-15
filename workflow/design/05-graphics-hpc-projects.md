@@ -1,7 +1,7 @@
 # Module 5: Path B — Graphics & HPC
 
-**Version:** 1.5
-**Changelog:** v1.5 — Phase 4 B3 Dynamic Scene completed (Task 032); v1.4 — Phase 4 adds `--max-depth` CLI arg to B3_Dynamic for BVH depth/performance tradeoff experiments; v1.3 — Phase 4 B3 Challenge moved to new directory `B3_Ray_Tracer_BVH_Dynamic/` (Snapshots over Branches, master_specs §2); v1.2 — EGL fallback for Intel NEO gl_sharing (Task 030); v1.1 — inverted GL interop flag, B3 interactive camera, B4 exit-code fix.
+**Version:** 1.6
+**Changelog:** v1.6 — B4 default scene changed to `cornell_box.obj`; `builtin:spheres` fallback added for B4 reflection validation (Task 033 planning). v1.5 — Phase 4 B3 Dynamic Scene completed (Task 032); v1.4 — Phase 4 adds `--max-depth` CLI arg to B3_Dynamic for BVH depth/performance tradeoff experiments; v1.3 — Phase 4 B3 Challenge moved to new directory `B3_Ray_Tracer_BVH_Dynamic/` (Snapshots over Branches, master_specs §2); v1.2 — EGL fallback for Intel NEO gl_sharing (Task 030); v1.1 — inverted GL interop flag, B3 interactive camera, B4 exit-code fix.
 **Status:** Active — Phase 4 complete, Phase 5 (B4 Device Enqueue) next
 **Module Path:** `02_Projects/B_Graphics_HPC/`
 
@@ -49,7 +49,7 @@ Build a ray tracer from first principles and scale it to render complex triangle
 - **CLBlast**: Fetched at CMake configure time via `FetchContent`. Must not be pre-installed as a system dependency. Offline note: `-DCMAKE_PREFIX_PATH=/path/to/clblast/install`.
 - **OBJ Loading**: Scenes for B3/B4 are loaded from `.obj` files. A lightweight single-header loader (e.g., `tinyobjloader`) is the approved option. No dependency on Assimp or OpenMesh.
 - **OpenCL 2.0 Gating (B4)**: All `enqueue_kernel` / device-enqueue code must be wrapped in `#ifdef CL_VERSION_2_0`. B4 must emit a clear runtime error and exit gracefully if the device reports OpenCL C < 2.0.
-- **CLI**: All binaries expose `--width`, `--height`, and `--output` (file path for headless). B1 exposes `--size` (matrix dimension). B3/B4 expose `--scene` (OBJ path) and `--frames` (headless frame count). B3_Dynamic additionally exposes `--max-depth` (int, default 0 = unlimited) to cap SAH-BVH tree depth, enabling build-time vs render-time tradeoff experiments.
+- **CLI**: All binaries expose `--width`, `--height`, and `--output` (file path for headless). B1 exposes `--size` (matrix dimension). B3/B4 expose `--scene` (OBJ path) and `--frames` (headless frame count). B3_Dynamic additionally exposes `--max-depth` (int, default 0 = unlimited) to cap SAH-BVH tree depth, enabling build-time vs render-time tradeoff experiments. B4 `--scene` defaults to `assets/cornell_box.obj`; passing `builtin:spheres` activates the analytic sphere scene from B2 (no OBJ required, guarantees visible reflections on the mirror sphere).
 
 ---
 
@@ -198,7 +198,7 @@ Build a ray tracer from first principles and scale it to render complex triangle
   - B1: Console table with naive/CLBlast time in ms and GFLOPS. No BMP required.
   - B2: Headless `output.bmp` showing ≥ 1 sphere with shadow. Live window optional.
   - B3: Headless `render.bmp` showing OBJ scene correctly (no black patches). Console prints naive vs BVH timing and speedup. Live window optional.
-  - B4: Console prints per-bounce timing for CPU-dispatched vs device-enqueued paths. `render.bmp` showing multi-bounce reflections.
+  - B4: Console prints per-bounce timing for CPU-dispatched vs device-enqueued paths. `render.bmp` showing multi-bounce reflections. Default scene `cornell_box.obj`; `--scene builtin:spheres` as fallback for systems without OBJ assets.
 - **Tooling** (module-specific additions to master_specs):
   - CLBlast: `FetchContent_Declare` in B1 `CMakeLists.txt`.
   - GLFW + OpenGL: `find_package(glfw3)` + `find_package(OpenGL)`, gated on availability.
