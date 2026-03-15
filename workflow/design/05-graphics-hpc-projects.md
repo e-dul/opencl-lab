@@ -1,8 +1,8 @@
 # Module 5: Path B — Graphics & HPC
 
-**Version:** 1.4
-**Changelog:** v1.4 — Phase 4 adds `--max-depth` CLI arg to B3_Dynamic for BVH depth/performance tradeoff experiments; v1.3 — Phase 4 B3 Challenge moved to new directory `B3_Ray_Tracer_BVH_Dynamic/` (Snapshots over Branches, master_specs §2); v1.2 — EGL fallback for Intel NEO gl_sharing (Task 030); v1.1 — inverted GL interop flag, B3 interactive camera, B4 exit-code fix.
-**Status:** Active — implementation not started
+**Version:** 1.5
+**Changelog:** v1.5 — Phase 4 B3 Dynamic Scene completed (Task 032); v1.4 — Phase 4 adds `--max-depth` CLI arg to B3_Dynamic for BVH depth/performance tradeoff experiments; v1.3 — Phase 4 B3 Challenge moved to new directory `B3_Ray_Tracer_BVH_Dynamic/` (Snapshots over Branches, master_specs §2); v1.2 — EGL fallback for Intel NEO gl_sharing (Task 030); v1.1 — inverted GL interop flag, B3 interactive camera, B4 exit-code fix.
+**Status:** Active — Phase 4 complete, Phase 5 (B4 Device Enqueue) next
 **Module Path:** `02_Projects/B_Graphics_HPC/`
 
 ---
@@ -31,7 +31,7 @@ Build a ray tracer from first principles and scale it to render complex triangle
   - *Context*: Executive Summary §Path B item B.2; `GraphicsHPC.md` §B2_Ray_Tracer_Basic.
 - [x] Phase 3: B3 — Advanced Ray Tracer with Stackless BVH (Flagship) — CPU SAH-BVH build, flat array upload, per-ray iterative traversal kernel; 60 FPS gate.
   - *Context*: Executive Summary §Path B item B.3; `GraphicsHPC.md` §B3_Ray_Tracer_BVH.
-- [ ] Phase 4: B3 Challenge — Dynamic Scene — BVH rebuild vs refit vs partial rebuild per frame; profile upload stage with `cl::Event`.
+- [x] Phase 4: B3 Challenge — Dynamic Scene — BVH rebuild vs refit vs partial rebuild per frame; profile upload stage with `cl::Event`.
   *Deliverable directory*: `B3_Ray_Tracer_BVH_Dynamic/` (new snapshot — master_specs §2 Snapshots over Branches). Copies forward BVH/kernel infrastructure from `B3_Ray_Tracer_BVH/` and adds the dynamic benchmark harness on top. `B3_Ray_Tracer_BVH/` is never modified.
 - [ ] Phase 5: B4 — Device Enqueue (Advanced) — OpenCL 2.0 `enqueue_kernel` for GPU-to-GPU recursive ray bounces; no CPU dispatch between bounces.
   - *Context*: Executive Summary §Path B item B.4; `GraphicsHPC.md` §B4_Device_Enqueue.

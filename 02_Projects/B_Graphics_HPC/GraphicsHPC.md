@@ -12,10 +12,11 @@ See [main README](../../README.md) for base requirements (OpenCL, CMake, Docker 
 
 ## Contents
 ```
-B1_CLBlast_MatMul/    Library vs kernel: when CLBlast beats your handwritten GEMM
-B2_Ray_Tracer_Basic/  Minimal ray tracer + OpenGL interop (display without copying)
-B3_Ray_Tracer_BVH/    Flagship: Stackless BVH traversal for 100k-triangle scenes
-B4_Device_Enqueue/    Advanced: GPU spawning its own GPU work (OpenCL 2.0+)
+B1_CLBlast_MatMul/         Library vs kernel: when CLBlast beats your handwritten GEMM
+B2_Ray_Tracer_Basic/       Minimal ray tracer + OpenGL interop (display without copying)
+B3_Ray_Tracer_BVH/         Flagship: Stackless BVH traversal for 100k-triangle scenes
+B3_Ray_Tracer_BVH_Dynamic/ Challenge: BVH rebuild vs refit vs static on a moving scene
+B4_Device_Enqueue/         Advanced: GPU spawning its own GPU work (OpenCL 2.0+)
 ```
 
 ---
@@ -153,9 +154,65 @@ GPU: per-ray stackless traversal (every frame)
 
 ### Dynamic Scene Challenge
 Make one object in the scene move per frame. The BVH must be updated each frame to stay correct. Measure the upload cost with `cl::Event` timing — then ask: is there a cheaper way to keep the BVH valid without a full rebuild?
+See details in the [B3_Ray_Tracer_BVH_Dynamic](#b3_ray_tracer_bvh_dynamic--dynamic-scene-challenge) section below — three strategies benchmarked side-by-side with `cl::Event` timing.
 
 ### Mini-challenge
 Visualize BVH depth per pixel: color each pixel by how many nodes the ray visited (0 = blue, max = red). This is your hotspot map — the red regions tell you where the tree is unbalanced.
+
+---
+
+## B3_Ray_Tracer_BVH_Dynamic — Dynamic Scene Challenge
+
+**Goal**: Extend the BVH ray tracer to animate the scene (rigid Y-axis rotation each frame) and benchmark three per-frame BVH strategies: full rebuild, AABB refit, and static (stale BVH). The timing table makes the rebuild vs refit cost difference concrete and visible.
+
+### Build & run
+```bash
+cd B3_Ray_Tracer_BVH_Dynamic
+cmake -B build
+cmake --build build
+
+# Full SAH rebuild every frame
+./build/b3_ray_tracer_dynamic --strategy rebuild --scene ../../../../assets/bunny.obj --frames 60 --output render_rebuild.bmp
+
+# Bottom-up AABB refit (topology unchanged)
+./build/b3_ray_tracer_dynamic --strategy refit --scene ../../../../assets/bunny.obj --frames 60 --output render_refit.bmp
+
+# Stale BVH — geometry moves, BVH does not (intentional artifacts)
+./build/b3_ray_tracer_dynamic --strategy static --scene ../../../../assets/bunny.obj --frames 60 --output render_static.bmp
+```
+
+### Verify
+Console prints a one-row timing table per run. Reference numbers on NVIDIA RTX 4060 Laptop at 800×600, `bunny.obj` (~70k triangles), 60 frames:
+```
+Strategy | Depth     | BVH Build (ms) | Upload (ms) | Render (ms) | Total (ms) | FPS
+---------|-----------|----------------|-------------|-------------|------------|----
+rebuild  | unlimited |          15.91 |        0.57 |        0.65 |      17.12 |  58
+refit    | unlimited |           0.93 |        0.57 |        0.59 |       2.09 | 478
+static   | unlimited |           0.00 |        0.00 |        0.63 |       0.63 | 1584
+```
+- `render_rebuild.bmp` / `render_refit.bmp`: correctly shaded bunny.
+- `render_static.bmp`: black patches and missing geometry — BVH/geometry divergence after 90° of rotation.
+
+### Core Concept: Rebuild vs Refit
+
+**Rebuild** re-runs the full SAH pipeline each frame — centroid sort, `nth_element`, `hit_link`/`miss_link` patching — O(N log N). Correct BVH quality, highest cost.
+
+**Refit** skips sorting entirely. It walks the flat `BvhNode[]` in reverse index order (leaves before parents, guaranteed by depth-first pre-order) and re-expands each AABB from its children. O(N). ~17× faster than rebuild on this scene, with negligible quality loss for rigid rotation.
+
+**Static** never touches the BVH. GPU traversal tests stale AABBs against moved triangles — rays skip subtrees whose AABBs no longer enclose the actual geometry. This is the failure mode every production engine must avoid.
+
+### `--max-depth` flag
+```bash
+# Unlimited depth: ~40k nodes, fast traversal
+./build/b3_ray_tracer_dynamic --strategy rebuild --max-depth 0 --frames 10 --scene ../../../../assets/bunny.obj
+
+# Depth 1: 3 nodes, ~35k triangles per leaf — near brute-force
+./build/b3_ray_tracer_dynamic --strategy rebuild --max-depth 1 --frames 10 --scene ../../../../assets/bunny.obj
+```
+Render time jumps from ~0.6ms (unlimited) to ~85ms (depth 1) — the BVH acceleration benefit made directly observable with one flag.
+
+### Mini-challenge
+Run `--strategy refit --max-depth 1` (3-node tree). Does refit still complete in under 1ms? What does this tell you about where refit's cost comes from?
 
 ---
 
@@ -219,6 +276,8 @@ This track is complete when:
 | Project | Metric | Target |
 |:--------|:-------|:-------|
 | Advanced Ray Tracer (B3) | Render time | 60 FPS @ bunny.obj (~70k triangles), 1920×1080 |
+| B3 Dynamic Scene | refit BVH build time | Measurably less than rebuild (reference: ~1ms vs ~16ms) |
+| B3 Dynamic Scene | `--max-depth 1` render time | Measurably higher than `--max-depth 0` (reference: ~85ms vs ~0.6ms) |
 
 **Measure with `cl::Event` profiling** on the kernel, not total frame time. The upload (BVH buffer) is a one-time cost — exclude it from the per-frame measurement.
 

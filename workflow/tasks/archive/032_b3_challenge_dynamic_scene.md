@@ -157,13 +157,73 @@ Standard DoD items from `.claude/rules/00_master_specs.md` §8 apply.
 ## Execution Report
 <!-- Filled by @coder after implementation. -->
 
-- **Status:** PENDING
-- **Session:** —
+- **Status:** DONE
+- **Session:** 2026-03-15 (revalidated 2026-03-15)
 
 ### Validation
 ```
-[output here]
+1. BUILD — PASS
+   cmake --build build: zero errors, zero warnings.
+   Output: [100%] Built target b3_ray_tracer_dynamic
+
+2. SOURCE DIRECTORY UNMODIFIED — PASS
+   git diff 02_Projects/B_Graphics_HPC/B3_Ray_Tracer_BVH/: no output (clean)
+
+3. REBUILD STRATEGY — PASS
+   ./build/b3_ray_tracer_dynamic --strategy rebuild --frames 60 --output render.bmp --scene .../bunny.obj
+   Strategy | Depth     | BVH Build (ms) | Upload (ms) | Render (ms) | Total (ms) | FPS
+   rebuild  | unlimited |          15.91 |        0.57 |        0.65 |      17.12 |  58
+   render.bmp created (1.9 MB). ✓
+
+4. REFIT STRATEGY — PASS
+   ./build/b3_ray_tracer_dynamic --strategy refit --frames 60 --output render.bmp --scene .../bunny.obj
+   Strategy | Depth     | BVH Build (ms) | Upload (ms) | Render (ms) | Total (ms) | FPS
+   refit    | unlimited |           0.93 |        0.57 |        0.59 |       2.09 | 478
+   render.bmp created. ✓
+
+5. STATIC STRATEGY — PASS
+   ./build/b3_ray_tracer_dynamic --strategy static --frames 60 --output render.bmp --scene .../bunny.obj
+   Strategy | Depth     | BVH Build (ms) | Upload (ms) | Render (ms) | Total (ms) | FPS
+   static   | unlimited |           0.00 |        0.00 |        0.63 |       0.63 | 1584
+   BVH Build=0.00, Upload=0.00 as required. ✓
+
+6. --HELP — PASS
+   All required flags present: --strategy, --frames, --output, --scene, --width, --height, --max-depth.
+   --strategy TEXT:{rebuild,refit,static} [rebuild]
+   --frames INT [60]
+   --output TEXT [render.bmp]
+   --scene TEXT [assets/bunny.obj]
+
+7. REFIT < REBUILD BVH BUILD TIME — PASS
+   refit=0.93ms < rebuild=15.91ms ✓
+
+8. GPU ENV VAR (GPU=NVIDIA) — PASS
+   Platform: NVIDIA CUDA [GPU=NVIDIA]
+   Device: NVIDIA GeForce RTX 4060 Laptop GPU
+   Completed without error. ✓
+
+9. MAX-DEPTH COMPARISON — PASS
+   --max-depth 0 (unlimited): Render=0.64ms, BVH nodes=40597
+   --max-depth 1 (shallow):   Render=84.77ms, BVH nodes=3
+   max-depth 1 render time (84.77ms) >> max-depth 0 (0.64ms). Shallow tree forces brute-force triangle testing. ✓
+
+10. MANUAL (confirmed by user): render.bmp is non-black for rebuild and refit strategies. ✓
+11. MANUAL (confirmed by user): render_static.bmp shows visible BVH/geometry divergence artifacts
+    (black patches / missing geometry) after 60 frames of rotation. ✓
 ```
+
+### DoD Checklist
+- [x] `cmake -B build && cmake --build build` succeeds with zero errors and zero warnings.
+- [x] `02_Projects/B_Graphics_HPC/B3_Ray_Tracer_BVH/` is unmodified (git diff shows no changes).
+- [x] `--strategy rebuild --frames 60 --output render.bmp` runs without error; timing table printed; `render.bmp` created.
+- [x] `--strategy refit --frames 60 --output render.bmp` runs without error; timing table printed.
+- [x] `--strategy static --frames 60 --output render.bmp` runs without error; BVH Build=0.00, Upload=0.00.
+- [x] `--help` prints CLI11-generated usage including `--strategy`, `--frames`, `--output`, `--scene`.
+- [x] refit BVH build time (0.93ms) < rebuild BVH build time (15.91ms).
+- [x] `GPU=NVIDIA` selects correct device and completes without crashing.
+- [x] MANUAL (confirmed by user): `render.bmp` is non-black for `rebuild` and `refit` strategies.
+- [x] `--max-depth 1` render time (84.77ms) measurably higher than `--max-depth 0` (0.64ms).
+- [x] MANUAL (confirmed by user): `render.bmp` for `--strategy static` after 60 frames shows visible artifacts.
 
 ### Changed Files
 | File | Change |
@@ -174,4 +234,5 @@ Standard DoD items from `.claude/rules/00_master_specs.md` §8 apply.
 | `02_Projects/B_Graphics_HPC/B3_Ray_Tracer_BVH_Dynamic/kernels/ray_trace_bvh.cl` | Created — verbatim copy from B3 |
 
 ### Remaining
-- [ ] —
+- [x] MANUAL (confirmed by user): `render.bmp` (rebuild/refit) is non-black with visible scene content.
+- [x] MANUAL (confirmed by user): `render_static.bmp` shows expected BVH/geometry divergence artifacts.
