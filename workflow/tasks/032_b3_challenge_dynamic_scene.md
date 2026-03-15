@@ -65,11 +65,11 @@ Task-specific additions:
   - GPU render time: `cl::Event` on `enqueueNDRangeKernel`, same as existing B3 measurement.
 - **Console output format** (artifact — no BMP required for the benchmark table):
   ```
-  Strategy | BVH Build (ms) | Upload (ms) | Render (ms) | Total (ms) | FPS
-  ---------|----------------|-------------|-------------|------------|----
-  rebuild  |          12.34 |        0.45 |        2.11 |      14.90 |  67
-  refit    |           1.02 |        0.45 |        2.11 |       3.58 | 279
-  static   |           0.00 |        0.00 |        2.11 |       2.11 | 474
+  Strategy | Depth | BVH Build (ms) | Upload (ms) | Render (ms) | Total (ms) | FPS
+  ---------|-------|----------------|-------------|-------------|------------|----
+  rebuild  |   unlimited |      12.34 |        0.45 |        2.11 |      14.90 |  67
+  refit    |   unlimited |       1.02 |        0.45 |        2.11 |       3.58 | 279
+  static   |         N/A |       0.00 |        0.00 |        2.11 |       2.11 | 474
   ```
   Values are averages over `--frames` frames.
 - **Output BMP**: `--output render.bmp` saves the final frame of whichever strategy is active.
@@ -103,8 +103,9 @@ Task-specific additions:
    (loaded once from OBJ); working copy is mutated each frame.
 
 4. **Extend CLI**: Add `--strategy` (string, choices: `rebuild`, `refit`, `static`), `--frames`
-   (int, default 60), `--output` (string, default `render.bmp`). Existing `--scene`, `--width`,
-   `--height` flags are unchanged.
+   (int, default 60), `--output` (string, default `render.bmp`), `--max-depth` (int, default 0 =
+   unlimited; passed to the SAH builder to cap tree depth). Applies to `rebuild` and `refit`
+   strategies; ignored for `static`. Existing `--scene`, `--width`, `--height` flags are unchanged.
 
 5. **Implement per-frame benchmark loop**:
    - For each frame in `[0, frames)`:
@@ -145,6 +146,8 @@ Standard DoD items from `.claude/rules/00_master_specs.md` §8 apply.
       correct device and completes without crashing.
 - [ ] `render.bmp` is non-black (pixels contain scene content) for `rebuild` and `refit`
       strategies.
+- [ ] `--max-depth 1 --strategy rebuild --frames 10` completes without error; reported render time
+      is measurably higher than `--max-depth 0` run (shallow BVH → more triangle tests per ray).
 - [ ] MANUAL: Inspect `render.bmp` for `--strategy static` after 60 frames of rotation; confirm
       visible rendering artifacts (black patches or missing geometry) demonstrating BVH/geometry
       divergence.

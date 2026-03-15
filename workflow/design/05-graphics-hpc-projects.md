@@ -1,7 +1,7 @@
 # Module 5: Path B — Graphics & HPC
 
-**Version:** 1.3
-**Changelog:** v1.3 — Phase 4 B3 Challenge moved to new directory `B3_Ray_Tracer_BVH_Dynamic/` (Snapshots over Branches, master_specs §2); v1.2 — EGL fallback for Intel NEO gl_sharing (Task 030); v1.1 — inverted GL interop flag, B3 interactive camera, B4 exit-code fix.
+**Version:** 1.4
+**Changelog:** v1.4 — Phase 4 adds `--max-depth` CLI arg to B3_Dynamic for BVH depth/performance tradeoff experiments; v1.3 — Phase 4 B3 Challenge moved to new directory `B3_Ray_Tracer_BVH_Dynamic/` (Snapshots over Branches, master_specs §2); v1.2 — EGL fallback for Intel NEO gl_sharing (Task 030); v1.1 — inverted GL interop flag, B3 interactive camera, B4 exit-code fix.
 **Status:** Active — implementation not started
 **Module Path:** `02_Projects/B_Graphics_HPC/`
 
@@ -49,7 +49,7 @@ Build a ray tracer from first principles and scale it to render complex triangle
 - **CLBlast**: Fetched at CMake configure time via `FetchContent`. Must not be pre-installed as a system dependency. Offline note: `-DCMAKE_PREFIX_PATH=/path/to/clblast/install`.
 - **OBJ Loading**: Scenes for B3/B4 are loaded from `.obj` files. A lightweight single-header loader (e.g., `tinyobjloader`) is the approved option. No dependency on Assimp or OpenMesh.
 - **OpenCL 2.0 Gating (B4)**: All `enqueue_kernel` / device-enqueue code must be wrapped in `#ifdef CL_VERSION_2_0`. B4 must emit a clear runtime error and exit gracefully if the device reports OpenCL C < 2.0.
-- **CLI**: All binaries expose `--width`, `--height`, and `--output` (file path for headless). B1 exposes `--size` (matrix dimension). B3/B4 expose `--scene` (OBJ path) and `--frames` (headless frame count).
+- **CLI**: All binaries expose `--width`, `--height`, and `--output` (file path for headless). B1 exposes `--size` (matrix dimension). B3/B4 expose `--scene` (OBJ path) and `--frames` (headless frame count). B3_Dynamic additionally exposes `--max-depth` (int, default 0 = unlimited) to cap SAH-BVH tree depth, enabling build-time vs render-time tradeoff experiments.
 
 ---
 
