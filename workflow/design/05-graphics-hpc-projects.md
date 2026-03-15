@@ -1,8 +1,8 @@
 # Module 5: Path B — Graphics & HPC
 
-**Version:** 1.6
-**Changelog:** v1.6 — B4 default scene changed to `cornell_box.obj`; `builtin:spheres` fallback added for B4 reflection validation (Task 033 planning). v1.5 — Phase 4 B3 Dynamic Scene completed (Task 032); v1.4 — Phase 4 adds `--max-depth` CLI arg to B3_Dynamic for BVH depth/performance tradeoff experiments; v1.3 — Phase 4 B3 Challenge moved to new directory `B3_Ray_Tracer_BVH_Dynamic/` (Snapshots over Branches, master_specs §2); v1.2 — EGL fallback for Intel NEO gl_sharing (Task 030); v1.1 — inverted GL interop flag, B3 interactive camera, B4 exit-code fix.
-**Status:** Active — Phase 4 complete, Phase 5 (B4 Device Enqueue) next
+**Version:** 1.7
+**Changelog:** v1.7 — Phase 5 B4 Device Enqueue completed (Task 033). v1.6 — B4 default scene changed to `cornell_box.obj`; `builtin:spheres` fallback added for B4 reflection validation (Task 033 planning). v1.5 — Phase 4 B3 Dynamic Scene completed (Task 032); v1.4 — Phase 4 adds `--max-depth` CLI arg to B3_Dynamic for BVH depth/performance tradeoff experiments; v1.3 — Phase 4 B3 Challenge moved to new directory `B3_Ray_Tracer_BVH_Dynamic/` (Snapshots over Branches, master_specs §2); v1.2 — EGL fallback for Intel NEO gl_sharing (Task 030); v1.1 — inverted GL interop flag, B3 interactive camera, B4 exit-code fix.
+**Status:** Active — Phase 5 (B4 Device Enqueue) complete, Phase 6 (cleanup) next
 **Module Path:** `02_Projects/B_Graphics_HPC/`
 
 ---
@@ -33,9 +33,9 @@ Build a ray tracer from first principles and scale it to render complex triangle
   - *Context*: Executive Summary §Path B item B.3; `GraphicsHPC.md` §B3_Ray_Tracer_BVH.
 - [x] Phase 4: B3 Challenge — Dynamic Scene — BVH rebuild vs refit vs partial rebuild per frame; profile upload stage with `cl::Event`.
   *Deliverable directory*: `B3_Ray_Tracer_BVH_Dynamic/` (new snapshot — master_specs §2 Snapshots over Branches). Copies forward BVH/kernel infrastructure from `B3_Ray_Tracer_BVH/` and adds the dynamic benchmark harness on top. `B3_Ray_Tracer_BVH/` is never modified.
-- [ ] Phase 5: B4 — Device Enqueue (Advanced) — OpenCL 2.0 `enqueue_kernel` for GPU-to-GPU recursive ray bounces; no CPU dispatch between bounces.
+- [x] Phase 5: B4 — Device Enqueue (Advanced) — OpenCL 2.0 `enqueue_kernel` for GPU-to-GPU recursive ray bounces; no CPU dispatch between bounces.
   - *Context*: Executive Summary §Path B item B.4; `GraphicsHPC.md` §B4_Device_Enqueue.
-- [ ] Phase 6: Module review and cleanup — extract common utils(binary_dir, round_up, build_program, triangle intersection math, etc.), align naming, verify standalone build. Consider extracting CMake `Optional GL interop ` to common function and reuse. 
+- [ ] Phase 6: Module review and cleanup — extract common utils(binary_dir, round_up, build_program, save_framebuffer, OpenCL runtime check(see SVM in toolbox), triangle intersection math, etc.), align naming, verify standalone build. Consider extracting CMake `Optional GL interop ` and `tinyobjloader` to common function and reuse. 
 
 ---
 
@@ -149,6 +149,8 @@ Build a ray tracer from first principles and scale it to render complex triangle
 - **GL Interop Requires PRIME Render Offload on Optimus Laptops**: On systems with an Intel iGPU + NVIDIA dGPU (Optimus), `cl_khr_gl_sharing` requires the GLFW window to be running on the dGPU. Without `__NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia`, the GL context binds to the iGPU and the OpenCL context (on the dGPU) cannot share it, causing interop init to fail. Mitigation: prefix the binary with the PRIME env vars, or use headless mode.
 - **rusticl/AMD Does Not Support `cl_khr_gl_sharing`**: The Mesa rusticl OpenCL implementation does not expose `cl_khr_gl_sharing`. The B2 runtime check correctly detects the missing extension and falls back to headless mode without crashing. This is expected behaviour; headless output verified on AMD via `GPU=AMD ./build/b2_ray_tracer`.
 - **Intel NEO Requires EGL-Backed GL Context for `cl_khr_gl_sharing` (RESOLVED B2)**: Intel NEO (`intel-opencl-icd`) implements `cl_khr_gl_sharing` only for EGL-backed GL contexts; the GLX variant is not supported. Fixed in Task 030 via a two-attempt strategy in `render_live()`: Attempt 1 uses GLX props (preserves NVIDIA path); Attempt 2 destroys the GLFW window and re-creates it with `GLFW_EGL_CONTEXT_API`, then probes with `CL_EGL_DISPLAY_KHR` props. EGL support is conditional (`#ifdef HAS_EGL`), detected by CMake `find_package(OpenGL COMPONENTS EGL)`.
+- **Intel Iris Xe (OpenCL 3.0 NEO) — Device Enqueue Not Implemented (B4)**: Intel Iris Xe reports OpenCL >= 2.0 but `CL_DEVICE_QUEUE_ON_DEVICE_PROPERTIES == 0` — device enqueue is optional in OpenCL 3.0 and not implemented by the NEO driver. B4 binary detects this at runtime, prints a descriptive message, falls back to `--mode cpu`, and exits 0. Performance gate logged as `N/A` (hardware-waiver per DoD).
+- **`CL_VERSION_2_0` Missing from 1.2-era System Headers (B4)**: `CL_VERSION_2_0` may not be defined by OpenCL 1.2-era system headers even when the device runtime supports 2.0. Fixed in B4 `CMakeLists.txt` by detecting `OpenCL_VERSION_MAJOR >= 2` at configure time and explicitly passing `-DCL_VERSION_2_0=1` to the compiler.
 
 ---
 
