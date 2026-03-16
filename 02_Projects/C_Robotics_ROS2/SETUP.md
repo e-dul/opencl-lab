@@ -1,7 +1,5 @@
 # ROS 2 Setup — Ubuntu 24.04 (Jazzy)
 
-**Status:** Draft
-
 ## 1. Install ROS 2
 
 ### Add locale
@@ -63,8 +61,8 @@ Without this, C3 falls back to copy-based transport and prints a warning. The 5 
 ## 4. Verify
 
 ```bash
-ros2 --version
-# Expected: ros2 cli 0.22.x
+env | grep ROS
+# Expected: ROS_DISTRO=jazzy
 
 ros2 run demo_nodes_cpp talker &
 ros2 run demo_nodes_cpp listener

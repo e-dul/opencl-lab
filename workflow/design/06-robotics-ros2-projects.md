@@ -51,7 +51,7 @@ Accelerate a real ROS 2 perception pipeline without breaking the node contract. 
 - **ROS 2 Sourcing**: `source /opt/ros/jazzy/setup.bash` must precede every CMake configure step. The CMakeLists.txt must not attempt to locate ROS 2 if `$ENV{ROS_DISTRO}` is unset — emit a fatal error with a human-readable message.
 - **ROS 2 Messages**: `sensor_msgs`, `nav_msgs`, `std_msgs` from the installed ROS 2 distribution only. No custom `.msg` files in this module.
 - **Loaned Messages**: Requires `rmw_fastrtps_cpp` or Iceoryx middleware. CMake must detect `$ENV{RMW_IMPLEMENTATION}` and emit a warning (not error) if it is not set to a loaned-message-capable RMW. At runtime, if the loaned path is unavailable, the node must print a descriptive message and fall back to copy-based transport — silent fallback or crash is forbidden.
-- **C1 Standalone Mode**: `C1_Node_Acceleration` must compile and run without a live ROS 2 master — it simulates callbacks internally without requiring `ros2 run`. This makes it testable in CI without a full ROS 2 installation.
+- **C1 Standalone Mode**: `C1_Node_Acceleration` must compile and run without a ROS 2 daemon or active DDS network — it simulates callbacks internally without requiring `ros2 run`. This makes it testable in CI without a full ROS 2 installation.
 - **C2 Standalone Mode**: `C2_Costmap_Inflation` must build and produce `output_costmap.bmp` without any ROS 2 dependency — it reads a `.pgm` map file via `stb_image`. ROS 2 dependency is optional (used only if `find_package(rclcpp)` succeeds).
 - **C3 ROS 2 Required**: `C3_Perception_Node` has a hard ROS 2 dependency. CMake must fail with a clear error if `rclcpp` is not found.
 - **CLI**: All binaries use CLI11 (master spec §1). Per-binary flags:
