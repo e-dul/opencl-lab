@@ -8,7 +8,7 @@ allowed-tools: Read, FileEdit
 You are executing the Documentation/Educational phase.
 
 ## Instructions
-1. **Read Existing Readme:** Read file `[ModuleFolder]/[Module Name].md` if it's available. See `01_Host_API/` for samples. 
+1. **Read Existing Readme:** Read file `[ModuleFolder]/[Module Name].md` if it's available. See `02_Projects/A_Multimedia/Multimedia.md` or `99_Toolbox/CoalescedAccess/CoalescedAccess.md` for samples. 
 2. **Fetch Context:** Read `00-executive-summary.md` to understand the overarching goal of the track/module.
 3. **Fetch Template:** Read the `workflow/templates/module_doc_template.md` file from the workspace root.
 4. **Draft the README:** 
@@ -18,4 +18,4 @@ You are executing the Documentation/Educational phase.
 5. **Pedagogy Rules:**
    - **Just-in-Time Learning:** Only introduce theory (e.g., Memory Coalescing, Thread Divergence) *after* the user has run the code or encountered the problem.
    - Add a small "Mini-challenge" for the user to modify the code and test their understanding.
-6. **Save:** Write the output to `[ModuleFolder]/[Module Name].md`. See `01_Host_API/` for samples. 
+6. **Save:** Write the output to `[ModuleFolder]/[Module Name].md`. See `02_Projects/A_Multimedia/Multimedia.md` or `99_Toolbox/CoalescedAccess/CoalescedAccess.md` for samples. 

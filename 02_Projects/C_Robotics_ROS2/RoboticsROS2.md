@@ -6,13 +6,9 @@ Accelerate a real ROS 2 perception pipeline without breaking the node contract. 
 See [main README](../../README.md) for base requirements (OpenCL, CMake, Docker setup).
 
 **Additional:**
-- ROS 2 Humble or later: `sudo apt install ros-humble-desktop`
-  - Required packages: `ros-humble-rclcpp`, `ros-humble-sensor-msgs`, `ros-humble-nav-msgs`
-  - Source workspace before every build: `source /opt/ros/humble/setup.bash`
-  - Verify: `ros2 --version`
+- ROS 2 Jazzy: see [SETUP.md](SETUP.md) for APT repo, sourcing, and RMW configuration.
 - C2 standalone demo (`C2_Costmap_Inflation`) has no ROS 2 dependency — builds without sourcing.
 - Assets in repository root: `assets/warehouse.pgm` (512×512+ occupancy grid, required for C2). `assets/lidar_sample.bag` (optional — synthetic publisher covers the no-bag case for C3).
-- C3 optimal performance: `export RMW_IMPLEMENTATION=rmw_fastrtps_cpp` (enables loaned messages). Standard path works without it.
 
 > **Assumption**: You know ROS 2 basics — nodes, pub/sub, topics, `rclcpp`. This track focuses exclusively on GPU acceleration inside that model.
 
@@ -164,6 +160,9 @@ ros2 run C3_Perception_Node point_cloud_publisher --points 100000
 
 # Or play a recorded bag:
 ros2 bag play ../../../assets/lidar_sample.bag
+
+# Headless (no ROS 2 required): standalone benchmark, produces output_filtered.bmp
+./build/perception_node --standalone --points 100000
 ```
 
 ### Verify
@@ -180,7 +179,7 @@ ros2 bag play ../../../assets/lidar_sample.bag
   Total:                             4.7 ms  ← must be < 5 ms to pass
   ```
 
-### Core Concept: The Serialization Problem
+### Core Concept: The Serialization Problem (Loaned Messages)
 
 A `sensor_msgs/PointCloud2` message with 100k points (XYZ + intensity, float32) is 1.6 MB. The standard ROS 2 subscriber deserializes this from shared memory into a `PointCloud2` struct, which you then copy to a `cl::Buffer`. That's two copies before the GPU sees a single point.
 
@@ -205,7 +204,7 @@ sub_ = create_subscription<PointCloud2>("points", rclcpp::QoS(10),
 
 To reach < 5 ms you will need to use the loaned message path. The standard path typically adds 0.8–1.5 ms on a 1.6 MB message.
 
-### Filtering Kernel: The Problem
+### Core Concept: Filtering Kernel Design
 
 The filter must produce a dense output array — feature extraction expects contiguous points with no gaps. A naive approach that marks rejected points in-place with a sentinel leaves holes; a second pass is needed to close them. Think about how many kernel launches and buffer round-trips that requires, and whether any of them can be merged or overlapped.
 
@@ -213,7 +212,7 @@ The filter must produce a dense output array — feature extraction expects cont
 Make the node miss-proof: if a new message arrives before the previous kernel finishes, the node must not block the subscriber thread. The Troubleshooting section describes the symptom when it does block. Design a strategy that decouples message arrival from kernel dispatch, measure the event callback latency on your platform, and verify with `ros2 topic hz` that no messages are dropped under load.
 
 ### Mini-challenge
-Replace the point cloud data layout from Array-of-Structs (AoS: `XYZIXYZIXYZ...`) to Structure-of-Arrays (SoA: `XXX...YYY...ZZZ...III...`). Profile the filter kernel before and after. Which layout wins, and why? (Hint: memory coalescing — consecutive work items reading consecutive memory.)
+Replace the point cloud data layout from Array-of-Structs (AoS: `XYZIXYZIXYZ...`) to Structure-of-Arrays (SoA: `XXX...YYY...ZZZ...III...`). Profile the filter kernel before and after. Which layout wins, and why? See [Toolbox: Memory Coalescing](../../99_Toolbox/Toolbox.md) if you need a starting point.
 
 ---
 
