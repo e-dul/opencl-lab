@@ -121,14 +121,14 @@ All standard constraints from `.claude/rules/00_master_specs.md` apply (C++17, `
 
 Standard DoD from master spec §8 applies. Task-specific items:
 
-- [ ] `source /opt/ros/jazzy/setup.bash && cmake -B build && cmake --build build` succeeds with zero errors and zero warnings from within `02_Projects/C_Robotics_ROS2/C1_Node_Acceleration/`.
-- [ ] `./build/c1_node_acceleration --help` prints CLI11 usage including `--iterations`.
-- [ ] `./build/c1_node_acceleration` (no args) runs 10 simulated callbacks and exits with code 0.
-- [ ] Console output shows exactly one `[INIT] Context init:` line (context init is a one-time cost).
-- [ ] Console output shows 10 `[CB  N] Dispatch:` lines (one per callback).
-- [ ] Summary table is printed after all callbacks.
-- [ ] `./build/c1_node_acceleration --iterations 5` runs exactly 5 callbacks.
-- [ ] `GPU=<vendor> ./build/c1_node_acceleration` selects the correct device without crashing.
+- [x] `source /opt/ros/jazzy/setup.bash && cmake -B build && cmake --build build` succeeds with zero errors and zero warnings from within `02_Projects/C_Robotics_ROS2/C1_Node_Acceleration/`.
+- [x] `./build/c1_node_acceleration --help` prints CLI11 usage including `--iterations`.
+- [x] `./build/c1_node_acceleration` (no args) runs 10 simulated callbacks and exits with code 0.
+- [x] Console output shows exactly one `[INIT] Context init:` line (context init is a one-time cost).
+- [x] Console output shows 10 `[CB  N] Dispatch:` lines (one per callback).
+- [x] Summary table is printed after all callbacks.
+- [x] `./build/c1_node_acceleration --iterations 5` runs exactly 5 callbacks.
+- [x] `GPU=<vendor> ./build/c1_node_acceleration` selects the correct device without crashing.
 - [ ] MANUAL: Inspect console — context init time is visibly larger than any single callback dispatch time (proving the one-time cost point).
 - [ ] MANUAL: Inspect `[CB N] Dispatch:` values — all are ≤ 0.5 ms on the target GPU (hardware-waiver applies for CPU fallback / integrated GPU).
 
@@ -136,12 +136,32 @@ Standard DoD from master spec §8 applies. Task-specific items:
 
 ## Execution Report
 
-- **Status:** PENDING
-- **Session:** —
+- **Status:** PASSED
+- **Session:** 2026-03-16
 
 ### Validation
 ```
-[output here]
+Build: source /opt/ros/jazzy/setup.bash && cmake -B build && cmake --build build
+  → rclcpp 28.1.16 / jazzy found. 0 errors, 0 warnings.
+
+./build/c1_node_acceleration --help
+  → Prints CLI11 usage with --iterations INT:POSITIVE. EXIT: 0
+
+./build/c1_node_acceleration
+  → Platform: NVIDIA CUDA / RTX 4060 Laptop GPU
+  → [INIT] Context init: 188.790 ms  (one-time cost)
+  → [CB  1] Dispatch: 0.020 ms
+     ...
+  → [CB 10] Dispatch: 0.011 ms
+  → Summary table printed.
+  → [DONE] Node destroyed.
+  → EXIT: 0
+
+./build/c1_node_acceleration --iterations 5
+  → Exactly 5 [CB N] lines printed. EXIT: 0
+
+GPU=NVIDIA ./build/c1_node_acceleration
+  → Platform: NVIDIA CUDA [GPU=NVIDIA] selected. EXIT: 0
 ```
 
 ### Changed Files
@@ -152,4 +172,4 @@ Standard DoD from master spec §8 applies. Task-specific items:
 | `02_Projects/C_Robotics_ROS2/C1_Node_Acceleration/kernels/passthrough.cl` | Created |
 
 ### Remaining
-- [ ] Implementation pending
+- None — all agent-verifiable DoD items pass. MANUAL items left for human review.
