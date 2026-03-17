@@ -3,7 +3,7 @@
 // Demonstrates:
 //   1. CPU exact Euclidean distance transform as correctness oracle.
 //   2. GPU naive inflate kernel (2D NDRange, global memory only).
-//   3. GPU tiled inflate_tiled kernel (stub, Task 038).
+//   3. GPU tiled inflate_tiled kernel (LDS tiled, Task 038).
 //   4. Timing comparison table (CPU vs GPU naive vs GPU tiled).
 //   5. BMP colorization: obstacles=black, inflated=red gradient, free=white.
 
@@ -136,7 +136,7 @@ public:
 
 private:
     // ── on_map_received ───────────────────────────────────────────────────────
-    // Main processing callback: CPU DT → GPU naive → GPU tiled (stub) →
+    // Main processing callback: CPU DT → GPU naive → GPU tiled (LDS) →
     // correctness check → BMP save → publish → timing table → shutdown.
     void on_map_received(OccupancyGrid::ConstSharedPtr msg)
     {
@@ -174,11 +174,36 @@ private:
             inflate_kernel_, obstacle_map, gpu_result, W, H,
             radius_px, decay_f, resolution_f);
 
-        // ── GPU tiled inflate (stub — skipped per task spec) ────────────────
-        // WHY no dispatch: tiled kernel is a stub (Task 038). Skip execution
-        // entirely; set time to 0.0 so the table shows 0.000 ms [STUB].
-        std::vector<uint8_t> gpu_tiled_result;
-        double gpu_tiled_ms = 0.0;
+        // ── GPU tiled inflate ────────────────────────────────────────────────
+        // TILE_W/TILE_H: 16×16 is the de-facto starting point on discrete GPUs
+        // (matches common SIMD width and LDS bank counts).
+        static constexpr int TILE_W = 16;
+        static constexpr int TILE_H = 16;
+
+        std::vector<uint8_t> gpu_tiled_result(total, 0);
+        double gpu_tiled_ms = -1.0;  // sentinel: -1.0 = skipped
+
+        // Local memory guard: kernel needs a halo-padded tile in __local.
+        size_t local_mem_needed =
+            static_cast<size_t>(TILE_W + 2 * radius_px) *
+            static_cast<size_t>(TILE_H + 2 * radius_px) *
+            sizeof(cl_uchar);
+
+        cl_ulong device_local_mem = 0;
+        CL_CHECK(ocl_.device.getInfo(CL_DEVICE_LOCAL_MEM_SIZE, &device_local_mem));
+
+        if (local_mem_needed > static_cast<size_t>(device_local_mem)) {
+            RCLCPP_WARN(get_logger(),
+                "[SKIP] tiled kernel: local mem %zu > device limit %llu bytes",
+                local_mem_needed,
+                static_cast<unsigned long long>(device_local_mem));
+        } else {
+            // Arg 7: __local uchar* tile — size set here so device allocates it.
+            CL_CHECK(inflate_tiled_kernel_.setArg(7, cl::Local(local_mem_needed)));
+            gpu_tiled_ms = run_gpu_kernel_tiled(
+                inflate_tiled_kernel_, obstacle_map, gpu_tiled_result, W, H,
+                radius_px, decay_f, resolution_f, TILE_W, TILE_H);
+        }
 
         // ── Correctness check: GPU naive vs CPU reference ─────────────────────
         int max_dev = 0;
@@ -197,11 +222,37 @@ private:
         }
         if (max_dev > 1) {
             RCLCPP_WARN(get_logger(),
-                "[WARN] GPU vs CPU max deviation: %d cost units at (%d,%d)",
+                "[WARN] GPU naive vs CPU max deviation: %d cost units at (%d,%d)",
                 max_dev, max_dev_x, max_dev_y);
         } else {
             RCLCPP_INFO(get_logger(),
-                "[OK] GPU vs CPU max deviation: %d cost units", max_dev);
+                "[OK] GPU naive vs CPU max deviation: %d cost units", max_dev);
+        }
+
+        // ── Correctness check: GPU tiled vs CPU reference ─────────────────────
+        if (gpu_tiled_ms >= 0.0) {
+            int tiled_max_dev = 0;
+            int tiled_dev_x = 0, tiled_dev_y = 0;
+            for (int y = 0; y < H; ++y) {
+                for (int x = 0; x < W; ++x) {
+                    size_t idx = static_cast<size_t>(y) * W + x;
+                    int dev = std::abs(static_cast<int>(gpu_tiled_result[idx]) -
+                                       static_cast<int>(cpu_result[idx]));
+                    if (dev > tiled_max_dev) {
+                        tiled_max_dev = dev;
+                        tiled_dev_x   = x;
+                        tiled_dev_y   = y;
+                    }
+                }
+            }
+            if (tiled_max_dev > 1) {
+                RCLCPP_WARN(get_logger(),
+                    "[WARN] GPU tiled vs CPU max deviation: %d cost units at (%d,%d)",
+                    tiled_max_dev, tiled_dev_x, tiled_dev_y);
+            } else {
+                RCLCPP_INFO(get_logger(),
+                    "[OK] GPU tiled vs CPU max deviation: %d cost units", tiled_max_dev);
+            }
         }
 
         // ── BMP colorization ──────────────────────────────────────────────────
@@ -222,18 +273,27 @@ private:
 
         // ── Timing table ──────────────────────────────────────────────────────
         double speedup_naive  = (gpu_naive_ms > 0.0) ? cpu_ms / gpu_naive_ms : 0.0;
-        double speedup_tiled  = (gpu_tiled_ms > 0.0) ? gpu_naive_ms / gpu_tiled_ms : 0.0;
 
         std::cout << std::fixed << std::setprecision(3)
             << "+-------------------------------------------+\n"
                "|  C2 Costmap Inflation                     |\n"
                "+------------------+------------------------+\n"
             << "| CPU DT           |" << std::setw(15) << cpu_ms       << " ms        |\n"
-            << "| GPU naive        |" << std::setw(15) << gpu_naive_ms << " ms        |\n"
-            << "| GPU tiled        |" << std::setw(15) << gpu_tiled_ms << " ms [STUB] |\n"
-            << "| GPU-vs-CPU       |" << std::setw(15) << speedup_naive << "x speedup  |\n"
-            << "| Tiled-vs-naive   |" << std::setw(15) << speedup_tiled << "x speedup  |\n"
-               "+------------------+------------------------+\n";
+            << "| GPU naive        |" << std::setw(15) << gpu_naive_ms << " ms        |\n";
+
+        if (gpu_tiled_ms < 0.0) {
+            // Local mem guard fired — tiled kernel was skipped.
+            std::cout << "| GPU tiled        |          0.000 ms [SKIP]          |\n"
+                      << "| GPU-vs-CPU       |" << std::setw(15) << speedup_naive << "x speedup  |\n"
+                      << "| Tiled-vs-naive   |                              N/A |\n"
+                         "+------------------+------------------------+\n";
+        } else {
+            double speedup_tiled = (gpu_tiled_ms > 0.0) ? gpu_naive_ms / gpu_tiled_ms : 0.0;
+            std::cout << "| GPU tiled        |" << std::setw(15) << gpu_tiled_ms << " ms        |\n"
+                      << "| GPU-vs-CPU       |" << std::setw(15) << speedup_naive << "x speedup  |\n"
+                      << "| Tiled-vs-naive   |" << std::setw(15) << speedup_tiled << "x speedup  |\n"
+                         "+------------------+------------------------+\n";
+        }
 
         // ── Self-shutdown via one-shot timer (avoids lifecycle mutex deadlock) ─
         // WHY timer (not direct call): trigger_transition from within a lifecycle
@@ -348,6 +408,63 @@ private:
             &ev));
         // WHY finish() before readback: drains the queue so profiling timestamps
         // are committed and output_buf is fully written before host reads it.
+        CL_CHECK(queue_.finish());
+
+        CL_CHECK(queue_.enqueueReadBuffer(output_buf, CL_TRUE, 0,
+                                          buf_bytes, output.data()));
+
+        return duration_ms(ev);
+    }
+
+    // ── run_gpu_kernel_tiled ──────────────────────────────────────────────────
+    // Like run_gpu_kernel() but pads the global NDRange to a multiple of
+    // TILE_W × TILE_H and passes the local size to the enqueue call.
+    // Arg 7 (__local tile) must be set by the caller before this method is
+    // called — we do not set it here to avoid overwriting the host-allocated
+    // local memory size.
+    double run_gpu_kernel_tiled(cl::Kernel& kernel,
+                                const std::vector<uint8_t>& input,
+                                std::vector<uint8_t>& output,
+                                int W, int H, int radius_px,
+                                float decay, float resolution,
+                                int tile_w, int tile_h)
+    {
+        const size_t buf_bytes = static_cast<size_t>(W) * H;
+
+        // WHY CL_MEM_COPY_HOST_PTR: same as run_gpu_kernel — avoids a separate
+        // enqueueWriteBuffer call; data is already on the host at this point.
+        cl::Buffer input_buf(ocl_.context,
+                             CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                             buf_bytes,
+                             const_cast<uint8_t*>(input.data()));
+
+        cl::Buffer output_buf(ocl_.context, CL_MEM_WRITE_ONLY, buf_bytes);
+
+        CL_CHECK(kernel.setArg(0, input_buf));
+        CL_CHECK(kernel.setArg(1, output_buf));
+        CL_CHECK(kernel.setArg(2, cl_int(W)));
+        CL_CHECK(kernel.setArg(3, cl_int(H)));
+        CL_CHECK(kernel.setArg(4, cl_int(radius_px)));
+        CL_CHECK(kernel.setArg(5, cl_float(decay)));
+        CL_CHECK(kernel.setArg(6, cl_float(resolution)));
+        // Arg 7 (__local tile) already set by caller.
+
+        // WHY padded global size: the local size must evenly divide the global
+        // size for a 2D NDRange.  Padding to the next tile multiple ensures every
+        // work-group is full; out-of-bounds work-items exit early via the guard
+        // inside the kernel.
+        size_t gw = static_cast<size_t>((W + tile_w - 1) / tile_w) * tile_w;
+        size_t gh = static_cast<size_t>((H + tile_h - 1) / tile_h) * tile_h;
+
+        cl::Event ev;
+        CL_CHECK(queue_.enqueueNDRangeKernel(
+            kernel,
+            cl::NullRange,
+            cl::NDRange(gw, gh),
+            cl::NDRange(static_cast<size_t>(tile_w), static_cast<size_t>(tile_h)),
+            nullptr,
+            &ev));
+        // WHY finish() before readback: see run_gpu_kernel().
         CL_CHECK(queue_.finish());
 
         CL_CHECK(queue_.enqueueReadBuffer(output_buf, CL_TRUE, 0,

@@ -29,7 +29,7 @@ Accelerate a real ROS 2 perception pipeline without breaking the node contract. 
   - *Context*: Executive Summary §Path C item C.1; `RoboticsROS2.md` §C1_Node_Acceleration.
 - [x] Phase 2: C2 — Costmap Inflation — 2D distance transform kernel for obstacle padding; GPU vs CPU timing comparison; visual `output_costmap.bmp` artifact.
   - *Context*: Executive Summary §Path C item C.2; `RoboticsROS2.md` §C2_Costmap_Inflation.
-- [ ] Phase 3: C2 Challenge — LDS Tiled Kernel — Profile naive (global memory) vs tiled (local memory) inflation kernel; find peak tile size.
+- [x] Phase 3: C2 Challenge — LDS Tiled Kernel — Profile naive (global memory) vs tiled (local memory) inflation kernel; find peak tile size.
   - *Context*: Executive Summary §Path C item C.2 challenge; `RoboticsROS2.md` §C2_Tiled_Challenge.
 - [ ] Phase 4: C3 — Accelerated Perception Node (Flagship) — Full pipeline: PointCloud2 subscribe → GPU filter → feature extraction → publish; end-to-end < 5 ms gate.
   - *Context*: Executive Summary §Path C item C.3; `RoboticsROS2.md` §C3_Perception_Node.
@@ -177,6 +177,8 @@ Accelerate a real ROS 2 perception pipeline without breaking the node contract. 
 - **`ros2 topic hz` Measurement Accuracy**: `ros2 topic hz` underreports rate for bursty publishers. Authoritative latency measurement uses per-message `steady_clock` timestamps logged by the node, not `ros2 topic hz`. The 200 Hz gate is verified via the node's own per-message log.
 - **Costmap BMP Color Mapping**: The RGBA colorization (obstacle black, inflated red, free white) must be done on the CPU after readback — not in the kernel — to keep the kernel output a simple uchar cost buffer reusable in other pipelines.
 - **Prefix-Sum Kernel Complexity**: A correct parallel prefix-sum (scan) implementation is non-trivial. The initial implementation may use a two-phase Blelloch scan; correctness must be verified against a CPU scan on the same data before integrating into the pipeline.
+
+- **C2 LDS Tiling Yields ~1.0x on RTX 4060 / Radeon 680M (Task 038)**: Dense 2D neighbourhood scans are not LDS-bandwidth-bound. A 128-byte L1 cache line covers 128 `uchar` cells; a warp scanning the same search-window row generates at most one cache miss per row — the same reuse LDS would provide, without barrier overhead. Tiled was ~5% slower due to barrier cost across all tested map sizes (512²–2048²) and radii (r=10–60). Hardware-waiver † applies to the ≥ 1.5× speedup gate. The correct optimisation is algorithmic: separable 1D distance transform (Meijster/Saito) reduces O(r²) per-cell work to O(1) regardless of memory hierarchy.
 
 ---
 
