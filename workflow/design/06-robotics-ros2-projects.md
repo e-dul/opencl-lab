@@ -27,7 +27,7 @@ Accelerate a real ROS 2 perception pipeline without breaking the node contract. 
 
 - [x] Phase 1: C1 — Node Acceleration — `rclcpp_lifecycle::LifecycleNode`; OpenCL init in `on_configure()`; real pub/sub `/raw_floats` → kernel dispatch → `/processed_floats`; prove context init is paid once.
   - *Context*: Executive Summary §Path C item C.1; `RoboticsROS2.md` §C1_Node_Acceleration.
-- [ ] Phase 2: C2 — Costmap Inflation — 2D distance transform kernel for obstacle padding; GPU vs CPU timing comparison; visual `output_costmap.bmp` artifact.
+- [x] Phase 2: C2 — Costmap Inflation — 2D distance transform kernel for obstacle padding; GPU vs CPU timing comparison; visual `output_costmap.bmp` artifact.
   - *Context*: Executive Summary §Path C item C.2; `RoboticsROS2.md` §C2_Costmap_Inflation.
 - [ ] Phase 3: C2 Challenge — LDS Tiled Kernel — Profile naive (global memory) vs tiled (local memory) inflation kernel; find peak tile size.
   - *Context*: Executive Summary §Path C item C.2 challenge; `RoboticsROS2.md` §C2_Tiled_Challenge.
