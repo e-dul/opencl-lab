@@ -1,7 +1,7 @@
 # Module 6: Path C — Robotics & ROS 2
 
-**Version:** 1.3
-**Status:** Active — C1/C2 redesigned; implementation not started
+**Version:** 1.4
+**Status:** Active — C1 complete; C2 next
 **Module Path:** `02_Projects/C_Robotics_ROS2/`
 
 ---
@@ -25,7 +25,7 @@ Accelerate a real ROS 2 perception pipeline without breaking the node contract. 
 
 ## Roadmap / Status
 
-- [ ] Phase 1: C1 — Node Acceleration — `rclcpp_lifecycle::LifecycleNode`; OpenCL init in `on_configure()`; real pub/sub `/raw_floats` → kernel dispatch → `/processed_floats`; prove context init is paid once.
+- [x] Phase 1: C1 — Node Acceleration — `rclcpp_lifecycle::LifecycleNode`; OpenCL init in `on_configure()`; real pub/sub `/raw_floats` → kernel dispatch → `/processed_floats`; prove context init is paid once.
   - *Context*: Executive Summary §Path C item C.1; `RoboticsROS2.md` §C1_Node_Acceleration.
 - [ ] Phase 2: C2 — Costmap Inflation — 2D distance transform kernel for obstacle padding; GPU vs CPU timing comparison; visual `output_costmap.bmp` artifact.
   - *Context*: Executive Summary §Path C item C.2; `RoboticsROS2.md` §C2_Costmap_Inflation.
@@ -35,7 +35,7 @@ Accelerate a real ROS 2 perception pipeline without breaking the node contract. 
   - *Context*: Executive Summary §Path C item C.3; `RoboticsROS2.md` §C3_Perception_Node.
 - [ ] Phase 5: C3 Challenge — Double-Buffer Real-Time Guarantee — Non-blocking enqueue; buffer swap on event callback to prevent callback stalls under load.
   - *Context*: Executive Summary §Path C item C.3 challenge; `RoboticsROS2.md` §C3_DoubleBuffer_Challenge.
-- [ ] Phase 6: Module review and cleanup — extract common utils, align naming conventions, verify all three binaries build and run cleanly from a sourced ROS 2 workspace.
+- [ ] Phase 6: Module review and cleanup — extract common utils, align naming conventions, verify all three binaries build and run cleanly from a sourced ROS 2 workspace. Extract CMake related ROS setup to common.cmake.
 
 ---
 
@@ -167,6 +167,8 @@ Accelerate a real ROS 2 perception pipeline without breaking the node contract. 
 ---
 
 ## Known Issues / Risks
+
+- **C1 `SyntheticPublisher` in `main.cpp` (not a separate file)**: The design spec (`Specifications & Standards / Directory Structure`) lists `synthetic_publisher.cpp` as a separate source file compiled into `accel_node`. The Task 036 implementation merged `SyntheticPublisher` directly into `main.cpp`. Functionally identical; the file split is cosmetic. Align in a future cleanup task.
 
 - **`find_package(rclcpp)` Fails Without Sourced Workspace**: CMake silently reports "not found" if `setup.bash` was not sourced. The CMakeLists.txt must check `$ENV{ROS_DISTRO}` and emit `message(FATAL_ERROR "...")` with instructions before attempting `find_package`.
 - **OpenCL Context Thread Affinity**: `on_configure()` is called from the executor thread. On some drivers, GPU context affinity is thread-local — all subsequent enqueue calls (in subscription callbacks) must originate from the same thread. Single-threaded executor guarantees this; multi-threaded executor would require explicit thread pinning.

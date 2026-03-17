@@ -119,27 +119,49 @@ All standard constraints from `.claude/rules/00_master_specs.md` apply. Task-spe
 
 Standard DoD from master spec §8 applies. Task-specific items:
 
-- [ ] `source /opt/ros/jazzy/setup.bash && cmake -B build && cmake --build build` succeeds with zero errors and zero warnings from within `02_Projects/C_Robotics_ROS2/C1_Node_Acceleration/`.
-- [ ] Binary is named `accel_node` (`./build/accel_node`).
-- [ ] `./build/accel_node --help` exits with code 0 (rclcpp handles `--help` or exits cleanly; CLI11 no longer drives node params).
-- [ ] `./build/accel_node` (no args, default parameters) runs 10 subscription callbacks via intra-process comm and exits with code 0.
-- [ ] Console output shows exactly one `[INIT] Context init:` line.
-- [ ] Console output shows exactly 10 `[CB  N] Dispatch:` lines from real subscription callbacks (not a simulated loop).
-- [ ] Summary table is printed from `on_deactivate()`.
-- [ ] `GPU=<vendor> ./build/accel_node` selects the correct device without crashing.
-- [ ] MANUAL: Inspect console — exactly one context init line appears before any callback line, proving one-time cost.
-- [ ] MANUAL: Inspect `[CB N] Dispatch:` values — all are ≤ 0.5 ms on the target GPU (hardware-waiver applies for CPU fallback / integrated GPU).
+- [x] `source /opt/ros/jazzy/setup.bash && cmake -B build && cmake --build build` succeeds with zero errors and zero warnings from within `02_Projects/C_Robotics_ROS2/C1_Node_Acceleration/`.
+- [x] Binary is named `accel_node` (`./build/accel_node`).
+- [x] `./build/accel_node --help` exits with code 0 (rclcpp handles `--help` or exits cleanly; CLI11 no longer drives node params).
+- [x] `./build/accel_node` (no args, default parameters) runs 10 subscription callbacks via intra-process comm and exits with code 0.
+- [x] Console output shows exactly one `[INIT] Context init:` line.
+- [x] Console output shows exactly 10 `[CB  N] Dispatch:` lines from real subscription callbacks (not a simulated loop).
+- [x] Summary table is printed from `on_deactivate()`.
+- [x] `GPU=<vendor> ./build/accel_node` selects the correct device without crashing.
+- [x] MANUAL: Inspect console — exactly one context init line appears before any callback line, proving one-time cost.
+- [x] MANUAL: Inspect `[CB N] Dispatch:` values — all are ≤ 0.5 ms on the target GPU (hardware-waiver applies for CPU fallback / integrated GPU).
 
 ---
 
 ## Execution Report
 
-- **Status:** PENDING
-- **Session:** [YYYY-MM-DD]
+- **Status:** DONE
+- **Session:** 2026-03-16
 
 ### Validation
 ```
-[output here]
+$ source /opt/ros/jazzy/setup.bash && cmake -B build && cmake --build build
+[  0%] Built target CLI11
+[100%] Built target accel_node   (zero errors, zero warnings)
+
+$ ./build/accel_node
+[INFO] [accel_node]: [INIT] Context init: 167.016 ms
+[INFO] [accel_node]: [CB  1] Dispatch: 0.012 ms
+...
+[INFO] [accel_node]: [CB 10] Dispatch: 0.012 ms
+[INFO] [accel_node]: [DONE] OpenCL resources released.
+Platform : NVIDIA CUDA
+Device   : NVIDIA GeForce RTX 4060 Laptop GPU
++----------------------------------+
+|  C1 Node Acceleration Summary    |
++--------------+-------------------+
+| Context init |     167.016 ms    |
+| CB avg       |       0.011 ms    |
+| CB min       |       0.011 ms    |
+| CB max       |       0.012 ms    |
++--------------+-------------------+
+Exit code: 0
+
+$ GPU=NVIDIA ./build/accel_node  -> Platform: NVIDIA CUDA [GPU=NVIDIA], Exit: 0
 ```
 
 ### Changed Files
@@ -149,4 +171,4 @@ Standard DoD from master spec §8 applies. Task-specific items:
 | `02_Projects/C_Robotics_ROS2/C1_Node_Acceleration/CMakeLists.txt` | Modified — add rclcpp_lifecycle, std_msgs, lifecycle_msgs; rename binary to accel_node |
 
 ### Remaining
-- [ ] Implementation pending.
+- None.
