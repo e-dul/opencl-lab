@@ -1,7 +1,7 @@
 # Module 6: Path C — Robotics & ROS 2
 
-**Version:** 1.4
-**Status:** Active — C1 complete; C2 next
+**Version:** 1.5
+**Status:** Active — C1,C2 complete; C3-challenge next
 **Module Path:** `02_Projects/C_Robotics_ROS2/`
 
 ---
@@ -33,7 +33,7 @@ Accelerate a real ROS 2 perception pipeline without breaking the node contract. 
   - *Context*: Executive Summary §Path C item C.2 challenge; `RoboticsROS2.md` §C2_Tiled_Challenge.
 - [x] Phase 4: C3 — Accelerated Perception Node (Flagship) — Full pipeline: PointCloud2 subscribe → GPU filter → feature extraction → publish; end-to-end < 5 ms gate.
   - *Context*: Executive Summary §Path C item C.3; `RoboticsROS2.md` §C3_Perception_Node.
-- [ ] Phase 5: C3 Challenge — Double-Buffer Real-Time Guarantee — Non-blocking enqueue; buffer swap on event callback to prevent callback stalls under load. Includes visual verification via RViz: `point_cloud_publisher` generates a mixed scene (ground-plane points below `ground_z`, low-intensity points below `min_intensity`, valid cluster points above both thresholds) so that `/filtered_points` visibly excludes rejected points and `/cluster_features` centroids appear at expected cluster positions. MANUAL DoD: RViz PointCloud2 display confirms filter correctness visually.
+- [ ] Phase 5: C3 Challenge — Double-Buffer Real-Time Guarantee — Non-blocking enqueue; buffer swap via `cl::Event` callback; contention guard logs `WARN` and falls back to `queue_.finish()` — silent drop forbidden. See §Verification Standard for the mixed-scene setup and expected outcomes. MANUAL verification required (RViz).
   - *Context*: Executive Summary §Path C item C.3 challenge; `RoboticsROS2.md` §C3_DoubleBuffer_Challenge.
 - [ ] Phase 6: Module review and cleanup — extract common utils, align naming conventions, verify all three binaries build and run cleanly from a sourced ROS 2 workspace. Extract CMake related ROS setup to common.cmake.
 
@@ -55,7 +55,7 @@ Accelerate a real ROS 2 perception pipeline without breaking the node contract. 
 - **Node Parameters (C1, C2, C3)**: All ROS 2 nodes use `declare_parameter` — not CLI11. CLI11 is used only for the C3 synthetic publisher (standalone tool, not a node). GPU selection always via `GPU` env var — no `--device` index flag.
   - C1 parameters: `iterations` (int, default 10), `buffer_size` (int, default 1048576).
   - C2 parameters: `map_path` (string), `inflation_radius` (double, default 0.5), `resolution` (double, default 0.05), `decay` (double, default 3.0).
-  - C3 perception node parameters: `topic` (string), `ground_z` (double), `min_intensity` (double).
+  - C3 perception node parameters: `topic` (string), `ground_z` (double), `min_intensity` (double), `max_points` (int, default 200000 — buffer capacity; messages exceeding this size trigger a `WARN` and blocking realloc), `use_double_buffer` (bool, default `false` — **C3 Challenge only**: when `true`, `on_configure()` allocates a second buffer pair and the callback uses the non-blocking enqueue path).
   - C3 synthetic publisher CLI flags: `--topic`, `--hz`, `--points` (cloud size).
 - **Image Formats for C2**: `.pgm` (grayscale occupancy grid) as input; `output_costmap.bmp` as output (BMP, RGBA, obstacles black, inflated zone red gradient, free space white). C2 is a numeric/visual benchmark — BMP is the required visual artifact (master spec §3).
 - **C3 Visual Artifact**: C3 is a pure pipeline benchmark. No BMP output is required — the structured per-stage console timing table and the published `/filtered_points` topic are the verification artifacts (master spec §3 exception: "purely numeric tools must produce a structured console timing table").
@@ -77,7 +77,7 @@ Accelerate a real ROS 2 perception pipeline without breaking the node contract. 
 - **Costmap Node** (`C2_Costmap_Inflation`, binary: `costmap_node`): `rclcpp_lifecycle::LifecycleNode` subclass (`CostmapNode`). `on_configure()`: init `cl::Context`, `cl::CommandQueue` (CL_QUEUE_PROFILING_ENABLE), build `inflate` and `inflate_tiled` kernels, declare parameters. `on_activate()`: subscribe `/map` (`nav_msgs/OccupancyGrid`), advertise `/inflated_costmap`. Per-callback: run CPU reference DT + GPU naive + GPU tiled on the received grid; print timing table; save `output_costmap.bmp`; publish `/inflated_costmap`. `on_cleanup()`: RAII destroys OpenCL resources.
 - **Map Publisher** (`C2_Costmap_Inflation/map_publisher.cpp`, same binary): `rclcpp::Node` subclass. Reads `map_path` `.pgm` via `stb_image`, converts to `nav_msgs/OccupancyGrid`, publishes once to `/map` via intra-process comm. Triggers `CostmapNode` shutdown after the single map message is processed.
 - **Perception Node** (`C3_Perception_Node`, binary: `perception_node`): `rclcpp_lifecycle::LifecycleNode`. Subscribes to `/points` (`sensor_msgs/PointCloud2`). Per-message GPU pipeline: upload → filter → compact → feature extract → download → publish `/filtered_points` + `/cluster_features`. Optional loaned message path for zero-copy upload from middleware. Queue uses `CL_QUEUE_PROFILING_ENABLE`.
-- **Double-Buffer Extension** (C3 Challenge): Adds a second `cl::Buffer` pair to `PerceptionNode`. While GPU processes buffer N, CPU fills buffer N+1. Buffer swap triggered by `cl::Event` callback. Prevents callback stalls when processing exceeds inter-message interval under load.
+- **Double-Buffer Extension** (C3 Challenge): Extends `PerceptionNode` via the `use_double_buffer` parameter (bool, default `false`). When enabled, `on_configure()` allocates a second `cl::Buffer` pair and the callback switches to the non-blocking enqueue path. Buffer swap triggered by `cl::Event` callback. Prevents callback stalls when processing exceeds inter-message interval under load. No separate binary or folder — same `perception_node` binary, same `C3_Perception_Node/` directory.
 - **Synthetic Publisher** (`C3_Perception_Node/point_cloud_publisher.cpp`, binary: `point_cloud_publisher`): Standalone ROS 2 node binary. Generates and publishes synthetic `sensor_msgs/PointCloud2` at configurable rate and size. CLI: `--topic`, `--hz`, `--points`. Used for reproducible benchmarking without a physical sensor or bag file. Separate `add_executable` target in `C3_Perception_Node/CMakeLists.txt`.
 
 ### Data Flow
@@ -119,10 +119,13 @@ Accelerate a real ROS 2 perception pipeline without breaking the node contract. 
 9. Log per-stage breakdown and running total. Assert total < 5 ms.
 
 #### C3 Challenge (Double-Buffer)
-1. Two buffer pairs (`point_buf_[2]`, `result_buf_[2]`); active index alternates each callback.
-2. Callback N enqueues GPU work on buffer index `N % 2`.
-3. `cl::Event` completion callback swaps active index — no blocking wait in the ROS 2 executor thread.
-4. Callback N+1 fills the other buffer while GPU processes callback N's data.
+Activated by `use_double_buffer:=true` at launch — same binary, same directory as C3.
+1. Pre-allocate at `on_configure()` when `use_double_buffer` is `true`: three buffer pairs — `point_buf_[2]` (upload), `compact_buf_[2]` (compacted points), `feature_buf_[2]` (features); sized from `max_points` parameter (default 200 000 × 16 bytes/point). When `false`, allocate only index [0] and use the blocking path (base C3 behavior).
+2. `std::atomic<int> active_buf_{0}` tracks the in-use index. Callback N reads `active_buf_.load()` to select its write-side buffers.
+3. Non-blocking enqueue on active index: `enqueueWriteBuffer(CL_FALSE)` → filter → compact → feature kernels → `enqueueReadBuffer(CL_FALSE)`.
+4. `cl::Event` set on the final `enqueueReadBuffer`; `setCallback(CL_COMPLETE, ...)` atomically swaps `active_buf_` via `store(1 - current)`. Callback executes in the OpenCL driver thread — only `std::atomic` operations are safe here.
+5. Contention guard: if callback N+1 arrives and `active_buf_` still equals callback N's index (swap has not fired), call `queue_.finish()` and log `WARN: double-buffer contention — falling back to blocking wait`.
+6. Callback N+1 fills the alternate buffer while GPU processes callback N's data — no blocking wait in the ROS 2 executor thread under normal load.
 
 ---
 
@@ -196,6 +199,7 @@ Hardware-waiver: gates marked with † may not be achievable on CPU-fallback or 
 | C2 Costmap GPU vs CPU | Speedup | ≥ 5× (GPU naive over CPU) reported in console † |
 | C3 Perception Node | End-to-end latency | < 5 ms @ 100k points (all stages summed) † |
 | C3 Perception Node | Publish rate | ≥ 200 Hz sustained (measured via per-message node log) † |
+| C3 Double-Buffer Challenge | Contention-free rate | Zero `WARN: double-buffer contention` log entries during 10 s @ 200 Hz, 100k pts † |
 
 ---
 
@@ -231,6 +235,13 @@ Hardware-waiver: gates marked with † may not be achievable on CPU-fallback or 
   - C1: Console log showing `on_configure()` init time (once), then per-callback dispatch times (flat, ≤ 0.5 ms each) from real subscription callbacks. No BMP required.
   - C2: `output_costmap.bmp` (correct colorization — obstacles black, inflation red gradient, free white). Console table with CPU / GPU naive / GPU tiled times, GPU-vs-CPU speedup, tiled-vs-naive speedup.
   - C3: Console per-message stage breakdown summing to < 5 ms. Node log showing ≥ 200 Hz inter-message rate. No BMP required (structured timing table satisfies master spec §3 numeric-tool exception).
+  - C3 Challenge (Double-Buffer): Build and launch from `C3_Perception_Node/`:
+    ```bash
+    cmake -B build && cmake --build build
+    GPU=NVIDIA ./build/perception_node --ros-args -p topic:=/points -p ground_z:=0.1 -p min_intensity:=50.0 -p max_points:=200000 -p use_double_buffer:=true
+    ./build/point_cloud_publisher --topic /points --hz 200 --points 100000
+    ```
+    Mixed scene: 3 valid clusters at (2,0,1), (−2,0,1), (0,3,1) r=0.3 m intensity 150; ground band z∈[−0.1, 0.05] m intensity 200; low-intensity cloud at (0,0,2) intensity 10. Expected: `/filtered_points` contains only the 3 valid clusters; `/cluster_features` centroids within 0.05 m of expected positions; zero `WARN: double-buffer contention` log entries over 10 s at 200 Hz. RViz PointCloud2 display is the MANUAL verification artifact.
 - **Tooling** (module-specific additions to master_specs):
   - `stb_image` / `stb_image_write` for `.pgm` input and `output_costmap.bmp` output (C2 `MapPublisher` + colorization).
   - ROS 2 packages: `rclcpp`, `rclcpp_lifecycle`, `sensor_msgs`, `nav_msgs`, `std_msgs` via `find_package(... REQUIRED)`. Required by C1, C2, and C3.

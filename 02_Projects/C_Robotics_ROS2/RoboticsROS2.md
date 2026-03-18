@@ -16,6 +16,7 @@ See [main README](../../README.md) for base requirements (OpenCL, CMake, Docker 
 C1_Node_Acceleration/   OpenCL context inside a LifecycleNode — init in on_configure(), dispatch in callbacks
 C2_Costmap_Inflation/   2D costmap inflation kernel: distance transform for obstacle padding
 C3_Perception_Node/     Flagship: Lidar filtering + feature extraction, < 5 ms end-to-end
+                          use_double_buffer:=true — double-buffer real-time guarantee (C3 Challenge)
 ```
 
 ---
@@ -212,6 +213,8 @@ Node parameters (via `declare_parameter`):
 - `topic` — input point cloud topic (string)
 - `ground_z` — ground plane Z threshold in metres (double)
 - `min_intensity` — minimum intensity to pass filter (double)
+- `max_points` — pre-allocated buffer capacity in points (int, default `200000`); messages exceeding this size log a WARN and trigger a blocking realloc
+- `use_double_buffer` — enable double-buffer real-time mode (bool, default `false`; see C3 Challenge)
 
 Synthetic publisher flags (CLI11, standalone binary `point_cloud_publisher`):
 - `--topic` — topic to publish on
@@ -268,10 +271,91 @@ bool keep = (pt.z >= ground_z) && (pt.intensity >= min_intensity);
 Two separate kernel dispatches would each add ~0.1–0.3 ms of launch overhead. A single combined predicate avoids both at the cost of a slightly more complex kernel.
 
 ### Challenge: Real-Time Guarantee
-Make the node miss-proof: if a new message arrives before the previous kernel finishes, the node must not block the subscriber thread. Design a strategy that decouples message arrival from kernel dispatch using double-buffering — while the GPU processes buffer N, the CPU fills buffer N+1. Measure callback latency on your platform and verify with `ros2 topic hz` that no messages are dropped under load.
+See [§C3_DoubleBuffer_Challenge](#c3_doublebuffer_challenge--double-buffer-real-time-guarantee) below for the full build and verification steps. The short version: make the node miss-proof by pre-allocating two buffer pairs at `on_configure()`. While the GPU processes buffer N, the CPU fills buffer N+1. A `cl::Event` callback atomically swaps the active index when the GPU finishes. Contention (swap not yet fired when the next message arrives) is logged as `WARN: double-buffer contention` and falls back to a blocking wait — silent drop is forbidden.
 
 ### Mini-challenge
 Replace the point cloud data layout from Array-of-Structs (AoS: `XYZIXYZIXYZ...`) to Structure-of-Arrays (SoA: `XXX...YYY...ZZZ...III...`). Profile the filter kernel before and after. Which layout wins, and why? See [Toolbox: Memory Coalescing](../../99_Toolbox/Toolbox.md) if you need a starting point.
+
+---
+
+## C3_DoubleBuffer_Challenge — Double-Buffer Real-Time Guarantee
+
+**Goal**: Extend `C3_Perception_Node` so the subscriber thread is never blocked waiting for the GPU. While the GPU processes buffer N, the CPU fills buffer N+1. Verify zero `WARN: double-buffer contention` log entries over a sustained 10-second run at 200 Hz.
+
+The base C3 node calls `queue_.finish()` (or equivalent) inside the subscriber callback. At 200 Hz (5 ms inter-message interval), any GPU stage that spills past 5 ms stalls the executor and drops the next message. The double-buffer pattern decouples arrival from dispatch: the callback always writes into the idle buffer and returns immediately.
+
+### Core Concept: Double-Buffer Pattern
+
+Pre-allocate two identical buffer sets at `on_configure()` using the `max_points` parameter (default 200 000 points):
+
+```cpp
+// Each buffer pair covers one in-flight message. Sized at configure-time — never reallocated per-message.
+for (int i = 0; i < 2; ++i) {
+    point_buf_[i]   = cl::Buffer(ctx_, CL_MEM_READ_WRITE,
+                                 static_cast<size_t>(max_points_) * point_step_);
+    compact_buf_[i] = cl::Buffer(ctx_, CL_MEM_READ_WRITE,
+                                 static_cast<size_t>(max_points_) * point_step_);
+    feature_buf_[i] = cl::Buffer(ctx_, CL_MEM_READ_WRITE,
+                                 static_cast<size_t>(max_points_) * sizeof(float) * 5);
+}
+```
+
+`std::atomic<int> active_buf_{0}` tracks which index the GPU currently owns. Each subscriber callback:
+
+1. Reads `active_buf_.load()` — this is its write index.
+2. Checks for contention: if the GPU has not yet fired the swap (index unchanged from previous callback), logs `WARN: double-buffer contention — falling back to blocking wait` and calls `CL_CHECK(queue_.finish())`.
+3. Issues all enqueue calls (`enqueueWriteBuffer`, `enqueueNDRangeKernel` ×3, `enqueueReadBuffer`) as non-blocking (`CL_FALSE`).
+4. Sets a `cl::Event` callback on the final `enqueueReadBuffer`. When `CL_COMPLETE` fires (in the OpenCL driver thread), the callback calls `active_buf_.store(1 - current)`. Only `std::atomic` operations are safe in an OpenCL event callback — no ROS 2 API calls, no logging, no heap allocation.
+5. Returns immediately — the subscriber thread is free before the GPU finishes.
+
+### Build & run
+
+```bash
+source /opt/ros/jazzy/setup.bash
+cd C3_Perception_Node
+cmake -B build
+cmake --build build
+
+# Terminal 1 — perception node with double-buffer enabled
+GPU=NVIDIA ./build/perception_node --ros-args \
+    -p topic:=/points \
+    -p ground_z:=0.1 \
+    -p min_intensity:=50.0 \
+    -p max_points:=200000 \
+    -p use_double_buffer:=true
+
+# Terminal 2 — synthetic publisher at 200 Hz
+./build/point_cloud_publisher --topic /points --hz 200 --points 100000
+```
+
+### Verify
+
+**Console (10-second run, pass condition):**
+```
+[callback  1 ] upload dispatched (non-blocking). GPU owns buf[0].
+[callback  2 ] upload dispatched (non-blocking). GPU owns buf[1].
+[callback  3 ] upload dispatched (non-blocking). GPU owns buf[0].
+...
+[SUMMARY] 2000 messages in 10.001 s — 0 contention events.
+```
+
+Zero `WARN: double-buffer contention` entries over 10 seconds at 200 Hz, 100k points is the pass condition.
+
+**MANUAL — RViz verification:** Open RViz, add a PointCloud2 display on `/filtered_points`. With the publisher running at `--hz 200 --points 100000` and the node launched with `ground_z:=0.1 min_intensity:=50`, the display must show only the three valid clusters — no ground or low-intensity points — with no visible frame drops or stuttering over 10 seconds.
+
+Mixed-scene layout for verification:
+- 3 valid clusters at (2, 0, 1), (−2, 0, 1), (0, 3, 1), radius 0.3 m, intensity 150 — must appear in `/filtered_points`
+- Ground band z ∈ [−0.1, 0.05] m, intensity 200 — removed by `ground_z:=0.1`
+- Low-intensity cloud at (0, 0, 2), intensity 10 — removed by `min_intensity:=50`
+- `/cluster_features` centroids must be within 0.05 m of the three cluster positions above
+
+### Mini-challenge
+
+Two parts, in order:
+
+1. **AoS to SoA inside the double-buffer**: Modify the upload path to convert AoS (`XYZIXYZIXYZ...`) to SoA (`XXX...YYY...ZZZ...III...`) on the CPU before `enqueueWriteBuffer`. Profile the filter kernel before and after. Which layout wins, and why? See [Toolbox: Memory Coalescing](../../99_Toolbox/Toolbox.md).
+
+2. **Measure the real-time ceiling**: Run `--hz 400 --points 100000` (double the nominal rate). Count `WARN: double-buffer contention` entries over 10 seconds. At what Hz does contention first appear on your hardware? That is your pipeline's true real-time ceiling under this buffer strategy.
 
 ---
 
@@ -289,10 +373,19 @@ This track is complete when all gates below are met. Gates marked with † may n
 | C2 GPU vs CPU | Speedup | >= 5× (GPU naive over CPU) reported in console † |
 | C3 Perception Node | End-to-end latency | < 5 ms @ 100k points (all stages summed) † |
 | C3 Perception Node | Publish rate | >= 200 Hz sustained (measured via per-message node log) † |
+| C3 Double-Buffer Challenge | Contention-free rate | Zero `WARN: double-buffer contention` log entries during 10 s @ 200 Hz, 100k pts † |
 
 **Measure with `cl::Event` profiling** on every GPU stage. CPU-bound stages (deserialization, publish) use `std::chrono::steady_clock`. All times reported in ms to 3 decimal places.
 
 **If you are over budget**: break down the per-stage times from the console output and identify which stage dominates. Then consult the [Optimization Toolbox](../../99_Toolbox/Toolbox.md) for the technique that matches your bottleneck.
+
+---
+
+## Known Issues
+
+- **C2 LDS tiling yields ~1.0x on RTX 4060 / Radeon 680M**: Dense 2D neighbourhood scans are not LDS-bandwidth-bound on these architectures. A 128-byte L1 cache line covers 128 `uchar` cells; a warp scanning the same search-window row generates at most one cache miss per row — the same reuse LDS would provide, without the barrier overhead. Tiled was ~5% slower than naive across all tested map sizes (512²–2048²) and radii (r=10–60). The hardware-waiver † applies to the C2 tiled ≥ 1.5× speedup gate on these devices. The correct optimisation for large radii is algorithmic: a separable 1D distance transform (Meijster/Saito) reduces O(r²) per-cell work to O(1) regardless of memory hierarchy.
+
+- **C1 `SyntheticPublisher` merged into `main.cpp`**: The design spec lists `synthetic_publisher.cpp` as a separate source file compiled into `accel_node`. The current implementation merged `SyntheticPublisher` directly into `main.cpp`. Functionally identical; the file split is cosmetic and will be aligned in the Module Cleanup phase.
 
 ---
 
@@ -303,6 +396,7 @@ This track is complete when all gates below are met. Gates marked with † may n
 - **OpenCL context fails inside the node**: Ensure `on_configure()` — not the constructor — creates the context. On some drivers, GPU context affinity is thread-local; the single-threaded executor guarantees all callbacks (including `on_configure`) run on the same thread.
 - **`ros2 topic hz` shows half the expected rate**: The node is blocking on `clFinish()` inside the callback. Replace with non-blocking enqueue + event callback to release the subscriber thread immediately.
 - **PointCloud2 data size unexpected**: Always compute buffer size as `msg->width * msg->height * msg->point_step` — `point_step` is read from the message header and varies by Lidar driver. Never hard-code 16 bytes.
+- **Double-buffer contention at nominal rate (C3 Challenge)**: If `WARN: double-buffer contention` appears at 200 Hz, the GPU pipeline is taking longer than 5 ms. Break down per-stage times from the console log and identify the bottleneck stage. The contention guard is a safety valve, not a normal operating mode.
 - **Wrong GPU selected**: `GPU=NVIDIA ./build/accel_node`, `GPU=AMD ./build/costmap_node`, `GPU=INTEL ./build/perception_node`.
 
 ---
