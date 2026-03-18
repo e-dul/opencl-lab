@@ -7,6 +7,7 @@
 //   3. Per-stage timing: GPU stages via cl::Event, CPU stages via steady_clock.
 //   4. /filtered_points and /cluster_features published as sensor_msgs/PointCloud2.
 //   5. (Debug) CPU compaction correctness check vs GPU prefix-sum result.
+//   6. (Challenge) Non-blocking double-buffer path via use_double_buffer:=true.
 
 #include "ocl_wrapper.hpp"   // create_context(), OclContext
 #include "opencl_utils.hpp"  // CL_CHECK, build_program, duration_ms, get_binary_dir
@@ -20,6 +21,7 @@
 #include <std_msgs/msg/header.hpp>
 
 #include <algorithm>
+#include <atomic>
 #include <cassert>
 #include <chrono>
 #include <filesystem>
@@ -58,14 +60,16 @@ public:
     CallbackReturn on_configure(const rclcpp_lifecycle::State&) override
     {
         // Declare node parameters (introspectable via ros2 param list).
-        declare_parameter("topic",         std::string("/points"));
-        declare_parameter("ground_z",      0.2);
-        declare_parameter("min_intensity", 10.0);
-        declare_parameter("max_points",    int64_t(100000));
+        declare_parameter("topic",             std::string("/points"));
+        declare_parameter("ground_z",          0.2);
+        declare_parameter("min_intensity",     10.0);
+        declare_parameter("max_points",        int64_t(100000));
+        declare_parameter("use_double_buffer", false);
 
-        topic_         = get_parameter("topic").as_string();
-        ground_z_      = static_cast<float>(get_parameter("ground_z").as_double());
-        min_intensity_ = static_cast<float>(get_parameter("min_intensity").as_double());
+        topic_             = get_parameter("topic").as_string();
+        ground_z_          = static_cast<float>(get_parameter("ground_z").as_double());
+        min_intensity_     = static_cast<float>(get_parameter("min_intensity").as_double());
+        use_double_buffer_ = get_parameter("use_double_buffer").as_bool();
 
         const int64_t max_pts_val = get_parameter("max_points").as_int();
         if (max_pts_val > static_cast<int64_t>(std::numeric_limits<int>::max())) {
@@ -112,24 +116,43 @@ public:
         const size_t max_floats = static_cast<size_t>(max_points_) * 4;  // XYZ+I
         const size_t max_bytes  = max_floats * sizeof(float);
 
-        point_buf_   = cl::Buffer(ocl_.context, CL_MEM_READ_WRITE, max_bytes);
-        compact_buf_ = cl::Buffer(ocl_.context, CL_MEM_READ_WRITE, max_bytes);
-        mask_buf_    = cl::Buffer(ocl_.context, CL_MEM_READ_WRITE,
-                                  static_cast<size_t>(max_points_) * sizeof(cl_uchar));
-        // Scan operates on int array (copy of mask). Pre-allocate max size.
-        scan_buf_    = cl::Buffer(ocl_.context, CL_MEM_READ_WRITE,
-                                  static_cast<size_t>(max_points_) * sizeof(cl_int));
-        // Tile sums: one int per tile (ceil(max_points / TILE_SIZE)).
-        // WHY +1: integer division truncates; +1 ensures enough slots even when
-        //   max_points_ is not a multiple of TILE_SIZE.
         const size_t max_tiles = (static_cast<size_t>(max_points_) +
                                   static_cast<size_t>(2 * PREFIX_LOCAL_SIZE) - 1)
                                  / static_cast<size_t>(2 * PREFIX_LOCAL_SIZE);
-        tile_sums_buf_ = cl::Buffer(ocl_.context, CL_MEM_READ_WRITE,
-                                    max_tiles * sizeof(cl_int));
+
+        // Slot [0] is always allocated (single-buffer and double-buffer paths).
+        point_buf_[0]     = cl::Buffer(ocl_.context, CL_MEM_READ_WRITE, max_bytes);
+        compact_buf_[0]   = cl::Buffer(ocl_.context, CL_MEM_READ_WRITE, max_bytes);
+        mask_buf_[0]      = cl::Buffer(ocl_.context, CL_MEM_READ_WRITE,
+                                       static_cast<size_t>(max_points_) * sizeof(cl_uchar));
+        // Scan operates on int array (copy of mask). Pre-allocate max size.
+        scan_buf_[0]      = cl::Buffer(ocl_.context, CL_MEM_READ_WRITE,
+                                       static_cast<size_t>(max_points_) * sizeof(cl_int));
+        // Tile sums: one int per tile (ceil(max_points / TILE_SIZE)).
+        // WHY +1 in max_tiles expression: integer division truncates; +1 ensures
+        //   enough slots even when max_points_ is not a multiple of TILE_SIZE.
+        tile_sums_buf_[0] = cl::Buffer(ocl_.context, CL_MEM_READ_WRITE,
+                                       max_tiles * sizeof(cl_int));
         // Feature accumulators: 5 ints (x, y, z, intensity_sum, count).
-        accum_buf_   = cl::Buffer(ocl_.context, CL_MEM_READ_WRITE,
-                                  static_cast<size_t>(FEATURE_ACCUM_COUNT) * sizeof(cl_int));
+        accum_buf_[0]     = cl::Buffer(ocl_.context, CL_MEM_READ_WRITE,
+                                       static_cast<size_t>(FEATURE_ACCUM_COUNT) * sizeof(cl_int));
+
+        // Slot [1] is only allocated when the double-buffer path is enabled.
+        // WHY separate allocation: the double-buffer design requires two
+        // independent device memory regions so one frame can be uploaded/processed
+        // while the previous frame's compact download is still in flight.
+        if (use_double_buffer_) {
+            point_buf_[1]     = cl::Buffer(ocl_.context, CL_MEM_READ_WRITE, max_bytes);
+            compact_buf_[1]   = cl::Buffer(ocl_.context, CL_MEM_READ_WRITE, max_bytes);
+            mask_buf_[1]      = cl::Buffer(ocl_.context, CL_MEM_READ_WRITE,
+                                           static_cast<size_t>(max_points_) * sizeof(cl_uchar));
+            scan_buf_[1]      = cl::Buffer(ocl_.context, CL_MEM_READ_WRITE,
+                                           static_cast<size_t>(max_points_) * sizeof(cl_int));
+            tile_sums_buf_[1] = cl::Buffer(ocl_.context, CL_MEM_READ_WRITE,
+                                           max_tiles * sizeof(cl_int));
+            accum_buf_[1]     = cl::Buffer(ocl_.context, CL_MEM_READ_WRITE,
+                                           static_cast<size_t>(FEATURE_ACCUM_COUNT) * sizeof(cl_int));
+        }
 
         auto t1     = Clock::now();
         double init_ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
@@ -202,12 +225,20 @@ public:
         prog_filter_    = cl::Program();
         prog_scan_      = cl::Program();
         prog_feature_   = cl::Program();
-        point_buf_      = cl::Buffer();
-        compact_buf_    = cl::Buffer();
-        mask_buf_       = cl::Buffer();
-        scan_buf_       = cl::Buffer();
-        tile_sums_buf_  = cl::Buffer();
-        accum_buf_      = cl::Buffer();
+        point_buf_[0]     = cl::Buffer();
+        compact_buf_[0]   = cl::Buffer();
+        mask_buf_[0]      = cl::Buffer();
+        scan_buf_[0]      = cl::Buffer();
+        tile_sums_buf_[0] = cl::Buffer();
+        accum_buf_[0]     = cl::Buffer();
+        if (use_double_buffer_) {
+            point_buf_[1]     = cl::Buffer();
+            compact_buf_[1]   = cl::Buffer();
+            mask_buf_[1]      = cl::Buffer();
+            scan_buf_[1]      = cl::Buffer();
+            tile_sums_buf_[1] = cl::Buffer();
+            accum_buf_[1]     = cl::Buffer();
+        }
         queue_          = cl::CommandQueue();
         ocl_            = OclContext{};
         RCLCPP_INFO(get_logger(), "[DONE] OpenCL resources released.");
@@ -218,30 +249,83 @@ private:
     // ── process_callback (copy-based path) ────────────────────────────────────
     void process_callback(PointCloud2::ConstSharedPtr msg)
     {
-        run_pipeline(msg->data.data(), msg->width * msg->height,
-                     msg->point_step, msg->header);
+        dispatch(msg->data.data(), msg->width * msg->height,
+                 msg->point_step, msg->header);
     }
 
     // ── process_callback_loaned (loaned/zero-copy path) ───────────────────────
     void process_callback_loaned(PointCloud2::UniquePtr msg)
     {
-        run_pipeline(msg->data.data(), msg->width * msg->height,
-                     msg->point_step, msg->header);
+        dispatch(msg->data.data(), msg->width * msg->height,
+                 msg->point_step, msg->header);
+    }
+
+    // ── dispatch ──────────────────────────────────────────────────────────────
+    // Routes each incoming message to the blocking single-buffer path or the
+    // non-blocking double-buffer path depending on use_double_buffer_.
+    void dispatch(const uint8_t* data, uint32_t num_pts, uint32_t point_step,
+                  const std_msgs::msg::Header& hdr)
+    {
+        if (!use_double_buffer_) {
+            // Blocking single-buffer path: process buf[0] and wait for completion
+            // before returning so that the next callback sees a consistent state.
+            run_pipeline(data, num_pts, point_step, hdr, 0);
+            CL_CHECK(queue_.finish());
+            return;
+        }
+
+        // Non-blocking double-buffer path.
+        //
+        // Contention guard: if the previous async dispatch has not yet completed
+        // (its compact-download event is still queued), fall back to a blocking
+        // wait on the full queue rather than overwriting in-flight device buffers.
+        // WHY check prev_done_ev_() != nullptr before getInfo:
+        //   cl::Event is default-constructed with a null internal handle; calling
+        //   getInfo on a null event is undefined behaviour in some runtimes.
+        // Load write_idx before checking contention so the contention guard
+        // sees the buffer index we intend to write, matching the spec ordering.
+        int write_idx = active_buf_.load();
+
+        cl_int ev_status = CL_COMPLETE;
+        if (prev_done_ev_() != nullptr) {
+            CL_CHECK(prev_done_ev_.getInfo(CL_EVENT_COMMAND_EXECUTION_STATUS, &ev_status));
+        }
+        if (ev_status != CL_COMPLETE) {
+            CL_CHECK(queue_.finish());
+            RCLCPP_WARN(get_logger(), "double-buffer contention — falling back to blocking wait");
+            // After forced flush the in-flight callback fires, flipping active_buf_.
+            // Reload to get the now-available write slot.
+            write_idx = active_buf_.load();
+        }
+        prev_done_ev_ = run_pipeline(data, num_pts, point_step, hdr, write_idx);
+
+        // WHY lambda captures only &active_buf_ via void* user:
+        // cl::Event callback fires in the OpenCL driver thread —
+        // only std::atomic operations are safe here; no RCLCPP calls, no mutex.
+        // WHY CL_CHECK on setCallback: a failed registration silently breaks
+        // the buffer-swap invariant — the atomic flip would never fire.
+        CL_CHECK(prev_done_ev_.setCallback(CL_COMPLETE, [](cl_event, cl_int, void* user) {
+            auto* ab = static_cast<std::atomic<int>*>(user);
+            ab->store(1 - ab->load());
+        }, &active_buf_));
     }
 
     // ── run_pipeline ──────────────────────────────────────────────────────────
     // Four-stage GPU pipeline with per-stage cl::Event profiling.
-    void run_pipeline(const uint8_t* data_ptr,
-                      uint32_t num_points_u32,
-                      uint32_t point_step,
-                      const std_msgs::msg::Header& header)
+    // Returns the compact-download cl::Event so the caller can choose whether
+    // to wait (blocking path) or register a completion callback (double-buffer).
+    cl::Event run_pipeline(const uint8_t* data_ptr,
+                           uint32_t num_points_u32,
+                           uint32_t point_step,
+                           const std_msgs::msg::Header& header,
+                           int buf_idx)
     {
         // ── 0. Validate and derive sizes ──────────────────────────────────────
         if (num_points_u32 > static_cast<uint32_t>(max_points_)) {
             RCLCPP_WARN(get_logger(),
                 "Message has %u points; pre-allocated buffer holds %d. Skipping.",
                 num_points_u32, max_points_);
-            return;
+            return cl::Event{};
         }
         if (point_step % sizeof(float) != 0) {
             throw std::runtime_error("point_step is not a multiple of sizeof(float)");
@@ -261,12 +345,12 @@ private:
         // ── 1. GPU Upload ─────────────────────────────────────────────────────
         cl::Event upload_ev;
         CL_CHECK(queue_.enqueueWriteBuffer(
-            point_buf_, CL_FALSE, 0, total_bytes, data_ptr,
+            point_buf_[buf_idx], CL_FALSE, 0, total_bytes, data_ptr,
             nullptr, &upload_ev));
 
         // ── 2. GPU Filter ─────────────────────────────────────────────────────
-        CL_CHECK(filter_kernel_.setArg(0, point_buf_));
-        CL_CHECK(filter_kernel_.setArg(1, mask_buf_));
+        CL_CHECK(filter_kernel_.setArg(0, point_buf_[buf_idx]));
+        CL_CHECK(filter_kernel_.setArg(1, mask_buf_[buf_idx]));
         CL_CHECK(filter_kernel_.setArg(2, cl_float(ground_z_)));
         CL_CHECK(filter_kernel_.setArg(3, cl_float(min_intensity_)));
         CL_CHECK(filter_kernel_.setArg(4, cl_int(point_step_floats)));
@@ -292,7 +376,7 @@ private:
         CL_CHECK(queue_.finish());
 
         std::vector<cl_uchar> host_mask(static_cast<size_t>(num_points));
-        CL_CHECK(queue_.enqueueReadBuffer(mask_buf_, CL_TRUE, 0,
+        CL_CHECK(queue_.enqueueReadBuffer(mask_buf_[buf_idx], CL_TRUE, 0,
                                           static_cast<size_t>(num_points) * sizeof(cl_uchar),
                                           host_mask.data()));
 
@@ -302,7 +386,7 @@ private:
         }
 
         // Upload int mask as scan_buf_.
-        CL_CHECK(queue_.enqueueWriteBuffer(scan_buf_, CL_TRUE, 0,
+        CL_CHECK(queue_.enqueueWriteBuffer(scan_buf_[buf_idx], CL_TRUE, 0,
                                            static_cast<size_t>(num_points) * sizeof(cl_int),
                                            host_scan.data()));
 
@@ -326,8 +410,8 @@ private:
         const size_t tile_local_bytes = static_cast<size_t>(TILE_SIZE) * sizeof(cl_int);
 
         // Pass 1.
-        CL_CHECK(scan_tile_kernel_.setArg(0, scan_buf_));
-        CL_CHECK(scan_tile_kernel_.setArg(1, tile_sums_buf_));
+        CL_CHECK(scan_tile_kernel_.setArg(0, scan_buf_[buf_idx]));
+        CL_CHECK(scan_tile_kernel_.setArg(1, tile_sums_buf_[buf_idx]));
         CL_CHECK(scan_tile_kernel_.setArg(2, cl::Local(tile_local_bytes)));
         CL_CHECK(scan_tile_kernel_.setArg(3, cl_int(num_points)));
 
@@ -344,19 +428,19 @@ private:
 
         // Read per-tile totals, compute their exclusive prefix sum on host.
         std::vector<cl_int> tile_sums_host(static_cast<size_t>(num_tiles));
-        CL_CHECK(queue_.enqueueReadBuffer(tile_sums_buf_, CL_TRUE, 0,
+        CL_CHECK(queue_.enqueueReadBuffer(tile_sums_buf_[buf_idx], CL_TRUE, 0,
                                           static_cast<size_t>(num_tiles) * sizeof(cl_int),
                                           tile_sums_host.data()));
 
         cl_int running_tile = 0;
         for (int t = 0; t < num_tiles; ++t) {
-            cl_int orig     = tile_sums_host[t];
+            cl_int orig       = tile_sums_host[t];
             tile_sums_host[t] = running_tile;
-            running_tile   += orig;
+            running_tile     += orig;
         }
         const int compact_count = running_tile;
 
-        CL_CHECK(queue_.enqueueWriteBuffer(tile_sums_buf_, CL_TRUE, 0,
+        CL_CHECK(queue_.enqueueWriteBuffer(tile_sums_buf_[buf_idx], CL_TRUE, 0,
                                            static_cast<size_t>(num_tiles) * sizeof(cl_int),
                                            tile_sums_host.data()));
 
@@ -365,8 +449,8 @@ private:
         //   local exclusive scan — no inter-tile offset to add.
         cl::Event scan_add_ev;
         if (num_tiles > 1) {
-            CL_CHECK(scan_add_kernel_.setArg(0, scan_buf_));
-            CL_CHECK(scan_add_kernel_.setArg(1, tile_sums_buf_));
+            CL_CHECK(scan_add_kernel_.setArg(0, scan_buf_[buf_idx]));
+            CL_CHECK(scan_add_kernel_.setArg(1, tile_sums_buf_[buf_idx]));
             CL_CHECK(scan_add_kernel_.setArg(2, cl_int(num_points)));
 
             CL_CHECK(queue_.enqueueNDRangeKernel(
@@ -381,10 +465,10 @@ private:
         }
 
         // Step 3c: Scatter compacted points.
-        CL_CHECK(scatter_kernel_.setArg(0, point_buf_));
-        CL_CHECK(scatter_kernel_.setArg(1, scan_buf_));
-        CL_CHECK(scatter_kernel_.setArg(2, mask_buf_));
-        CL_CHECK(scatter_kernel_.setArg(3, compact_buf_));
+        CL_CHECK(scatter_kernel_.setArg(0, point_buf_[buf_idx]));
+        CL_CHECK(scatter_kernel_.setArg(1, scan_buf_[buf_idx]));
+        CL_CHECK(scatter_kernel_.setArg(2, mask_buf_[buf_idx]));
+        CL_CHECK(scatter_kernel_.setArg(3, compact_buf_[buf_idx]));
         CL_CHECK(scatter_kernel_.setArg(4, cl_int(point_step_floats)));
         CL_CHECK(scatter_kernel_.setArg(5, cl_int(num_points)));
 
@@ -400,14 +484,14 @@ private:
         // ── 4. GPU Feature Extract ─────────────────────────────────────────────
         // Zero accumulators before dispatch (CL 1.2 compatible: enqueueWriteBuffer).
         std::vector<cl_int> zero_accum(FEATURE_ACCUM_COUNT, 0);
-        CL_CHECK(queue_.enqueueWriteBuffer(accum_buf_, CL_TRUE, 0,
+        CL_CHECK(queue_.enqueueWriteBuffer(accum_buf_[buf_idx], CL_TRUE, 0,
                                            static_cast<size_t>(FEATURE_ACCUM_COUNT) * sizeof(cl_int),
                                            zero_accum.data()));
 
         cl::Event feature_ev;
         if (compact_count > 0) {
-            CL_CHECK(feature_kernel_.setArg(0, compact_buf_));
-            CL_CHECK(feature_kernel_.setArg(1, accum_buf_));
+            CL_CHECK(feature_kernel_.setArg(0, compact_buf_[buf_idx]));
+            CL_CHECK(feature_kernel_.setArg(1, accum_buf_[buf_idx]));
             CL_CHECK(feature_kernel_.setArg(2, cl_int(point_step_floats)));
             CL_CHECK(feature_kernel_.setArg(3, cl_int(compact_count)));
 
@@ -421,6 +505,10 @@ private:
         }
 
         // ── 5. GPU Download ───────────────────────────────────────────────────
+        // WHY CL_TRUE for accum: publish step reads accum_host immediately after
+        //   this call — must be complete before we proceed to CPU publish.
+        // WHY CL_FALSE for compact: the download event is returned to the caller
+        //   so the double-buffer path can overlap it with the next frame's upload.
         const size_t compact_bytes = static_cast<size_t>(point_step) * compact_count;
         std::vector<uint8_t> compact_host(compact_bytes);
         std::vector<cl_int>  accum_host(FEATURE_ACCUM_COUNT, 0);
@@ -428,14 +516,13 @@ private:
         cl::Event download_ev;
         if (compact_count > 0) {
             CL_CHECK(queue_.finish());
-            CL_CHECK(queue_.enqueueReadBuffer(compact_buf_, CL_FALSE, 0,
+            CL_CHECK(queue_.enqueueReadBuffer(compact_buf_[buf_idx], CL_FALSE, 0,
                                               compact_bytes, compact_host.data(),
                                               nullptr, &download_ev));
         }
-        CL_CHECK(queue_.enqueueReadBuffer(accum_buf_, CL_TRUE, 0,
+        CL_CHECK(queue_.enqueueReadBuffer(accum_buf_[buf_idx], CL_TRUE, 0,
                                           static_cast<size_t>(FEATURE_ACCUM_COUNT) * sizeof(cl_int),
                                           accum_host.data()));
-        CL_CHECK(queue_.finish());
 
         // ── 6. CPU Publish ────────────────────────────────────────────────────
         auto t_publish_start = Clock::now();
@@ -466,13 +553,10 @@ private:
         // downstream consumers should interpret absence of message as "no clusters".
         // Fields: centroid XYZ + intensity_mean + count (all float32, 20 bytes/feature).
         if (compact_count > 0) {
-            float cx = 0.0f, cy = 0.0f, cz = 0.0f, ci = 0.0f;
-            if (compact_count > 0) {
-                cx = static_cast<float>(accum_host[0]) / FEATURE_SCALE / compact_count;
-                cy = static_cast<float>(accum_host[1]) / FEATURE_SCALE / compact_count;
-                cz = static_cast<float>(accum_host[2]) / FEATURE_SCALE / compact_count;
-                ci = static_cast<float>(accum_host[3]) / FEATURE_SCALE / compact_count;
-            }
+            float cx = static_cast<float>(accum_host[0]) / FEATURE_SCALE / compact_count;
+            float cy = static_cast<float>(accum_host[1]) / FEATURE_SCALE / compact_count;
+            float cz = static_cast<float>(accum_host[2]) / FEATURE_SCALE / compact_count;
+            float ci = static_cast<float>(accum_host[3]) / FEATURE_SCALE / compact_count;
             float count_f = static_cast<float>(compact_count);
 
             std::vector<uint8_t> feat_data(5 * sizeof(float));
@@ -514,9 +598,9 @@ private:
         // compact_ev captures Pass 1 of the tile scan (the dominant GPU work).
         // scan_add_ev captures Pass 2 (skipped when num_tiles == 1 → stays 0.0).
         // Scatter is appended to the same stage label.
-        double compact_ms     = duration_ms(compact_ev);
-        double scan_add_ms    = (num_tiles > 1) ? duration_ms(scan_add_ev) : 0.0;
-        double scatter_ms     = duration_ms(scatter_ev);
+        double compact_ms       = duration_ms(compact_ev);
+        double scan_add_ms      = (num_tiles > 1) ? duration_ms(scan_add_ev) : 0.0;
+        double scatter_ms       = duration_ms(scatter_ev);
         double compact_total_ms = compact_ms + scan_add_ms + scatter_ms;
         double feature_ms  = 0.0;
         double download_ms = 0.0;
@@ -529,11 +613,11 @@ private:
 
         msg_count_++;
         RCLCPP_INFO(get_logger(),
-            "[MSG %4d] pts_in=%d pts_out=%d | "
+            "[MSG %4d] pts_in=%d pts_out=%d buf=%d | "
             "upload=%.3f filter=%.3f compact=%.3f "
             "feature=%.3f download=%.3f publish=%.3f | total=%.3f ms",
             msg_count_,
-            num_points, compact_count,
+            num_points, compact_count, buf_idx,
             upload_ms, filter_ms, compact_total_ms,
             feature_ms, download_ms, publish_ms,
             total_ms);
@@ -559,6 +643,8 @@ private:
             }
         }
 #endif
+
+        return download_ev;
     }
 
     // ── OpenCL members (valid between on_configure and on_cleanup) ────────────
@@ -572,18 +658,28 @@ private:
     cl::Kernel       scan_add_kernel_;
     cl::Kernel       scatter_kernel_;
     cl::Kernel       feature_kernel_;
-    cl::Buffer       point_buf_;
-    cl::Buffer       compact_buf_;
-    cl::Buffer       mask_buf_;
-    cl::Buffer       scan_buf_;
-    cl::Buffer       tile_sums_buf_;
-    cl::Buffer       accum_buf_;
+    // Double-buffered device memory: [0] always active; [1] allocated only when
+    // use_double_buffer_ is true. active_buf_ selects the write slot.
+    cl::Buffer       point_buf_[2];
+    cl::Buffer       compact_buf_[2];
+    cl::Buffer       mask_buf_[2];
+    cl::Buffer       scan_buf_[2];
+    cl::Buffer       tile_sums_buf_[2];
+    cl::Buffer       accum_buf_[2];
 
     // ── Parameters ────────────────────────────────────────────────────────────
-    std::string topic_         = "/points";
-    float       ground_z_      = 0.2f;
-    float       min_intensity_ = 10.0f;
-    int         max_points_    = 100000;
+    std::string topic_             = "/points";
+    float       ground_z_          = 0.2f;
+    float       min_intensity_     = 10.0f;
+    int         max_points_        = 100000;
+    bool        use_double_buffer_ = false;
+
+    // ── Double-buffer state ───────────────────────────────────────────────────
+    // active_buf_ is flipped by the CL event callback in the driver thread.
+    // WHY std::atomic: the callback fires outside the ROS executor thread;
+    //   atomic load/store avoids a data race without a mutex.
+    std::atomic<int> active_buf_{0};
+    cl::Event        prev_done_ev_;
 
     // ── ROS 2 pub/sub (valid between on_activate and on_deactivate) ──────────
     rclcpp::Subscription<PointCloud2>::SharedPtr sub_;
@@ -606,10 +702,11 @@ int main(int argc, char* argv[])
                 "Usage: perception_node [ROS args]\n\n"
                 "ROS 2 LifecycleNode — accelerated PointCloud2 processing via OpenCL.\n\n"
                 "Node parameters (set via --ros-args -p <name>:=<value>):\n"
-                "  topic          string  default: /points       — subscription topic\n"
-                "  ground_z       double  default: 0.2           — ground removal threshold (m)\n"
-                "  min_intensity  double  default: 10.0          — minimum intensity threshold\n"
-                "  max_points     int64   default: 100000        — pre-allocated buffer size\n\n"
+                "  topic              string  default: /points       — subscription topic\n"
+                "  ground_z           double  default: 0.2           — ground removal threshold (m)\n"
+                "  min_intensity      double  default: 10.0          — minimum intensity threshold\n"
+                "  max_points         int64   default: 100000        — pre-allocated buffer size\n"
+                "  use_double_buffer  bool    default: false         — enable non-blocking double-buffer path (C3 Challenge)\n\n"
                 "Publishes:\n"
                 "  /filtered_points   sensor_msgs/PointCloud2  — ground- and intensity-filtered cloud\n"
                 "  /cluster_features  sensor_msgs/PointCloud2  — centroid XYZ, intensity mean, count\n\n"

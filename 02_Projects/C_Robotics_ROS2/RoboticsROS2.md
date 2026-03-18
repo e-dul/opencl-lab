@@ -220,6 +220,7 @@ Synthetic publisher flags (CLI11, standalone binary `point_cloud_publisher`):
 - `--topic` — topic to publish on
 - `--hz` — publish rate in Hz
 - `--points` — number of points per cloud
+- `--scene` — scene type: `grid` (default, throughput benchmark) or `mixed` (visual validation)
 
 ### Verify
 - Node publishes `/filtered_points` and `/cluster_features` topics
@@ -234,6 +235,14 @@ Synthetic publisher flags (CLI11, standalone binary `point_cloud_publisher`):
   [SEND ] Publish filtered cloud:    0.300 ms
   Total:                             4.700 ms  <- must be < 5 ms to pass
   ```
+
+### Scene types
+
+- `grid` (default): uniform XYZ grid, z∈[0.5, 5.4] m, intensity∈[50, 249]. All points pass the default filter. Use for throughput benchmarking.
+- `mixed`: design-doc validation scene. Point budget: 30% valid clusters, 40% ground band, 30% low-intensity blob:
+  - 3 valid clusters at (2, 0, 1), (−2, 0, 1), (0, 3, 1), r = 0.3 m, intensity 150 — pass filter
+  - Ground band z∈[−0.1, 0.05] m, intensity 200 — removed by `ground_z:=0.1`
+  - Low-intensity blob at (0, 0, 2), intensity 10 — removed by `min_intensity:=50`
 
 ### Core Concept: The Serialization Problem (Loaned Messages)
 
@@ -348,6 +357,17 @@ Mixed-scene layout for verification:
 - Ground band z ∈ [−0.1, 0.05] m, intensity 200 — removed by `ground_z:=0.1`
 - Low-intensity cloud at (0, 0, 2), intensity 10 — removed by `min_intensity:=50`
 - `/cluster_features` centroids must be within 0.05 m of the three cluster positions above
+
+### Testing hints
+
+- Use `--scene mixed` for the double-buffer challenge run (not `grid`), so you can visually confirm correct filtering in RViz while checking for zero contention.
+- RViz setup: Fixed Frame `lidar_link`; add PointCloud2 on `/filtered_points`; add PointCloud2 on `/cluster_features` with **Size >= 0.2 m** (sphere style) — the centroid is a single point and invisible at default pixel size.
+- Quick spot-check:
+  ```bash
+  ros2 topic echo /cluster_features --once
+  ```
+  Centroids must be within 0.05 m of the three cluster positions: (2, 0, 1), (−2, 0, 1), (0, 3, 1).
+- Use `--scene grid` for throughput benchmarking only (Hz and latency gates).
 
 ### Mini-challenge
 

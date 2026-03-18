@@ -1,7 +1,7 @@
 # Module 6: Path C — Robotics & ROS 2
 
 **Version:** 1.5
-**Status:** Active — C1,C2 complete; C3-challenge next
+**Status:** Active — C1,C2,C3 complete; C3-challenge complete; cleanup (Phase 6) next
 **Module Path:** `02_Projects/C_Robotics_ROS2/`
 
 ---
@@ -33,7 +33,7 @@ Accelerate a real ROS 2 perception pipeline without breaking the node contract. 
   - *Context*: Executive Summary §Path C item C.2 challenge; `RoboticsROS2.md` §C2_Tiled_Challenge.
 - [x] Phase 4: C3 — Accelerated Perception Node (Flagship) — Full pipeline: PointCloud2 subscribe → GPU filter → feature extraction → publish; end-to-end < 5 ms gate.
   - *Context*: Executive Summary §Path C item C.3; `RoboticsROS2.md` §C3_Perception_Node.
-- [ ] Phase 5: C3 Challenge — Double-Buffer Real-Time Guarantee — Non-blocking enqueue; buffer swap via `cl::Event` callback; contention guard logs `WARN` and falls back to `queue_.finish()` — silent drop forbidden. See §Verification Standard for the mixed-scene setup and expected outcomes. MANUAL verification required (RViz).
+- [x] Phase 5: C3 Challenge — Double-Buffer Real-Time Guarantee — Non-blocking enqueue; buffer swap via `cl::Event` callback; contention guard logs `WARN` and falls back to `queue_.finish()` — silent drop forbidden. See §Verification Standard for the mixed-scene setup and expected outcomes. MANUAL verification required (RViz).
   - *Context*: Executive Summary §Path C item C.3 challenge; `RoboticsROS2.md` §C3_DoubleBuffer_Challenge.
 - [ ] Phase 6: Module review and cleanup — extract common utils, align naming conventions, verify all three binaries build and run cleanly from a sourced ROS 2 workspace. Extract CMake related ROS setup to common.cmake.
 
@@ -183,6 +183,9 @@ Activated by `use_double_buffer:=true` at launch — same binary, same directory
 
 - **C2 LDS Tiling Yields ~1.0x on RTX 4060 / Radeon 680M (Task 038)**: Dense 2D neighbourhood scans are not LDS-bandwidth-bound. A 128-byte L1 cache line covers 128 `uchar` cells; a warp scanning the same search-window row generates at most one cache miss per row — the same reuse LDS would provide, without barrier overhead. Tiled was ~5% slower due to barrier cost across all tested map sizes (512²–2048²) and radii (r=10–60). Hardware-waiver † applies to the ≥ 1.5× speedup gate. The correct optimisation is algorithmic: separable 1D distance transform (Meijster/Saito) reduces O(r²) per-cell work to O(1) regardless of memory hierarchy.
 
+- **`/cluster_features` Publishes Global Centroid Only**: The feature extraction publishes a single PointCloud2 point representing the combined centroid of all filtered points — not per-cluster centroids. Downstream consumers expecting per-cluster features must be aware of this limitation.
+- **`/cluster_features` RViz Visibility**: The centroid point is invisible at RViz default PointCloud2 size (pixel style). Display requires Size ≥ 0.2 m (sphere style) in the PointCloud2 display settings.
+
 ---
 
 ## Performance Gates (Path Completion)
@@ -239,9 +242,9 @@ Hardware-waiver: gates marked with † may not be achievable on CPU-fallback or 
     ```bash
     cmake -B build && cmake --build build
     GPU=NVIDIA ./build/perception_node --ros-args -p topic:=/points -p ground_z:=0.1 -p min_intensity:=50.0 -p max_points:=200000 -p use_double_buffer:=true
-    ./build/point_cloud_publisher --topic /points --hz 200 --points 100000
+    ./build/point_cloud_publisher --scene mixed --topic /points --hz 200 --points 100000
     ```
-    Mixed scene: 3 valid clusters at (2,0,1), (−2,0,1), (0,3,1) r=0.3 m intensity 150; ground band z∈[−0.1, 0.05] m intensity 200; low-intensity cloud at (0,0,2) intensity 10. Expected: `/filtered_points` contains only the 3 valid clusters; `/cluster_features` centroids within 0.05 m of expected positions; zero `WARN: double-buffer contention` log entries over 10 s at 200 Hz. RViz PointCloud2 display is the MANUAL verification artifact.
+    Mixed scene (`--scene mixed`): 3 valid clusters at (2,0,1), (−2,0,1), (0,3,1) r=0.3 m intensity 150; ground band z∈[−0.1, 0.05] m intensity 200 (filtered by `ground_z:=0.1`); low-intensity blob at (0,0,2) intensity 10 (filtered by `min_intensity:=50`). Expected: `/filtered_points` contains only the 3 spherical clusters (~30% of points); `/cluster_features` publishes one centroid feature (global centroid of all filtered points); zero `WARN: double-buffer contention` log entries over 10 s at 200 Hz. RViz setup: Fixed Frame `lidar_link`; add PointCloud2 on `/filtered_points`; add PointCloud2 on `/cluster_features` with **Size ≥ 0.2 m** (sphere style) — the centroid is a single point and invisible at default pixel size. Use `--scene grid` (default) for throughput benchmarking only.
 - **Tooling** (module-specific additions to master_specs):
   - `stb_image` / `stb_image_write` for `.pgm` input and `output_costmap.bmp` output (C2 `MapPublisher` + colorization).
   - ROS 2 packages: `rclcpp`, `rclcpp_lifecycle`, `sensor_msgs`, `nav_msgs`, `std_msgs` via `find_package(... REQUIRED)`. Required by C1, C2, and C3.
