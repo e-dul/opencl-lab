@@ -28,7 +28,7 @@ Provide self-contained, elective case studies for engineers who have completed a
 
 - [x] Phase 1: 4.1 vkFFT Audio — GPU FFT spectrogram via vkFFT; FFTW CPU reference; speedup gate.
   - *Context*: Executive Summary §4.1; `04_Addons/4_1_vkFFT_Audio/vkFFTAudio.md`
-- [ ] Phase 2: 4.2 OpenCL vs CUDA — Written analysis artifact (structured `report.md` + code comparison); no binary.
+- [x] Phase 2: 4.2 OpenCL vs CUDA — Written analysis artifact (structured `report.md` + code comparison); no binary.
   - *Context*: Executive Summary §4.2; `04_Addons/4_2_OpenCL_vs_CUDA/OpenCLvsCUDA.md`
 - [ ] Phase 3: 4.3 Deployment — CMake install rules, AppImage script, Docker multi-stage build; verified by clean `docker run`.
   - *Context*: Executive Summary §4.3; `04_Addons/4_3_Deployment/Deployment.md`
@@ -41,6 +41,7 @@ Provide self-contained, elective case studies for engineers who have completed a
 - [ ] Phase 7: 4.7 SoftISP — Naive bilinear debayer (V1) vs LDS-tiled debayer (V2) at 4K; pixel-identical BMP outputs; speedup gate.
   - *Context*: Executive Summary §4.7; `04_Addons/4_7_SoftISP/SoftISP.md`
 - [ ] Phase 8: Module review and cleanup — Verify all standalone builds, align CMake conventions with Module 1/2 patterns, confirm asset references resolve.
+  - [ ] Realign `04_Addons/4_2_OpenCL_vs_CUDA/OpenCLvsCUDA.md` README: remove reference to `portability_demo` binary (4.2 is report + code samples only; no binary by design — see Key Decision #3).
 
 ---
 
