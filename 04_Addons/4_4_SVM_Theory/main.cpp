@@ -26,7 +26,6 @@
 #include <climits>
 #include <cstring>
 #include <iostream>
-#include <sstream>
 #include <string>
 #include <vector>
 
@@ -88,25 +87,6 @@ static OclSetup select_device() {
         std::string("No matching device for GPU=") + (gpu_env ? gpu_env : "(unset)"));
 }
 
-// ---------------------------------------------------------------------------
-// parse_opencl_c_major — extracts the major version from the string returned
-// by CL_DEVICE_OPENCL_C_VERSION, e.g. "OpenCL C 2.0 Mesa..." → 2.
-// Returns 1 on parse failure (safe conservative fallback).
-// ---------------------------------------------------------------------------
-static int parse_opencl_c_major(const std::string& ver_str) {
-    // Format: "OpenCL C <major>.<minor> ..."
-    // Scan tokens until we find one that looks like "N.M".
-    std::string token;
-    std::istringstream iss(ver_str);
-    while (iss >> token) {
-        auto dot = token.find('.');
-        if (dot != std::string::npos && dot > 0) {
-            try { return std::stoi(token.substr(0, dot)); }
-            catch (...) {}
-        }
-    }
-    return 1;
-}
 
 int main(int argc, char* argv[]) {
     CLI::App app{"SVM Deep Dive Benchmark"};
@@ -221,20 +201,16 @@ int main(int argc, char* argv[]) {
     // SVM gives host and device a shared virtual address space, removing the
     // need for explicit buffer copies when both sides can access the same pointer.
     // =========================================================================
-    const int cl_major = parse_opencl_c_major(
-        ocl.device.getInfo<CL_DEVICE_OPENCL_C_VERSION>());
-    const bool svm_possible = (cl_major >= 2);
-
 #ifdef CL_VERSION_2_0
-    if (!svm_possible) {
-        printf("[SVM coarse    ] SKIPPED — OpenCL C < 2.0\n");
-        printf("[SVM fine      ] SKIPPED — OpenCL C < 2.0\n");
-    } else {
+    {
+        // WHY capabilities query (not CL_DEVICE_OPENCL_C_VERSION): the legacy
+        // CL_DEVICE_OPENCL_C_VERSION string returns "OpenCL C 1.2" even on
+        // OpenCL 3.0 drivers that expose SVM; the bitmask is authoritative.
         cl_device_svm_capabilities svm_caps = 0;
         CL_CHECK(clGetDeviceInfo(ocl.device(), CL_DEVICE_SVM_CAPABILITIES,
                                  sizeof(svm_caps), &svm_caps, nullptr));
-        const bool has_coarse    = (svm_caps & CL_DEVICE_SVM_COARSE_GRAIN_BUFFER) != 0;
-        const bool has_fine_sys  = (svm_caps & CL_DEVICE_SVM_FINE_GRAIN_SYSTEM)   != 0;
+        const bool has_coarse   = (svm_caps & CL_DEVICE_SVM_COARSE_GRAIN_BUFFER) != 0;
+        const bool has_fine_sys = (svm_caps & CL_DEVICE_SVM_FINE_GRAIN_SYSTEM)   != 0;
 
         // =====================================================================
         // Path C: SVM coarse-grained
@@ -345,7 +321,6 @@ int main(int argc, char* argv[]) {
     }
 #else
     // Headers pre-date OpenCL 2.0 — SVM symbols unavailable at compile time.
-    (void)svm_possible;
     printf("[SVM coarse    ] SKIPPED — compiled without CL_VERSION_2_0\n");
     printf("[SVM fine      ] SKIPPED — compiled without CL_VERSION_2_0\n");
 #endif
