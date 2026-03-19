@@ -34,7 +34,7 @@ Provide self-contained, elective case studies for engineers who have completed a
   - *Context*: Executive Summary §4.3; `04_Addons/4_3_Deployment/Deployment.md`
 - [x] Phase 4: 4.4 SVM Deep Dive — Standalone benchmark: `CL_MEM_COPY_HOST_PTR` vs `USE_HOST_PTR` vs SVM coarse-grained vs SVM fine-grained; BMP artifact from image round-trip.
   - *Context*: Executive Summary §4.4; `04_Addons/4_4_SVM_Theory/SVMTheory.md`
-- [ ] Phase 5: 4.5 Voxel Mapping — DDA ray casting over voxel grid from LiDAR point cloud; reuses B3 ray-AABB math; ROS 2 bag input.
+- [ ] Phase 5: 4.5 Voxel Mapping — DDA ray casting over voxel grid from LiDAR point cloud; reuses B3 ray-AABB math; subscribes to live `sensor_msgs/PointCloud2` topic (bags played via `ros2 bag play`).
   - *Context*: Executive Summary §4.5; `04_Addons/4_5_Voxel_Mapping/VoxelMapping.md`
 - [ ] Phase 6: 4.6 FFmpeg Pipeline — Hardware decode (NVDEC/VAAPI) → zero-copy OpenCL surface map → filter kernel from Track A → re-encode; per-frame breakdown.
   - *Context*: Executive Summary §4.6; `04_Addons/4_6_FFmpeg_Pipeline/FFmpegPipeline.md`
@@ -55,7 +55,7 @@ Provide self-contained, elective case studies for engineers who have completed a
 - **Non-linear Ordering**: No compile-time dependency between add-ons. Shared logic via `common/` only.
 - **4.2 Exception**: Written analysis only — no binary. Artifact is `report.md` in `4_2_OpenCL_vs_CUDA/`. No performance gate.
 - **4.3 Exception**: Produces packaging artifacts (Dockerfile, CMake install rules, AppImage script). Verification: successful `docker build` + `docker run` of the `01_VisualKernel` demo.
-- **4.5 ROS 2 Dependency**: Hard ROS 2 Humble+ dependency. CMake must check `$ENV{ROS_DISTRO}` and emit `message(FATAL_ERROR)` with instructions if unset. All other add-ons build without ROS 2.
+- **4.5 ROS 2 Dependency**: Hard ROS 2 Jazzy dependency. CMake must check `$ENV{ROS_DISTRO}` and emit `message(FATAL_ERROR)` with instructions if unset. All other add-ons build without ROS 2.
 - **4.6 Hardware Interop**: `clCreateFromVA_APIMediaSurfaceINTEL` (Intel/AMD) and `cl_khr_egl_image` (Nvidia) checked at runtime. Software-decode fallback (`AVFrame` CPU → `clEnqueueWriteBuffer`) required when hardware interop unavailable.
 - **4.7 LDS Pixel-Identical Check**: V1 and V2 outputs must be byte-exact. Any difference terminates run with `std::runtime_error`. Check is in-binary, not a test script.
 - **vkFFT Fetching**: Via `FetchContent_Declare` in `4_1_vkFFT_Audio/CMakeLists.txt`. No system install required.
@@ -77,7 +77,7 @@ Provide self-contained, elective case studies for engineers who have completed a
 
 - **4.4 SVM Benchmark** (`4_4_SVM_Theory/`): Four memory transfer paths for 1080p image round-trip: `CL_MEM_COPY_HOST_PTR`, `CL_MEM_USE_HOST_PTR`, SVM coarse-grained, SVM fine-grained (guarded `#ifdef CL_VERSION_2_0`). Reports ms per path; writes `output_svm_verify.bmp`. CLI: `--width`, `--height`, `--iterations`.
 
-- **4.5 Voxel Mapping** (`4_5_Voxel_Mapping/`): Subscribes to `/points` (`sensor_msgs/PointCloud2`). Per-frame: upload → DDA kernel (`atomic_or` per ray) → optional flip-count filter → 2D slice BMP. CLI: `--bag`, `--topic`, `--resolution`, `--output`.
+- **4.5 Voxel Mapping** (`4_5_Voxel_Mapping/`): Two binaries. `voxel_mapping`: subscribes to `--topic` (`sensor_msgs/PointCloud2`), accumulates voxel grid across frames, writes `output_voxel_slice.bmp` on shutdown. CLI: `--topic`, `--resolution`, `--output`, `--enable-flip-filter`, `--flip-threshold`. `voxel_point_cloud_publisher`: synthetic publisher with `--scene static|dynamic` (dynamic scene orbits sphere clusters per frame to exercise flip-count filter). Bags played via `ros2 bag play`. No `rosbag2_cpp` dependency.
 
 - **4.6 FFmpeg Transcoder** (`4_6_FFmpeg_Pipeline/`): Reads `.mp4`, hardware-decodes to GPU surface (VAAPI/EGL), maps to OpenCL image (zero-copy), applies blur/filter kernel from Track A, re-encodes. Per-frame stage breakdown. CLI: `--input`, `--output`, `--effect` (`bokeh`|`sepia`).
 
@@ -165,7 +165,7 @@ Provide self-contained, elective case studies for engineers who have completed a
 - **4.3 Docker PoCL vs Native Driver**: Dockerfile must install `ocl-icd-libopencl1` and at minimum PoCL. `GPU` env var selection must still work inside the container. *(Resolved: GPU passthrough via `--device /dev/dri` + host ICD/library mounts works; PoCL CPU fallback confirmed without GPU.)*
 - **4.3 AppImage Kernel Path**: Kernel files must be copied to `AppDir/usr/bin/kernels/` (next to binary) — not only `usr/share/`. The binary resolves kernels via `std::filesystem::read_symlink("/proc/self/exe").parent_path() / "kernels/"` to work inside the squashfs mount path.
 - **4.3 libOpenCL exclusion**: `libOpenCL.so.1` must be excluded from AppImage (`--exclude-library libOpenCL.so.1`). Bundling it bypasses the host ICD loader and silently falls back to CPU.
-- **Asset Availability**: `sample.wav`, `raw_bayer_4k.raw`, `sample.mp4`, `lidar_sample.bag` are large binary files. CMake emits `message(WARNING)` if missing (not a build error). Binary fails gracefully at runtime with clear error.
+- **Asset Availability**: `sample.wav`, `raw_bayer_4k.raw`, `sample.mp4` are large binary files. CMake emits `message(WARNING)` if missing (not a build error). Binary fails gracefully at runtime with clear error. 4.5 has no required asset — `voxel_point_cloud_publisher` provides synthetic data; real bags are user-supplied and played via `ros2 bag play`.
 - **4.1 NVIDIA Barrier-Event Timing (0 ms)**: The NVIDIA OpenCL driver collapses back-to-back `clEnqueueBarrierWithWaitList` calls bracketing vkFFT enqueue to the same timestamp, reporting 0.000 ms GPU FFT batch time. FFT executes correctly (non-uniform BMP produced). The `< 2 ms` and `≥ 10× speedup` gates cannot be confirmed via `cl::Event` profiling on this hardware — both gates are waived for NVIDIA drivers using this approach.
 - **4.1 AMD iGPU Speedup ≈ 1×**: On AMD Radeon 680M (rusticl, iGPU), GPU and CPU share memory bandwidth. GPU FFT batch for 1051 frames = 2.510 ms vs CPU FFTW 2.578 ms (≈ 1× speedup). The `< 2 ms` gate passes for the 169-frame batch (0.547 ms); the 1051-frame batch marginally exceeds it — hardware waiver applies. CL event timing returns correct non-zero values on AMD, confirming the 0 ms issue is NVIDIA-driver-specific.
 
@@ -213,7 +213,8 @@ Provide self-contained, elective case studies for engineers who have completed a
   │   └── kernels/passthrough.cl
   ├── 4_5_Voxel_Mapping/
   │   ├── CMakeLists.txt
-  │   ├── main.cpp
+  │   ├── main.cpp                      (binary: voxel_mapping)
+  │   ├── point_cloud_publisher.cpp     (binary: voxel_point_cloud_publisher)
   │   └── kernels/
   │       ├── dda_cast.cl
   │       └── flip_count.cl
@@ -241,7 +242,7 @@ Provide self-contained, elective case studies for engineers who have completed a
 - **Tooling**:
   - vkFFT: `FetchContent_Declare` in 4.1 only.
   - FFmpeg: `find_package(PkgConfig REQUIRED)` → `pkg_check_modules(FFMPEG REQUIRED libavcodec libavformat libavutil)` in 4.6.
-  - ROS 2: `find_package(rclcpp REQUIRED)` + `$ENV{ROS_DISTRO}` guard in 4.5 only.
+  - ROS 2: `find_package(rclcpp REQUIRED)` + `find_package(sensor_msgs REQUIRED)` + `$ENV{ROS_DISTRO}` guard (via `opencl_lab_ros2_guard()`) in 4.5 only. No `rosbag2_cpp` — bags played via `ros2 bag play`.
   - FFTW3: `find_package(FFTW3)` (optional) in 4.1.
   - CLI11: via `common/common.cmake` in all binaries.
 
@@ -257,9 +258,9 @@ Provide self-contained, elective case studies for engineers who have completed a
   - 4.2: Any Module 2 track.
   - 4.3: Module 1 only.
   - 4.4: Any Module 2 track.
-  - 4.5: Track B (B3 complete) + Track C (C3 complete) + ROS 2 Humble+.
+  - 4.5: Track B (B3 complete) + Track C (C3 complete) + ROS 2 Jazzy.
   - 4.6: Track A (A4 complete) + `libavcodec-dev libavformat-dev libavutil-dev`.
   - 4.7: Toolbox `LocalMemory` reviewed. No external library dependencies.
-- Assets: `assets/sample.wav` (4.1), `assets/raw_bayer_4k.raw` (4.7), `assets/sample.mp4` (4.6), `assets/lidar_sample.bag` (4.5).
+- Assets: `assets/sample.wav` (4.1), `assets/raw_bayer_4k.raw` (4.7), `assets/sample.mp4` (4.6). 4.5 has no required asset — use `voxel_point_cloud_publisher` for live testing or `ros2 bag play <bag>` for bag replay.
 
 See [main README](../README.md) for base requirements (OpenCL 1.2+, CMake 3.18+, Docker 20.10+).

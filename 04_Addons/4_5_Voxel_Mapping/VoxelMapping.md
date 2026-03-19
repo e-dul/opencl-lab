@@ -7,15 +7,36 @@ See [main README](../../README.md) for base requirements (OpenCL 1.2+, CMake 3.1
 
 - **Required**: [B3_Ray_Tracer_BVH](../../02_Projects/B_Graphics_HPC/GraphicsHPC.md#b3_ray_tracer_bvh--flagship-project) completed
 - **Required**: [C3_Perception_Node](../../02_Projects/C_Robotics_ROS2/RoboticsROS2.md#c3_perception_node--flagship-project) completed
-- ROS 2 Humble+: `source /opt/ros/humble/setup.bash`
+- ROS 2 Jazzy: `source /opt/ros/jazzy/setup.bash`
 
 ## Build & Run
+
 ```bash
-source /opt/ros/humble/setup.bash
+source /opt/ros/jazzy/setup.bash
 cd 04_Addons/4_5_Voxel_Mapping
 cmake -B build && cmake --build build
-./build/voxel_mapping --bag ../../../assets/lidar_sample.bag --resolution 0.1
-# Headless: ./build/voxel_mapping --bag ... --output voxel_map.bin
+```
+
+**Live (synthetic publisher in terminal 1, voxel_mapping in terminal 2):**
+
+```bash
+# Terminal 1 — static scene (DDA sanity check):
+./build/voxel_point_cloud_publisher --scene static --hz 10 --frames 10
+
+# Terminal 2:
+./build/voxel_mapping --topic /points --resolution 0.1
+# Ctrl-C to stop → output_voxel_slice.bmp written
+
+# Dynamic scene (exercises flip-count filter):
+./build/voxel_point_cloud_publisher --scene dynamic --hz 10 --frames 50 &
+./build/voxel_mapping --topic /points --resolution 0.1 --enable-flip-filter
+```
+
+**From a bag (any PointCloud2 bag, XYZI point_step=16):**
+
+```bash
+./build/voxel_mapping --topic /points --resolution 0.1 &
+ros2 bag play <path/to/bag>
 ```
 
 ## Verify
@@ -68,7 +89,7 @@ If a voxel flips between OCCUPIED and FREE more than N times per second, classif
 
 ## Troubleshooting
 
-- **Voxel slice shows all grey (unknown)**: check that the bag topic name matches `--topic` argument. Default is `/points`.
+- **Voxel slice shows all grey (unknown)**: check that the publisher or `ros2 bag play` is running and publishing on the same topic as `--topic`. Default is `/points`.
 - **Map drifts over time**: sensor pose is assumed static. For a moving robot, integrate odometry into the origin parameter per frame.
 - **Pipeline exceeds 5 ms**: the voxel update step uses global atomics. If this dominates, reduce grid resolution (`--resolution 0.2`) or use a hierarchical update (only mark changed voxels).
 
