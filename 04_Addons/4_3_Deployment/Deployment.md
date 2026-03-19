@@ -3,7 +3,7 @@
 **When to use**: you've built something that works on your machine and need it to run on a customer's.
 
 ## Prerequisites
-See [main README](../../README.md) for base requirements (OpenCL 1.2+, CMake 3.18+).
+See [main README](../../README.md) for base requirements (OpenCL 1.2+, CMake 3.18+, Docker 20.10+).
 
 - Module 1 sufficient — no track required.
 
@@ -64,13 +64,23 @@ Mount `/dev/dri` for AMD/Intel passthrough: `docker run --device /dev/dri ...`
 
 Build a Docker image that runs `deployment_demo` using PoCL (CPU fallback) — no GPU required. This is useful for CI pipelines that test OpenCL logic without GPU access:
 ```dockerfile
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 RUN apt-get install -y pocl-opencl-icd ocl-icd-libopencl1
 ```
 
 ## Troubleshooting
 
-- **`clGetPlatformIDs` returns 0 platforms in Docker**: missing `--device /dev/dri` mount or the ICD file is not present inside the container.
+- **`clGetPlatformIDs` returns 0 platforms in Docker**: missing `--device /dev/dri` mount or the ICD file is not present inside the container. Fix: mount the host ICD directory and the DRI device:
+  ```bash
+  docker run --rm \
+    --device /dev/dri \
+    -v /etc/OpenCL/vendors:/etc/OpenCL/vendors:ro \
+    -e GPU=AMD \
+    -v $(pwd)/assets:/assets -v $(pwd)/docker_out:/output \
+    deployment_demo_test \
+    ./deployment_demo --input /assets/sample.bmp --output /output/output.bmp
+  ```
+  The `-v /etc/OpenCL/vendors:ro` mount makes the host GPU ICD visible inside the container. `--device /dev/dri` grants access to the DRI render node. For NVIDIA use `--gpus all` instead of `--device /dev/dri`.
 - **AppImage works on your machine, fails on target**: the target may have a different glibc version. Build the AppImage on the oldest supported Ubuntu LTS.
 
 ---

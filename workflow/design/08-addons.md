@@ -30,7 +30,7 @@ Provide self-contained, elective case studies for engineers who have completed a
   - *Context*: Executive Summary §4.1; `04_Addons/4_1_vkFFT_Audio/vkFFTAudio.md`
 - [x] Phase 2: 4.2 OpenCL vs CUDA — Written analysis artifact (structured `report.md` + code comparison); no binary.
   - *Context*: Executive Summary §4.2; `04_Addons/4_2_OpenCL_vs_CUDA/OpenCLvsCUDA.md`
-- [ ] Phase 3: 4.3 Deployment — CMake install rules, AppImage script, Docker multi-stage build; verified by clean `docker run`.
+- [x] Phase 3: 4.3 Deployment — CMake install rules, AppImage script, Docker multi-stage build; verified by clean `docker run`.
   - *Context*: Executive Summary §4.3; `04_Addons/4_3_Deployment/Deployment.md`
 - [ ] Phase 4: 4.4 SVM Deep Dive — Standalone benchmark: `CL_MEM_COPY_HOST_PTR` vs `USE_HOST_PTR` vs SVM coarse-grained vs SVM fine-grained; BMP artifact from image round-trip.
   - *Context*: Executive Summary §4.4; `04_Addons/4_4_SVM_Theory/SVMTheory.md`
@@ -160,7 +160,9 @@ Provide self-contained, elective case studies for engineers who have completed a
 - **SVM Fine-Grained Availability**: Not supported on NVIDIA OpenCL drivers. Must detect `CL_DEVICE_SVM_CAPABILITIES` at runtime and skip inaccessible paths with a clear message — not a crash.
 - **4.5 Atomic Contention at High Point Density**: DDA traversal with `atomic_or` on shared voxel grid serializes under high point density. Document in console output and README. Mitigation (per-thread staging buffer + merge kernel) is the challenge, not base implementation.
 - **4.7 LDS Tile Halo Boundary**: Work-items at image edges must clamp indices to `[0, width-1]` × `[0, height-1]`. Incorrect clamping is the most common bug; pixel-identity assertion catches it.
-- **4.3 Docker PoCL vs Native Driver**: Dockerfile must install `ocl-icd-libopencl1` and at minimum PoCL. `GPU` env var selection must still work inside the container.
+- **4.3 Docker PoCL vs Native Driver**: Dockerfile must install `ocl-icd-libopencl1` and at minimum PoCL. `GPU` env var selection must still work inside the container. *(Resolved: GPU passthrough via `--device /dev/dri` + host ICD/library mounts works; PoCL CPU fallback confirmed without GPU.)*
+- **4.3 AppImage Kernel Path**: Kernel files must be copied to `AppDir/usr/bin/kernels/` (next to binary) — not only `usr/share/`. The binary resolves kernels via `std::filesystem::read_symlink("/proc/self/exe").parent_path() / "kernels/"` to work inside the squashfs mount path.
+- **4.3 libOpenCL exclusion**: `libOpenCL.so.1` must be excluded from AppImage (`--exclude-library libOpenCL.so.1`). Bundling it bypasses the host ICD loader and silently falls back to CPU.
 - **Asset Availability**: `sample.wav`, `raw_bayer_4k.raw`, `sample.mp4`, `lidar_sample.bag` are large binary files. CMake emits `message(WARNING)` if missing (not a build error). Binary fails gracefully at runtime with clear error.
 - **4.1 NVIDIA Barrier-Event Timing (0 ms)**: The NVIDIA OpenCL driver collapses back-to-back `clEnqueueBarrierWithWaitList` calls bracketing vkFFT enqueue to the same timestamp, reporting 0.000 ms GPU FFT batch time. FFT executes correctly (non-uniform BMP produced). The `< 2 ms` and `≥ 10× speedup` gates cannot be confirmed via `cl::Event` profiling on this hardware — both gates are waived for NVIDIA drivers using this approach.
 - **4.1 AMD iGPU Speedup ≈ 1×**: On AMD Radeon 680M (rusticl, iGPU), GPU and CPU share memory bandwidth. GPU FFT batch for 1051 frames = 2.510 ms vs CPU FFTW 2.578 ms (≈ 1× speedup). The `< 2 ms` gate passes for the 169-frame batch (0.547 ms); the 1051-frame batch marginally exceeds it — hardware waiver applies. CL event timing returns correct non-zero values on AMD, confirming the 0 ms issue is NVIDIA-driver-specific.
@@ -258,4 +260,4 @@ Provide self-contained, elective case studies for engineers who have completed a
   - 4.7: Toolbox `LocalMemory` reviewed. No external library dependencies.
 - Assets: `assets/sample.wav` (4.1), `assets/raw_bayer_4k.raw` (4.7), `assets/sample.mp4` (4.6), `assets/lidar_sample.bag` (4.5).
 
-See [main README](../README.md) for base requirements (OpenCL 1.2+, CMake 3.18+, Docker).
+See [main README](../README.md) for base requirements (OpenCL 1.2+, CMake 3.18+, Docker 20.10+).
