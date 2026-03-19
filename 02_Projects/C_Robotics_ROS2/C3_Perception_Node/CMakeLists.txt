@@ -6,30 +6,13 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# ── ROS 2 environment guard — must precede find_package ──────────────────────
-# WHY guard: missing setup.bash causes cryptic find_package errors downstream.
-if(NOT DEFINED ENV{ROS_DISTRO})
-    message(FATAL_ERROR
-        "ROS_DISTRO is not set.\n"
-        "Run: source /opt/ros/jazzy/setup.bash\n"
-        "Then re-run cmake.")
-endif()
-
-# ── RMW loaned-message warning ────────────────────────────────────────────────
-# Loaned messages require rmw_fastrtps_cpp or Iceoryx.
-# This is a warning (not fatal) — the node falls back to copy-based transport.
-if(NOT DEFINED ENV{RMW_IMPLEMENTATION} OR
-   (NOT "$ENV{RMW_IMPLEMENTATION}" STREQUAL "rmw_fastrtps_cpp" AND
-    NOT "$ENV{RMW_IMPLEMENTATION}" STREQUAL "rmw_iceoryx_cpp"))
-    message(WARNING
-        "RMW_IMPLEMENTATION is not set to a loaned-message-capable RMW.\n"
-        "Loaned messages (zero-copy upload) are unavailable.\n"
-        "Set: export RMW_IMPLEMENTATION=rmw_fastrtps_cpp for optimal C3 latency.")
-endif()
-
 # ── common.cmake: CLI11, stb, OpenCL, include dirs ────────────────────────────
 # WHY ../../../: module is 3 levels deep (02_Projects/C_Robotics_ROS2/C3_Perception_Node/)
 include(${CMAKE_CURRENT_SOURCE_DIR}/../../../common/common.cmake)
+
+# ── ROS 2 environment guard — must precede find_package ──────────────────────
+# LOANED_MESSAGES: also emit the RMW warning since C3 uses zero-copy upload.
+opencl_lab_ros2_guard(LOANED_MESSAGES)
 
 # ── ROS 2 packages ────────────────────────────────────────────────────────────
 find_package(ament_cmake REQUIRED)
@@ -48,34 +31,10 @@ target_include_directories(perception_node PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../../../vendor
 )
 
-target_compile_definitions(perception_node PRIVATE
-    CL_HPP_ENABLE_EXCEPTIONS
-    CL_HPP_TARGET_OPENCL_VERSION=120
-    CL_HPP_MINIMUM_OPENCL_VERSION=120
-)
+# ── ament+OpenCL+CLI11 linking ────────────────────────────────────────────────
+opencl_lab_ros2_target(perception_node rclcpp rclcpp_lifecycle sensor_msgs lifecycle_msgs)
 
-# WHY ament_target_dependencies before target_link_libraries: ament uses the
-# CMake plain (non-keyword) signature internally; mixing keyword and plain
-# forms triggers a CMake mixed-signature error.
-ament_target_dependencies(perception_node
-    rclcpp
-    rclcpp_lifecycle
-    sensor_msgs
-    lifecycle_msgs
-)
-
-target_link_libraries(perception_node
-    OpenCL::OpenCL
-    CLI11::CLI11
-)
-
-# Post-build: copy kernels/ next to binary (master spec §1)
-add_custom_command(TARGET perception_node POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-            ${CMAKE_CURRENT_SOURCE_DIR}/kernels
-            $<TARGET_FILE_DIR:perception_node>/kernels
-    COMMENT "Copying kernels for perception_node"
-)
+copy_kernels(perception_node)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Target 2: point_cloud_publisher (point_cloud_publisher.cpp)
@@ -87,19 +46,9 @@ target_include_directories(point_cloud_publisher PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../../../vendor
 )
 
-ament_target_dependencies(point_cloud_publisher
-    rclcpp
-    sensor_msgs
-)
+# WHY opencl_lab_ros2_target here: the macro always adds OpenCL::OpenCL.
+# point_cloud_publisher does not call any CL API, but linking is harmless —
+# the shared library is loaded lazily and no CL symbols are referenced.
+opencl_lab_ros2_target(point_cloud_publisher rclcpp sensor_msgs)
 
-target_link_libraries(point_cloud_publisher
-    CLI11::CLI11
-)
-
-# Post-build: copy kernels/ next to binary (master spec §1)
-add_custom_command(TARGET point_cloud_publisher POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-            ${CMAKE_CURRENT_SOURCE_DIR}/kernels
-            $<TARGET_FILE_DIR:point_cloud_publisher>/kernels
-    COMMENT "Copying kernels for point_cloud_publisher"
-)
+copy_kernels(point_cloud_publisher)

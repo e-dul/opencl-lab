@@ -17,6 +17,8 @@
 #include <rclcpp_lifecycle/lifecycle_node.hpp>
 #include <std_msgs/msg/float32_multi_array.hpp>
 
+#include "synthetic_publisher.hpp"
+
 #include <algorithm>
 #include <chrono>
 #include <filesystem>
@@ -286,52 +288,6 @@ private:
 
     // One-shot timer used to post the self-deactivation out-of-band.
     rclcpp::TimerBase::SharedPtr shutdown_timer_;
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// SyntheticPublisher
-// ─────────────────────────────────────────────────────────────────────────────
-// Companion node that drives AccelNode by publishing Float32MultiArray messages
-// to /raw_floats. Running in the same executor with intra-process comms enabled
-// means the message is delivered as a shared_ptr — no DDS serialization.
-class SyntheticPublisher : public rclcpp::Node {
-public:
-    SyntheticPublisher(int iterations, int buffer_size,
-                       const rclcpp::NodeOptions& opts)
-        : rclcpp::Node("synthetic_publisher", opts)
-        , iterations_(iterations)
-        , buffer_size_(buffer_size)
-    {
-        pub_ = create_publisher<Float32MultiArray>("/raw_floats", 10);
-
-        // WHY 50 ms period: gives the AccelNode subscription callback time to
-        // process each message before the next one arrives, avoiding queue
-        // buildup while keeping the demo short.
-        timer_ = create_wall_timer(
-            std::chrono::milliseconds(50),
-            [this]() { publish_once(); });
-    }
-
-private:
-    void publish_once()
-    {
-        if (publish_count_ >= iterations_) {
-            timer_->cancel();
-            return;
-        }
-
-        // Pre-fill with 1.0f to ensure a real memory copy in the kernel.
-        auto msg = std::make_unique<Float32MultiArray>();
-        msg->data.assign(static_cast<size_t>(buffer_size_), 1.0f);
-        pub_->publish(std::move(msg));
-        ++publish_count_;
-    }
-
-    int iterations_;
-    int buffer_size_;
-    int publish_count_ = 0;
-    rclcpp::Publisher<Float32MultiArray>::SharedPtr pub_;
-    rclcpp::TimerBase::SharedPtr timer_;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

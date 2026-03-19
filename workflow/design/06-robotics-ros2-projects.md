@@ -1,7 +1,7 @@
 # Module 6: Path C — Robotics & ROS 2
 
 **Version:** 1.5
-**Status:** Active — C1,C2,C3 complete; C3-challenge complete; cleanup (Phase 6) next
+**Status:** Complete — C1,C2,C3 complete; C3-challenge complete; Phase 6 cleanup complete
 **Module Path:** `02_Projects/C_Robotics_ROS2/`
 
 ---
@@ -35,7 +35,7 @@ Accelerate a real ROS 2 perception pipeline without breaking the node contract. 
   - *Context*: Executive Summary §Path C item C.3; `RoboticsROS2.md` §C3_Perception_Node.
 - [x] Phase 5: C3 Challenge — Double-Buffer Real-Time Guarantee — Non-blocking enqueue; buffer swap via `cl::Event` callback; contention guard logs `WARN` and falls back to `queue_.finish()` — silent drop forbidden. See §Verification Standard for the mixed-scene setup and expected outcomes. MANUAL verification required (RViz).
   - *Context*: Executive Summary §Path C item C.3 challenge; `RoboticsROS2.md` §C3_DoubleBuffer_Challenge.
-- [ ] Phase 6: Module review and cleanup — extract common utils, align naming conventions, verify all three binaries build and run cleanly from a sourced ROS 2 workspace. Extract CMake related ROS setup to common.cmake.
+- [x] Phase 6: Module review and cleanup — extract common utils, align naming conventions, verify all three binaries build and run cleanly from a sourced ROS 2 workspace. Extract CMake related ROS setup to common.cmake.
 
 ---
 
@@ -171,7 +171,9 @@ Activated by `use_double_buffer:=true` at launch — same binary, same directory
 
 ## Known Issues / Risks
 
-- **C1 `SyntheticPublisher` in `main.cpp` (not a separate file)**: The design spec (`Specifications & Standards / Directory Structure`) lists `synthetic_publisher.cpp` as a separate source file compiled into `accel_node`. The Task 036 implementation merged `SyntheticPublisher` directly into `main.cpp`. Functionally identical; the file split is cosmetic. Align in a future cleanup task.
+- ~~**C1 `SyntheticPublisher` in `main.cpp` (not a separate file)**~~: Resolved in Task 041 — `synthetic_publisher.cpp` and `synthetic_publisher.hpp` were extracted; `CMakeLists.txt` updated to `add_executable(accel_node main.cpp synthetic_publisher.cpp)`.
+
+- **`copy_kernels()` helper scope gap (Task 041 post-review)**: The `copy_kernels()` CMake helper in `common/common.cmake` was not in the original Task 041 scope. It was applied post-review to ensure kernel directories are copied correctly for all three targets via the standard post-build command. Noted here for audit trail; no further action required.
 
 - **`find_package(rclcpp)` Fails Without Sourced Workspace**: CMake silently reports "not found" if `setup.bash` was not sourced. The CMakeLists.txt must check `$ENV{ROS_DISTRO}` and emit `message(FATAL_ERROR "...")` with instructions before attempting `find_package`.
 - **OpenCL Context Thread Affinity**: `on_configure()` is called from the executor thread. On some drivers, GPU context affinity is thread-local — all subsequent enqueue calls (in subscription callbacks) must originate from the same thread. Single-threaded executor guarantees this; multi-threaded executor would require explicit thread pinning.

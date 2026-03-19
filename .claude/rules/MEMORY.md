@@ -7,12 +7,12 @@
 - **GPU Selection:** `GPU` env var (vendor substring, case-insensitive). Implemented in `common/ocl_wrapper.hpp::create_context()`. Matches `CL_PLATFORM_VENDOR` or `CL_DEVICE_VENDOR`. Examples: `GPU=NVIDIA`, `GPU=AMD`, `GPU=INTEL`. Default: first GPU found, CPU fallback. Hard-coded device indices are FORBIDDEN.
 
 ## Progress Tracking
-**Overall: 33/48 tasks → 68%** (run `scripts/progress.sh`)
+**Overall: 39/47 tasks → 82%** (run `scripts/progress.sh`)
 - [x] Module 0: Setup (100%)
 - [x] Module 1: Host API (100% — 6/6)
 - [x] Module 4: Path A — Multimedia & AI (100% — 8/8)
 - [x] Module 5: Path B — Graphics & HPC (100% — 6/6)
-- [ ] Module 6: Path C — Robotics & ROS2 (0/7 — 0%)
+- [x] Module 6: Path C — Robotics & ROS2 (100% — 6/6)
 - [x] Module 7: Optimization Toolbox (100% — 13/13)
 - [ ] Module 8: Add-ons (0/8 — 0%)
 

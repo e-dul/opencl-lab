@@ -117,3 +117,73 @@ macro(opencl_lab_fetch_tinyobjloader TARGET_NAME)
     FetchContent_MakeAvailable(tinyobjloader)
     target_link_libraries(${TARGET_NAME} PRIVATE tinyobjloader)
 endmacro()
+
+# ── opencl_lab_ros2_guard([LOANED_MESSAGES]) ──────────────────────────────────
+# WHY macro (not function): cmake_parse_arguments and message() both affect the
+# caller's scope. Using a macro avoids creating an isolated scope so the guard
+# terminates configuration in the calling CMakeLists, not inside a child scope.
+#
+# Usage:
+#   opencl_lab_ros2_guard()                 — ROS_DISTRO guard only
+#   opencl_lab_ros2_guard(LOANED_MESSAGES)  — also warns about RMW capability
+macro(opencl_lab_ros2_guard)
+    cmake_parse_arguments(_ROS2_GUARD "LOANED_MESSAGES" "" "" ${ARGN})
+
+    # WHY fatal for missing ROS_DISTRO: downstream find_package(rclcpp) errors
+    # are cryptic without this guard. Fail early with a clear instruction.
+    if(NOT DEFINED ENV{ROS_DISTRO})
+        message(FATAL_ERROR
+            "ROS_DISTRO is not set. Run: source /opt/ros/jazzy/setup.bash")
+    endif()
+
+    if(_ROS2_GUARD_LOANED_MESSAGES)
+        # Loaned messages require rmw_fastrtps_cpp or Iceoryx.
+        # This is a warning (not fatal) — the node falls back to copy-based transport.
+        if(NOT DEFINED ENV{RMW_IMPLEMENTATION} OR
+           (NOT "$ENV{RMW_IMPLEMENTATION}" STREQUAL "rmw_fastrtps_cpp" AND
+            NOT "$ENV{RMW_IMPLEMENTATION}" STREQUAL "rmw_iceoryx_cpp"))
+            message(WARNING
+                "RMW_IMPLEMENTATION is not set to a loaned-message-capable RMW.\n"
+                "Loaned messages (zero-copy upload) are unavailable.\n"
+                "Set: export RMW_IMPLEMENTATION=rmw_fastrtps_cpp for optimal latency.")
+        endif()
+    endif()
+endmacro()
+
+# ── opencl_lab_ros2_target(<target> <ament_pkg...>) ───────────────────────────
+# WHY macro (not function): ament_target_dependencies uses the CMake plain
+# (non-keyword) signature internally. Calling it from inside a function() causes
+# CMake's mixed-signature detection to fire when the caller has previously used
+# keyword form on the same target. A macro executes in the caller's scope,
+# keeping all calls to target_link_libraries consistent.
+#
+# Ordering: ament_target_dependencies MUST precede target_link_libraries to
+# satisfy ament's requirement that its plain-form call comes first.
+#
+# Does NOT add target_include_directories — callers keep their own because
+# the relative depth to common/ and vendor/ differs per module.
+macro(opencl_lab_ros2_target TARGET_NAME)
+    # WHY variadic: the ament packages differ per module (rclcpp, nav_msgs, etc.).
+    set(_ROS2_TARGET_AMENT_PKGS ${ARGN})
+
+    # Step 1: ament linking (plain form — must precede target_link_libraries).
+    ament_target_dependencies(${TARGET_NAME} ${_ROS2_TARGET_AMENT_PKGS})
+
+    # Step 2: OpenCL version flags — must be set explicitly so opencl_utils.hpp
+    # guards work regardless of include order.
+    target_compile_definitions(${TARGET_NAME} PRIVATE
+        CL_HPP_ENABLE_EXCEPTIONS
+        CL_HPP_TARGET_OPENCL_VERSION=120
+        CL_HPP_MINIMUM_OPENCL_VERSION=120
+    )
+
+
+    # Step 3: Non-ament libs (plain form — must stay consistent with ament's
+    # plain-form call above; mixing keyword and plain signatures on the same
+    # target causes a CMake error). OpenCL/CLI11 do not propagate as interface
+    # deps because this target is an executable, not a library.
+    target_link_libraries(${TARGET_NAME}
+        OpenCL::OpenCL
+        CLI11::CLI11
+    )
+endmacro()
