@@ -118,6 +118,18 @@ static int run(int argc, char** argv)
     if (!hw_interop)
         std::cout << "[INFO] Hardware interop unavailable; using software copy path.\n";
 
+    // ── VAAPI device (shared for HW decoder + encoder) ───────────────────────
+    // WHY shared: both h264_vaapi decoder and encoder need the same VAAPI device;
+    // a single av_hwdevice_ctx avoids double driver init and enables surface reuse.
+    AVBufferRef* vaapi_dev_ctx = nullptr;
+    if (hw_interop) {
+        if (av_hwdevice_ctx_create(&vaapi_dev_ctx, AV_HWDEVICE_TYPE_VAAPI,
+                                   nullptr, nullptr, 0) < 0) {
+            std::cout << "[INFO] VAAPI device init failed; falling back to SW paths.\n";
+            vaapi_dev_ctx = nullptr;
+        }
+    }
+
     // ── Build filter kernel ───────────────────────────────────────────────────
     std::string kernel_src = load_kernel_source("kernels/filter.cl");
     cl::Program program(ocl.context, kernel_src);
@@ -154,16 +166,20 @@ static int run(int argc, char** argv)
     AVCodecParameters* codecpar     = video_stream->codecpar;
 
     // ── FFmpeg: decoder selection ────────────────────────────────────────────
-    const AVCodec* decoder    = nullptr;
-    bool           using_hw   = false;
+    // VAAPI: use the standard named decoder (e.g. "h264") but attach a
+    //   hw_device_ctx + get_format callback — no separate vaapi codec exists.
+    // NVDEC: use the named cuvid codec which requires a CUDA device ctx.
+    const AVCodec* decoder  = nullptr;
+    bool           using_hw = false;
 
-    if (codecpar->codec_id == AV_CODEC_ID_H264) {
-        decoder = avcodec_find_decoder_by_name("h264_vaapi");
-        if (!decoder) decoder = avcodec_find_decoder_by_name("h264_cuvid");
-        if (decoder) using_hw = true;
-    } else if (codecpar->codec_id == AV_CODEC_ID_HEVC) {
-        decoder = avcodec_find_decoder_by_name("hevc_vaapi");
-        if (!decoder) decoder = avcodec_find_decoder_by_name("hevc_cuvid");
+    if (vaapi_dev_ctx) {
+        decoder  = avcodec_find_decoder(codecpar->codec_id);
+        using_hw = (decoder != nullptr);
+    } else {
+        if (codecpar->codec_id == AV_CODEC_ID_H264)
+            decoder = avcodec_find_decoder_by_name("h264_cuvid");
+        else if (codecpar->codec_id == AV_CODEC_ID_HEVC)
+            decoder = avcodec_find_decoder_by_name("hevc_cuvid");
         if (decoder) using_hw = true;
     }
 
@@ -182,16 +198,27 @@ static int run(int argc, char** argv)
     if (avcodec_parameters_to_context(dec_ctx, codecpar) < 0)
         throw std::runtime_error("avcodec_parameters_to_context failed (decoder)");
 
-    // For cuvid decoders: inject a CUDA hw device context so cuvidCreateDecoder
-    // has a valid CUDA context; without this it fails with CUDA_ERROR_NOT_SUPPORTED.
+    // Inject hw acceleration for the decoder.
     if (using_hw) {
-        AVBufferRef* hw_dev = nullptr;
-        if (av_hwdevice_ctx_create(&hw_dev, AV_HWDEVICE_TYPE_CUDA,
-                                   nullptr, nullptr, 0) >= 0) {
-            dec_ctx->hw_device_ctx = av_buffer_ref(hw_dev);
-            av_buffer_unref(&hw_dev);
+        if (vaapi_dev_ctx) {
+            // WHY get_format callback: without it the decoder ignores hw_device_ctx
+            // and silently outputs SW pixel formats even with a VAAPI device set.
+            dec_ctx->hw_device_ctx = av_buffer_ref(vaapi_dev_ctx);
+            dec_ctx->get_format = [](AVCodecContext*, const AVPixelFormat* fmts) -> AVPixelFormat {
+                for (const AVPixelFormat* f = fmts; *f != AV_PIX_FMT_NONE; ++f)
+                    if (*f == AV_PIX_FMT_VAAPI) return AV_PIX_FMT_VAAPI;
+                return fmts[0];
+            };
         } else {
-            std::cout << "[WARN] Could not create CUDA hw device context\n";
+            // cuvid path: needs a CUDA device context
+            AVBufferRef* cuda_dev = nullptr;
+            if (av_hwdevice_ctx_create(&cuda_dev, AV_HWDEVICE_TYPE_CUDA,
+                                       nullptr, nullptr, 0) >= 0) {
+                dec_ctx->hw_device_ctx = av_buffer_ref(cuda_dev);
+                av_buffer_unref(&cuda_dev);
+            } else {
+                std::cout << "[WARN] Could not create CUDA hw device context\n";
+            }
         }
     }
 
@@ -225,8 +252,19 @@ static int run(int argc, char** argv)
     avformat_alloc_output_context2(&out_ctx, nullptr, nullptr, output_path.c_str());
     if (!out_ctx) throw std::runtime_error("Failed to alloc output format context");
 
-    const AVCodec* encoder = avcodec_find_encoder(AV_CODEC_ID_H264);
-    if (!encoder) throw std::runtime_error("H.264 encoder (libx264) not found");
+    // Prefer h264_vaapi when a VAAPI device is available; libx264 as fallback.
+    const AVCodec* encoder        = nullptr;
+    bool           enc_using_vaapi = false;
+
+    if (vaapi_dev_ctx)
+        encoder = avcodec_find_encoder_by_name("h264_vaapi");
+    if (encoder)
+        enc_using_vaapi = true;
+    else {
+        encoder = avcodec_find_encoder_by_name("libx264");
+        if (!encoder) encoder = avcodec_find_encoder(AV_CODEC_ID_H264);
+    }
+    if (!encoder) throw std::runtime_error("No H.264 encoder found");
 
     AVStream* out_stream = avformat_new_stream(out_ctx, nullptr);
     if (!out_stream) throw std::runtime_error("avformat_new_stream failed");
@@ -236,17 +274,66 @@ static int run(int argc, char** argv)
 
     enc_ctx->width        = frame_w;
     enc_ctx->height       = frame_h;
-    enc_ctx->pix_fmt      = AV_PIX_FMT_YUV420P;
+    enc_ctx->pix_fmt      = enc_using_vaapi ? AV_PIX_FMT_VAAPI : AV_PIX_FMT_YUV420P;
     enc_ctx->time_base    = {1, 25};
     enc_ctx->bit_rate     = 2'000'000;
     enc_ctx->gop_size     = 12;
     enc_ctx->max_b_frames = 0; // WHY 0: avoids packet reordering complexity at flush
 
+    if (enc_using_vaapi) {
+        // WHY hw_frames_ctx: h264_vaapi requires frames in VAAPI memory.
+        // The frames context wraps the VAAPI device and defines the NV12-backed
+        // surface pool that the encoder reads from.
+        AVBufferRef* hw_frames_ref = av_hwframe_ctx_alloc(vaapi_dev_ctx);
+        if (!hw_frames_ref) throw std::runtime_error("av_hwframe_ctx_alloc failed");
+        auto* fctx              = reinterpret_cast<AVHWFramesContext*>(hw_frames_ref->data);
+        fctx->format            = AV_PIX_FMT_VAAPI;
+        fctx->sw_format         = AV_PIX_FMT_NV12;
+        fctx->width             = frame_w;
+        fctx->height            = frame_h;
+        fctx->initial_pool_size = 20;
+        if (av_hwframe_ctx_init(hw_frames_ref) < 0) {
+            av_buffer_unref(&hw_frames_ref);
+            throw std::runtime_error("av_hwframe_ctx_init failed");
+        }
+        enc_ctx->hw_frames_ctx = av_buffer_ref(hw_frames_ref);
+        av_buffer_unref(&hw_frames_ref);
+    }
+
     if (out_ctx->oformat->flags & AVFMT_GLOBALHEADER)
         enc_ctx->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
 
-    if (avcodec_open2(enc_ctx, encoder, nullptr) < 0)
-        throw std::runtime_error("Failed to open encoder");
+    if (avcodec_open2(enc_ctx, encoder, nullptr) < 0) {
+        if (enc_using_vaapi) {
+            // VAAPI encoder open failed — fall back to libx264.
+            avcodec_free_context(&enc_ctx);
+            enc_using_vaapi = false;
+            encoder = avcodec_find_encoder_by_name("libx264");
+            if (!encoder) encoder = avcodec_find_encoder(AV_CODEC_ID_H264);
+            if (!encoder) throw std::runtime_error("No SW H.264 encoder found");
+            enc_ctx = avcodec_alloc_context3(encoder);
+            if (!enc_ctx) throw std::runtime_error("avcodec_alloc_context3 failed (encoder SW fallback)");
+            enc_ctx->width        = frame_w;
+            enc_ctx->height       = frame_h;
+            enc_ctx->pix_fmt      = AV_PIX_FMT_YUV420P;
+            enc_ctx->time_base    = {1, 25};
+            enc_ctx->bit_rate     = 2'000'000;
+            enc_ctx->gop_size     = 12;
+            enc_ctx->max_b_frames = 0;
+            if (out_ctx->oformat->flags & AVFMT_GLOBALHEADER)
+                enc_ctx->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
+            if (avcodec_open2(enc_ctx, encoder, nullptr) < 0)
+                throw std::runtime_error("Failed to open SW fallback encoder");
+            std::cout << "[INFO] VAAPI encoder open failed; fell back to: "
+                      << encoder->name << "\n";
+        } else {
+            throw std::runtime_error("Failed to open encoder: "
+                                     + std::string(encoder->name));
+        }
+    }
+
+    std::cout << "[INFO] Encoder: " << encoder->name
+              << (enc_using_vaapi ? " (hardware/vaapi)" : " (software)") << "\n";
 
     avcodec_parameters_from_context(out_stream->codecpar, enc_ctx);
     out_stream->time_base = enc_ctx->time_base;
@@ -259,10 +346,13 @@ static int run(int argc, char** argv)
     if (avformat_write_header(out_ctx, nullptr) < 0)
         throw std::runtime_error("avformat_write_header failed");
 
-    // ── SwsContext: RGBA → YUV420P (filter→encode) — created once ────────────
+    // ── SwsContext: RGBA → NV12 (VAAPI path) or YUV420P (SW path) ────────────
+    // WHY NV12 for VAAPI: h264_vaapi hw surfaces use NV12 as their sw_format;
+    // uploading YUV420P would require an extra conversion inside the driver.
+    AVPixelFormat enc_sw_fmt = enc_using_vaapi ? AV_PIX_FMT_NV12 : AV_PIX_FMT_YUV420P;
     SwsContext* sws_to_yuv = sws_getContext(
         frame_w, frame_h, AV_PIX_FMT_RGBA,
-        frame_w, frame_h, AV_PIX_FMT_YUV420P,
+        frame_w, frame_h, enc_sw_fmt,
         SWS_BILINEAR, nullptr, nullptr, nullptr);
     if (!sws_to_yuv) throw std::runtime_error("sws_getContext (→YUV) failed");
 
@@ -287,7 +377,7 @@ static int run(int argc, char** argv)
     AVFrame*  enc_frame = av_frame_alloc();
     AVPacket* pkt       = av_packet_alloc();
 
-    enc_frame->format = AV_PIX_FMT_YUV420P;
+    enc_frame->format = static_cast<int>(enc_sw_fmt);
     enc_frame->width  = frame_w;
     enc_frame->height = frame_h;
     if (av_frame_get_buffer(enc_frame, 0) < 0)
@@ -350,15 +440,16 @@ static int run(int argc, char** argv)
             // ── Map: YUV → RGBA → cl::Image2D ──────────────────────────────
             auto t_map_start = Clock::now();
 
-            // If cuvid produced a CUDA surface, transfer to system memory first.
-            // WHY: sws_scale cannot operate on AV_PIX_FMT_CUDA — it needs CPU-accessible data.
-            AVFrame* sw_frame  = dec_frame;
-            AVFrame* cuda_tmp  = nullptr;
-            if (dec_frame->format == AV_PIX_FMT_CUDA) {
-                cuda_tmp = av_frame_alloc();
-                if (av_hwframe_transfer_data(cuda_tmp, dec_frame, 0) < 0)
+            // Transfer HW surface (VAAPI or CUDA) to CPU memory for sws_scale.
+            // WHY: sws_scale cannot operate on HW pixel formats directly.
+            AVFrame* sw_frame = dec_frame;
+            AVFrame* hw_tmp   = nullptr;
+            if (dec_frame->format == AV_PIX_FMT_VAAPI ||
+                dec_frame->format == AV_PIX_FMT_CUDA) {
+                hw_tmp = av_frame_alloc();
+                if (av_hwframe_transfer_data(hw_tmp, dec_frame, 0) < 0)
                     throw std::runtime_error("av_hwframe_transfer_data failed");
-                sw_frame = cuda_tmp;
+                sw_frame = hw_tmp;
             }
 
             // Lazy sws_to_rgba: created on the first frame using the actual
@@ -379,7 +470,7 @@ static int run(int argc, char** argv)
                       sw_frame->data, sw_frame->linesize, 0, frame_h,
                       dst_data, dst_stride);
 
-            if (cuda_tmp) av_frame_free(&cuda_tmp);
+            if (hw_tmp) av_frame_free(&hw_tmp);
 
             CL_CHECK(prof_queue.enqueueWriteImage(
                 cl_src, CL_TRUE,
@@ -413,7 +504,7 @@ static int run(int argc, char** argv)
                 static_cast<size_t>(frame_w) * 4, 0,
                 rgba_out.data()));
 
-            // ── Encode: RGBA → YUV420P → avcodec ───────────────────────────
+            // ── Encode: RGBA → NV12/YUV420P → (upload to VAAPI?) → avcodec ──
             auto t_enc_start = Clock::now();
 
             if (av_frame_make_writable(enc_frame) < 0)
@@ -427,7 +518,20 @@ static int run(int argc, char** argv)
 
             enc_frame->pts = static_cast<int64_t>(frame_idx);
 
-            if (avcodec_send_frame(enc_ctx, enc_frame) >= 0) {
+            // For VAAPI encoder: upload the sw NV12 frame into a VAAPI surface.
+            AVFrame* send_frame = enc_frame;
+            AVFrame* hw_frame   = nullptr;
+            if (enc_using_vaapi) {
+                hw_frame = av_frame_alloc();
+                if (av_hwframe_get_buffer(enc_ctx->hw_frames_ctx, hw_frame, 0) < 0)
+                    throw std::runtime_error("av_hwframe_get_buffer failed");
+                if (av_hwframe_transfer_data(hw_frame, enc_frame, 0) < 0)
+                    throw std::runtime_error("av_hwframe_transfer_data (upload) failed");
+                hw_frame->pts = enc_frame->pts;
+                send_frame = hw_frame;
+            }
+
+            if (avcodec_send_frame(enc_ctx, send_frame) >= 0) {
                 AVPacket* out_pkt = av_packet_alloc();
                 while (avcodec_receive_packet(enc_ctx, out_pkt) == 0) {
                     av_packet_rescale_ts(out_pkt, enc_ctx->time_base,
@@ -438,6 +542,8 @@ static int run(int argc, char** argv)
                 }
                 av_packet_free(&out_pkt);
             }
+
+            if (hw_frame) av_frame_free(&hw_frame);
 
             auto t_enc_end  = Clock::now();
             double encode_ms = Ms(t_enc_end - t_enc_start).count();
@@ -494,6 +600,7 @@ static int run(int argc, char** argv)
     av_packet_free(&pkt);
     avcodec_free_context(&dec_ctx);
     avcodec_free_context(&enc_ctx);
+    if (vaapi_dev_ctx) av_buffer_unref(&vaapi_dev_ctx);
     avformat_close_input(&fmt_ctx);
     if (!(out_ctx->oformat->flags & AVFMT_NOFILE))
         avio_closep(&out_ctx->pb);

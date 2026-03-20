@@ -207,3 +207,47 @@ With `cl_intel_va_api_media_sharing` or `cl_khr_egl_image`, Map drops to near 0 
 - [ ] Play `filtered.mp4` — confirm blur visible across frames
 - [ ] Play `sepia.mp4` — confirm sepia tint visible across frames
 - [ ] Timing gate: waived (SW path active; VAAPI/NVDEC unavailable on this driver)
+
+---
+
+### Intel Validation (GPU=INTEL) — 2026-03-20
+
+- **Hardware:** Intel Iris Xe Graphics (OpenCL 3.0, `cl_intel_va_api_media_sharing` present)
+- **Note:** Extension detected → HW interop IS available on Intel; SW copy fallback message is correctly suppressed. `h264_vaapi` decoder not found in this FFmpeg build; `h264_cuvid` fails (no CUDA); runtime falls back to SW `h264` decoder.
+
+```
+$ cmake -B build && cmake --build build
+[100%] Built target ffmpeg_opencl_transcoder   ← zero errors, zero warnings
+
+$ GPU=INTEL ./build/ffmpeg_opencl_transcoder --help
+FFmpeg OpenCL Transcoder — HW decode → OpenCL filter → re-encode
+Usage: ./build/ffmpeg_opencl_transcoder [OPTIONS]
+  -h,--help                   Print this help message and exit
+  --input TEXT REQUIRED       Input video file (.mp4)
+  --output TEXT [filtered.mp4]
+  --effect TEXT:{blur,sepia} [blur]
+
+$ GPU=INTEL ./build/ffmpeg_opencl_transcoder --input /nonexistent.mp4
+[ERROR] Input file not found: /nonexistent.mp4   ← exit 1, no crash
+
+$ GPU=INTEL ./build/ffmpeg_opencl_transcoder --input /home/emil/opencl-lab/assets/sample.mp4 --output filtered.mp4 --effect blur
+Platform : Intel(R) OpenCL Graphics  [GPU=INTEL]
+Device   : Intel(R) Iris(R) Xe Graphics
+[INFO] HW decoder open failed; fell back to: h264
+[INFO] Decoder: h264 (software)
+
+Frame  | Decode    | Map       | Filter    | Encode    | Total
+-------|-----------|-----------|-----------|-----------|----------
+0      |   2.40 ms  |   6.27 ms  |   2.32 ms  |   7.43 ms  |  18.41 ms
+...
+72     |   1.59 ms  |   2.14 ms  |   1.97 ms  |   4.27 ms  |   9.96 ms
+
+Average FPS: 88.6  (over 73 frames)
+Output: filtered.mp4
+
+$ GPU=INTEL ./build/ffmpeg_opencl_transcoder --input /home/emil/opencl-lab/assets/sample.mp4 --output sepia.mp4 --effect sepia
+Average FPS: 101.5  (over 73 frames)
+Output: sepia.mp4
+```
+
+**Hardware timing waiver active:** SW fallback path in use; `h264_vaapi` absent in this FFmpeg build on this machine.

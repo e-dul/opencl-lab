@@ -28,6 +28,8 @@ Thumbs.db
 *.bmp
 *.png
 
+*.mp4
+
 # Claude
 .claude/settings.json
 kernel.errors.txt
