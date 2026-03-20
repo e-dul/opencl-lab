@@ -6,8 +6,53 @@
 See [main README](../../README.md) for base requirements (OpenCL 1.2+, CMake 3.18+).
 
 - **Required**: [Track A](../../02_Projects/A_Multimedia/Multimedia.md) completed
-- FFmpeg with hardware acceleration: `sudo apt install ffmpeg libavcodec-dev libavformat-dev libavutil-dev`
-- Verify hardware decode support: `ffmpeg -hwaccels` — must list `vaapi` (Intel/AMD) or `cuda` (Nvidia)
+
+### System packages (Ubuntu 24.04)
+
+**All platforms — FFmpeg dev libs (required):**
+```bash
+sudo apt install ffmpeg libavcodec-dev libavformat-dev libavutil-dev libswscale-dev
+```
+
+**NVIDIA (cuvid / NVDEC + optional VAAPI):**
+```bash
+sudo apt install libva2 libva-drm2 nvidia-vaapi-driver
+# Verify NVDEC: ffmpeg -hwaccels | grep cuda
+# Verify VAAPI: LIBVA_DRIVER_NAME=nvidia vainfo | grep H264
+```
+
+**AMD iGPU / dGPU (VAAPI decode, Ubuntu 24.04 Mesa stack):**
+```bash
+# Mesa VAAPI driver is included in Ubuntu 24.04 desktop installs.
+# If missing:
+sudo apt install mesa-va-drivers vainfo
+# Verify: vainfo shows VAProfileH264High VAEntrypointVLD
+```
+
+**AMD OpenCL zero-copy interop (`cl_intel_va_api_media_sharing`):**
+```bash
+# rusticl (default Mesa OpenCL) does NOT support VA interop.
+# ROCm OpenCL does — install via AMD's installer or:
+sudo apt install rocm-opencl-runtime   # Ubuntu 24.04 repo if available
+# Verify: clinfo | grep va_api_media_sharing
+```
+
+**Intel iGPU (simplest zero-copy path):**
+```bash
+sudo apt install intel-opencl-icd intel-media-va-driver-non-free vainfo
+# Verify: clinfo | grep va_api_media_sharing   (must appear)
+#         vainfo                                (must show H.264 decode)
+```
+
+**Input asset format requirement:**
+The input `.mp4` must use H.264 High Profile (yuv420p) — not High 4:4:4 Predictive.
+NVDEC and VAAPI do not support the 4:4:4 profile.
+Generate a compatible test clip:
+```bash
+ffmpeg -f lavfi -i testsrc=duration=3:size=1920x1080:rate=25 \
+  -vf format=yuv420p -c:v libx264 -profile:v high -level:v 4.0 \
+  assets/sample.mp4
+```
 
 ## Build & Run
 ```bash

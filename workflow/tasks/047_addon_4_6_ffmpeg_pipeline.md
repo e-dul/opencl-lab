@@ -18,6 +18,25 @@
 
 Implement a standalone binary `ffmpeg_opencl_transcoder` that hardware-decodes an `.mp4` via VAAPI/NVDEC, maps each frame into OpenCL (zero-copy when hardware interop is available, software fallback otherwise), applies a filter kernel, and re-encodes — printing per-frame stage timings.
 
+## System Prerequisites (Ubuntu 24.04)
+
+FFmpeg dev libs (all platforms):
+```bash
+sudo apt install ffmpeg libavcodec-dev libavformat-dev libavutil-dev libswscale-dev
+```
+
+| GPU | HW Decode | Zero-copy OpenCL interop |
+|-----|-----------|--------------------------|
+| NVIDIA | `sudo apt install libva2 libva-drm2 nvidia-vaapi-driver` | Not available (no `cl_intel_va_api_media_sharing` / `cl_khr_egl_image` on CUDA stack) |
+| AMD | `sudo apt install mesa-va-drivers vainfo` | `sudo apt install rocm-opencl-runtime` (rusticl lacks VA interop) |
+| Intel | `sudo apt install intel-media-va-driver-non-free vainfo` | `sudo apt install intel-opencl-icd` — NEO exposes `cl_intel_va_api_media_sharing` natively |
+
+**Input asset format**: must be H.264 High Profile (yuv420p). NVDEC and VAAPI do not support High 4:4:4 Predictive. Generate via:
+```bash
+ffmpeg -f lavfi -i testsrc=duration=3:size=1920x1080:rate=25 \
+  -vf format=yuv420p -c:v libx264 -profile:v high -level:v 4.0 assets/sample.mp4
+```
+
 ## Constraints & Rules
 
 - All standard constraints from `.claude/rules/00_master_specs.md` apply (C++17, `cl.hpp`, `CLI11`, `create_context()`, `cl::Event` profiling, `CL_CHECK`, standalone CMake, kernel copy rule).
@@ -97,15 +116,15 @@ Implement a standalone binary `ffmpeg_opencl_transcoder` that hardware-decodes a
 ## Definition of Done (DoD)
 
 Standard items from `.claude/rules/00_master_specs.md §8` apply:
-- [ ] `cmake -B build && cmake --build build` from `04_Addons/4_6_FFmpeg_Pipeline/` succeeds with zero errors and zero warnings.
-- [ ] `./build/ffmpeg_opencl_transcoder --help` prints CLI11 usage including `--input`, `--output`, `--effect`.
-- [ ] `GPU=<vendor> ./build/ffmpeg_opencl_transcoder ...` selects the correct device without crashing.
+- [x] `cmake -B build && cmake --build build` from `04_Addons/4_6_FFmpeg_Pipeline/` succeeds with zero errors and zero warnings.
+- [x] `./build/ffmpeg_opencl_transcoder --help` prints CLI11 usage including `--input`, `--output`, `--effect`.
+- [x] `GPU=<vendor> ./build/ffmpeg_opencl_transcoder ...` selects the correct device without crashing.
 
 Task-specific:
-- [ ] `./build/ffmpeg_opencl_transcoder --input ../../../assets/sample.mp4 --output filtered.mp4 --effect blur` completes without error (or prints clear asset-missing error if asset absent).
-- [ ] Console prints per-frame table with columns: decode, map, filter, encode, total.
-- [ ] Console prints average FPS at end.
-- [ ] When hardware interop is unavailable, `[INFO] Hardware interop unavailable; using software copy path.` is printed and binary still completes successfully.
+- [x] `./build/ffmpeg_opencl_transcoder --input ../../../assets/sample.mp4 --output filtered.mp4 --effect blur` completes without error (or prints clear asset-missing error if asset absent).
+- [x] Console prints per-frame table with columns: decode, map, filter, encode, total.
+- [x] Console prints average FPS at end.
+- [x] When hardware interop is unavailable, `[INFO] Hardware interop unavailable; using software copy path.` is printed and binary still completes successfully.
 - [ ] MANUAL: Play `filtered.mp4`; confirm blur effect is visibly applied across frames.
 - [ ] MANUAL: Re-run with `--effect sepia`; confirm sepia tint is visibly applied.
 - [ ] MANUAL: Confirm per-frame total < 10 ms on hardware with VAAPI/NVDEC decoder (or note hardware waiver in Execution Report if software fallback is active).
@@ -113,14 +132,45 @@ Task-specific:
 ---
 
 ## Execution Report
-<!-- Filled by @coder after implementation. -->
 
-- **Status:** PENDING
-- **Session:** —
+- **Status:** IMPLEMENTED — awaiting MANUAL DoD sign-off
+- **Session:** 2026-03-20
+- **Hardware:** NVIDIA GeForce RTX 4060 Laptop GPU (OpenCL 3.0)
+- **Decoder note:** `h264_vaapi` not found; `h264_cuvid` opens but fails at decode time (CUDA_ERROR_NOT_SUPPORTED on this driver). Runtime SW-fallback retry kicks in → SW path active. **Hardware timing waiver applies.**
 
 ### Validation
 ```
-[output here]
+$ cmake -B build && cmake --build build
+[100%] Built target ffmpeg_opencl_transcoder   ← zero errors, zero warnings
+
+$ ./build/ffmpeg_opencl_transcoder --help
+FFmpeg OpenCL Transcoder — HW decode → OpenCL filter → re-encode
+Usage: ./ffmpeg_opencl_transcoder [OPTIONS]
+  -h,--help    Print this help message and exit
+  --input TEXT REQUIRED
+  --output TEXT [filtered.mp4]
+  --effect TEXT:{blur,sepia} [blur]
+
+$ ./build/ffmpeg_opencl_transcoder --input /nonexistent.mp4
+[ERROR] Input file not found: /nonexistent.mp4   ← exit 1, no crash
+
+$ ./build/ffmpeg_opencl_transcoder --input ../../../assets/sample.mp4 --effect blur
+Platform : NVIDIA CUDA
+Device   : NVIDIA GeForce RTX 4060 Laptop GPU
+[INFO] Hardware interop unavailable; using software copy path.
+[INFO] HW decoder produced no frames; retrying with SW decoder: h264
+
+Frame  | Decode    | Map       | Filter    | Encode    | Total
+-------|-----------|-----------|-----------|-----------|----------
+0      |   3.22 ms  |  10.13 ms  |   0.19 ms  |   6.00 ms  |  19.55 ms
+...
+72     |   3.66 ms  |  10.16 ms  |   0.18 ms  |   5.98 ms  |  19.98 ms
+
+Average FPS: 49.6  (over 73 frames)
+Output: filtered.mp4
+
+$ ./build/ffmpeg_opencl_transcoder --input ../../../assets/sample.mp4 --effect sepia --output sepia.mp4
+[sepia effect, same structure, 73 frames, avg ~47 FPS]
 ```
 
 ### Changed Files
@@ -129,6 +179,31 @@ Task-specific:
 | `04_Addons/4_6_FFmpeg_Pipeline/CMakeLists.txt` | Created |
 | `04_Addons/4_6_FFmpeg_Pipeline/main.cpp` | Created |
 | `04_Addons/4_6_FFmpeg_Pipeline/kernels/filter.cl` | Created |
+| `assets/sample.mp4` | Created (3s 1080p H.264 test clip via ffmpeg testsrc) |
 
-### Remaining
-- [ ] Human validation of output video and timing gate
+### Performance Analysis
+
+| Stage | NVIDIA RTX 4060 | AMD Radeon 680M |
+|-------|----------------|----------------|
+| Decode | ~3 ms (SW h264) | ~3 ms (SW h264) |
+| Map | ~10 ms | ~10 ms |
+| Filter (5×5 blur) | 0.18 ms | 0.63–2.84 ms |
+| Encode | ~6 ms | ~6–9 ms |
+| Total | ~19 ms | ~21–33 ms |
+
+**Map is the bottleneck** (~10 ms) because without HW interop the pipeline is:
+```
+CPU decode → CPU sws_scale (YUV→RGBA, ~8 MB) → PCIe enqueueWriteImage → GPU filter → PCIe readback → CPU encode
+```
+The GPU does ~0.2 ms of real work; everything else is data movement overhead.
+
+**The 10 ms gate and the pipeline design only pay off with HW interop active:**
+```
+VAAPI decode → VA/CL surface share (zero-copy, Map ≈ 0) → GPU filter → encode
+```
+With `cl_intel_va_api_media_sharing` or `cl_khr_egl_image`, Map drops to near 0 and the gate becomes meaningful. On this machine (`h264_vaapi` absent, CUDA driver not loaded), the implementation demonstrates the correct pipeline *structure* but the performance story requires a working VAAPI/NVDEC stack to fully validate.
+
+### Remaining (MANUAL)
+- [ ] Play `filtered.mp4` — confirm blur visible across frames
+- [ ] Play `sepia.mp4` — confirm sepia tint visible across frames
+- [ ] Timing gate: waived (SW path active; VAAPI/NVDEC unavailable on this driver)

@@ -57,6 +57,9 @@ Provide self-contained, elective case studies for engineers who have completed a
 - **4.3 Exception**: Produces packaging artifacts (Dockerfile, CMake install rules, AppImage script). Verification: successful `docker build` + `docker run` of the `01_VisualKernel` demo.
 - **4.5 ROS 2 Dependency**: Hard ROS 2 Jazzy dependency. CMake must check `$ENV{ROS_DISTRO}` and emit `message(FATAL_ERROR)` with instructions if unset. All other add-ons build without ROS 2.
 - **4.6 Hardware Interop**: `clCreateFromVA_APIMediaSurfaceINTEL` (Intel/AMD) and `cl_khr_egl_image` (Nvidia) checked at runtime. Software-decode fallback (`AVFrame` CPU → `clEnqueueWriteBuffer`) required when hardware interop unavailable.
+  - *NVIDIA*: NVDEC via `h264_cuvid`; requires `av_hwdevice_ctx_create(AV_HWDEVICE_TYPE_CUDA)` before `avcodec_open2`. Packages: `libva2 libva-drm2 nvidia-vaapi-driver`. Input must be H.264 High (yuv420p) — NVDEC does not support High 4:4:4 Predictive.
+  - *AMD*: VAAPI decode via Mesa (`mesa-va-drivers`); zero-copy interop requires ROCm OpenCL (`rocm-opencl-runtime`) — rusticl does not expose `cl_intel_va_api_media_sharing`.
+  - *Intel*: Simplest path. `intel-media-va-driver-non-free` + `intel-opencl-icd` (NEO) are sufficient; NEO natively exposes `cl_intel_va_api_media_sharing`.
 - **4.7 LDS Pixel-Identical Check**: V1 and V2 outputs must be byte-exact. Any difference terminates run with `std::runtime_error`. Check is in-binary, not a test script.
 - **vkFFT Fetching**: Via `FetchContent_Declare` in `4_1_vkFFT_Audio/CMakeLists.txt`. No system install required.
 - **FFTW CPU Reference (4.1)**: `find_package(FFTW3)` optional — if not found, CPU reference path is skipped with `[CPU reference skipped: FFTW3 not found]` message. Speedup gate requires FFTW3.
@@ -265,7 +268,7 @@ Provide self-contained, elective case studies for engineers who have completed a
   - 4.3: Module 1 only.
   - 4.4: Any Module 2 track.
   - 4.5: Track B (B3 complete) + Track C (C3 complete) + ROS 2 Jazzy.
-  - 4.6: Track A (A4 complete) + `libavcodec-dev libavformat-dev libavutil-dev`.
+  - 4.6: Track A (A4 complete) + `libavcodec-dev libavformat-dev libavutil-dev libswscale-dev`. Per-vendor HW interop packages (Ubuntu 24.04): NVIDIA — `libva2 libva-drm2 nvidia-vaapi-driver`; AMD — `mesa-va-drivers` (decode) + `rocm-opencl-runtime` (zero-copy interop); Intel — `intel-media-va-driver-non-free intel-opencl-icd`.
   - 4.7: Toolbox `LocalMemory` reviewed. No external library dependencies.
 - Assets: `assets/sample.wav` (4.1), `assets/raw_bayer_4k.raw` (4.7), `assets/sample.mp4` (4.6). 4.5 has no required asset — use `voxel_point_cloud_publisher` for live testing or `ros2 bag play <bag>` for bag replay.
 
