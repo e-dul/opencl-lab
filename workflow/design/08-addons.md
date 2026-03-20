@@ -79,7 +79,7 @@ Provide self-contained, elective case studies for engineers who have completed a
 
 - **4.5 Voxel Mapping** (`4_5_Voxel_Mapping/`): Two binaries. `voxel_mapping`: subscribes to `--topic` (`sensor_msgs/PointCloud2`), accumulates voxel grid across frames, writes `output_voxel_slice.bmp` on shutdown. Publishes two live debug topics each frame: `/voxel_map` (`sensor_msgs/PointCloud2` of occupied voxel XYZ centroids in world frame) and `/voxel_slice` (`sensor_msgs/Image`, MONO8, above-sensor column projection). CLI: `--topic`, `--resolution`, `--output`, `--enable-flip-filter`, `--flip-threshold`. `voxel_point_cloud_publisher`: synthetic publisher with `--scene static|dynamic` (dynamic scene orbits sphere clusters per frame to exercise flip-count filter). Bags played via `ros2 bag play`. No `rosbag2_cpp` dependency.
 
-- **4.6 FFmpeg Transcoder** (`4_6_FFmpeg_Pipeline/`): Reads `.mp4`, hardware-decodes to GPU surface (VAAPI/EGL), maps to OpenCL image (zero-copy), applies blur/filter kernel from Track A, re-encodes. Per-frame stage breakdown. CLI: `--input`, `--output`, `--effect` (`bokeh`|`sepia`).
+- **4.6 FFmpeg Transcoder** (`4_6_FFmpeg_Pipeline/`): Reads `.mp4`, hardware-decodes to GPU surface (VAAPI/EGL), maps to OpenCL image (zero-copy), applies blur/filter kernel from Track A, re-encodes. Per-frame stage breakdown. CLI: `--input`, `--output`, `--effect` (`blur`|`sepia`).
 
 - **4.7 SoftISP Demo** (`4_7_SoftISP/`): Reads raw RGGB Bayer `.raw`, runs V1 (naive bilinear) and V2 (LDS-tiled) debayer kernels, writes both BMPs, asserts pixel identity, reports speedup. CLI: `--input`, `--width`, `--height`.
 

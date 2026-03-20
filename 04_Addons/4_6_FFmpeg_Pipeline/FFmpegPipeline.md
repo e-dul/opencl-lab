@@ -14,9 +14,9 @@ See [main README](../../README.md) for base requirements (OpenCL 1.2+, CMake 3.1
 cd 04_Addons/4_6_FFmpeg_Pipeline
 cmake -B build && cmake --build build
 ./build/ffmpeg_opencl_transcoder --input ../../../assets/sample.mp4 \
-    --output filtered.mp4 --effect bokeh
+    --output filtered.mp4 --effect blur
 # GPU=NVIDIA ./build/ffmpeg_opencl_transcoder --input ../../../assets/sample.mp4 \
-#     --output filtered.mp4 --effect bokeh
+#     --output filtered.mp4 --effect blur
 ```
 
 ## Verify
@@ -59,7 +59,7 @@ The filter kernel from `A4_Smart_Webcam` runs unchanged — only the buffer sour
 
 ## Mini-Challenge
 
-Add a second effect (`--effect sepia`) using the [GenericKernelTemplates](../../99_Toolbox/GenericKernelTemplates/GenericKernelTemplates.md) pattern: both `bokeh` and `sepia` should share one `.cl` source file, built with `-D EFFECT=BOKEH` and `-D EFFECT=SEPIA` respectively. No duplicate kernel code.
+Add a second effect (`--effect sepia`) using the [GenericKernelTemplates](../../99_Toolbox/GenericKernelTemplates/GenericKernelTemplates.md) pattern: both `blur` and `sepia` should share one `.cl` source file, built with `-D EFFECT_BLUR` and `-D EFFECT_SEPIA` respectively. No duplicate kernel code.
 
 ## Troubleshooting
 
