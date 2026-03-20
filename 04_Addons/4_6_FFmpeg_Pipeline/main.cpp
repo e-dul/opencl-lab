@@ -255,14 +255,21 @@ static int run(int argc, char** argv)
     // Prefer h264_vaapi when a VAAPI device is available; libx264 as fallback.
     const AVCodec* encoder        = nullptr;
     bool           enc_using_vaapi = false;
+    bool           enc_using_nvenc = false;
 
     if (vaapi_dev_ctx)
         encoder = avcodec_find_encoder_by_name("h264_vaapi");
-    if (encoder)
+    if (encoder) {
         enc_using_vaapi = true;
-    else {
-        encoder = avcodec_find_encoder_by_name("libx264");
-        if (!encoder) encoder = avcodec_find_encoder(AV_CODEC_ID_H264);
+    } else {
+        // Try NVIDIA hardware encoder before SW fallback — independent of interop.
+        encoder = avcodec_find_encoder_by_name("h264_nvenc");
+        if (encoder)
+            enc_using_nvenc = true;
+        else {
+            encoder = avcodec_find_encoder_by_name("libx264");
+            if (!encoder) encoder = avcodec_find_encoder(AV_CODEC_ID_H264);
+        }
     }
     if (!encoder) throw std::runtime_error("No H.264 encoder found");
 
@@ -274,6 +281,7 @@ static int run(int argc, char** argv)
 
     enc_ctx->width        = frame_w;
     enc_ctx->height       = frame_h;
+    // WHY: VAAPI encoder needs AV_PIX_FMT_VAAPI surfaces; NVENC and SW both take YUV420P.
     enc_ctx->pix_fmt      = enc_using_vaapi ? AV_PIX_FMT_VAAPI : AV_PIX_FMT_YUV420P;
     enc_ctx->time_base    = {1, 25};
     enc_ctx->bit_rate     = 2'000'000;
@@ -333,7 +341,9 @@ static int run(int argc, char** argv)
     }
 
     std::cout << "[INFO] Encoder: " << encoder->name
-              << (enc_using_vaapi ? " (hardware/vaapi)" : " (software)") << "\n";
+              << (enc_using_vaapi ? " (hardware/vaapi)"
+                 : enc_using_nvenc ? " (hardware/nvenc)"
+                 : " (software)") << "\n";
 
     avcodec_parameters_from_context(out_stream->codecpar, enc_ctx);
     out_stream->time_base = enc_ctx->time_base;
