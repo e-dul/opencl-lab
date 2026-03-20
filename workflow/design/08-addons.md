@@ -36,8 +36,9 @@ Provide self-contained, elective case studies for engineers who have completed a
   - *Context*: Executive Summary §4.4; `04_Addons/4_4_SVM_Theory/SVMTheory.md`
 - [x] Phase 5: 4.5 Voxel Mapping — DDA ray casting over voxel grid from LiDAR point cloud; reuses B3 ray-AABB math; subscribes to live `sensor_msgs/PointCloud2` topic (bags played via `ros2 bag play`).
   - *Context*: Executive Summary §4.5; `04_Addons/4_5_Voxel_Mapping/VoxelMapping.md`
-- [ ] Phase 6: 4.6 FFmpeg Pipeline — Hardware decode (NVDEC/VAAPI) → zero-copy OpenCL surface map → filter kernel from Track A → re-encode; per-frame breakdown.
+- [x] Phase 6: 4.6 FFmpeg Pipeline — Hardware decode (NVDEC/VAAPI) → zero-copy OpenCL surface map → filter kernel from Track A → re-encode; per-frame breakdown.
   - *Context*: Executive Summary §4.6; `04_Addons/4_6_FFmpeg_Pipeline/FFmpegPipeline.md`
+  - *Result*: Full zero-copy pipeline on Intel Iris Xe: ~4 ms/frame (227 FPS) vs ~19 ms SW path. Task 047 complete.
 - [ ] Phase 7: 4.7 SoftISP — Naive bilinear debayer (V1) vs LDS-tiled debayer (V2) at 4K; pixel-identical BMP outputs; speedup gate.
   - *Context*: Executive Summary §4.7; `04_Addons/4_7_SoftISP/SoftISP.md`
 - [ ] Phase 8: Module review and cleanup — Verify all standalone builds, align CMake conventions with Module 1/2 patterns, confirm asset references resolve.
@@ -56,10 +57,17 @@ Provide self-contained, elective case studies for engineers who have completed a
 - **4.2 Exception**: Written analysis only — no binary. Artifact is `report.md` in `4_2_OpenCL_vs_CUDA/`. No performance gate.
 - **4.3 Exception**: Produces packaging artifacts (Dockerfile, CMake install rules, AppImage script). Verification: successful `docker build` + `docker run` of the `01_VisualKernel` demo.
 - **4.5 ROS 2 Dependency**: Hard ROS 2 Jazzy dependency. CMake must check `$ENV{ROS_DISTRO}` and emit `message(FATAL_ERROR)` with instructions if unset. All other add-ons build without ROS 2.
-- **4.6 Hardware Interop**: `clCreateFromVA_APIMediaSurfaceINTEL` (Intel/AMD) and `cl_khr_egl_image` (Nvidia) checked at runtime. Software-decode fallback (`AVFrame` CPU → `clEnqueueWriteBuffer`) required when hardware interop unavailable.
-  - *NVIDIA*: NVDEC via `h264_cuvid`; requires `av_hwdevice_ctx_create(AV_HWDEVICE_TYPE_CUDA)` before `avcodec_open2`. Packages: `libva2 libva-drm2 nvidia-vaapi-driver`. Input must be H.264 High (yuv420p) — NVDEC does not support High 4:4:4 Predictive.
+- **4.6 Hardware Interop**: `cl_intel_va_api_media_sharing` (Intel/AMD) and `cl_khr_egl_image` (Nvidia) checked at runtime via extension string. Software fallback mandatory.
+  - *Decode*: Use standard codec decoder (e.g. `h264`) + `hw_device_ctx` (VAAPI or CUDA) + `get_format` callback that selects `AV_PIX_FMT_VAAPI`. **Do NOT** use `h264_vaapi` as a decoder name — that codec does not exist for decoding.
+  - *Encode*: `h264_vaapi` with `hw_frames_ctx` (NV12-backed VAAPI surface pool). `avcodec_open2` failure falls back to `libx264`.
+  - *Zero-copy decode*: `clCreateFromVA_APIMediaSurfaceINTEL` for planes 0 (Y, CL_R) and 1 (UV, CL_RG). Acquire → `nv12_to_rgba` kernel (BT.601 limited range) → release.
+  - *Zero-copy encode*: `av_hwframe_get_buffer` → `clCreateFromVA_APIMediaSurfaceINTEL` (write-only, planes 0+1) → acquire → `rgba_to_nv12_y` (W×H) + `rgba_to_nv12_uv` (W/2×H/2) kernels → release → `avcodec_send_frame`.
+  - *Extension function loading*: `clCreateFromVA_APIMediaSurfaceINTEL`, `clEnqueueAcquireVA_APIMediaSurfacesINTEL`, `clEnqueueReleaseVA_APIMediaSurfacesINTEL` are NOT in the ICD dispatch table. Load via `clGetExtensionFunctionAddressForPlatform`. Suppress extern declarations with `#define CL_NO_NON_ICD_DISPATCH_EXTENSION_PROTOTYPES` before `#include <CL/cl_va_api_media_sharing_intel.h>`.
+  - *CL context*: must be created with `CL_CONTEXT_VA_API_DISPLAY_INTEL` property; cannot be added post-construction. Rebuild after VAAPI device init.
+  - *`cl_dst` flags*: must be `CL_MEM_READ_WRITE`, not `WRITE_ONLY`, so the encode-side RGBA→NV12 kernel can read it.
+  - *NVIDIA*: NVDEC via `h264_cuvid`; requires `av_hwdevice_ctx_create(AV_HWDEVICE_TYPE_CUDA)`. Packages: `libva2 libva-drm2 nvidia-vaapi-driver`. Input must be H.264 High (yuv420p).
   - *AMD*: VAAPI decode via Mesa (`mesa-va-drivers`); zero-copy interop requires ROCm OpenCL (`rocm-opencl-runtime`) — rusticl does not expose `cl_intel_va_api_media_sharing`.
-  - *Intel*: Simplest path. `intel-media-va-driver-non-free` + `intel-opencl-icd` (NEO) are sufficient; NEO natively exposes `cl_intel_va_api_media_sharing`.
+  - *Intel*: `intel-media-va-driver-non-free` + `intel-opencl-icd` (NEO). NEO natively exposes `cl_intel_va_api_media_sharing`. Also requires `libva-dev` for `<va/va.h>` at compile time.
 - **4.7 LDS Pixel-Identical Check**: V1 and V2 outputs must be byte-exact. Any difference terminates run with `std::runtime_error`. Check is in-binary, not a test script.
 - **vkFFT Fetching**: Via `FetchContent_Declare` in `4_1_vkFFT_Audio/CMakeLists.txt`. No system install required.
 - **FFTW CPU Reference (4.1)**: `find_package(FFTW3)` optional — if not found, CPU reference path is skipped with `[CPU reference skipped: FFTW3 not found]` message. Speedup gate requires FFTW3.
@@ -115,11 +123,20 @@ Provide self-contained, elective case studies for engineers who have completed a
 9. On shutdown: run same projection → write `output_voxel_slice.bmp`.
 
 #### 4.6 FFmpeg Transcoder (per frame)
-1. `avcodec_receive_frame` → hardware `AVFrame`.
-2. Map VAAPI/EGL surface → `cl_mem` (zero-copy). `clEnqueueAcquire*` → `cl::Event`.
-3. Dispatch filter kernel (same `.cl` as Track A). → `cl::Event`.
-4. `clEnqueueRelease*` → re-encode via hardware encoder.
+
+**Zero-copy path** (`hw_interop && enc_using_vaapi`):
+
+1. `avcodec_receive_frame` → VAAPI `AVFrame` (`AV_PIX_FMT_VAAPI`). Time with `std::chrono`.
+2. `clCreateFromVA_APIMediaSurfaceINTEL` (plane 0 = Y, plane 1 = UV) → acquire → dispatch `nv12_to_rgba` kernel (BT.601 limited range) → release → `cl_src` holds RGBA. Time with `cl::Event`.
+3. Dispatch `apply_filter` kernel (`cl_src` → `cl_dst`). Time with `cl::Event`.
+4. `av_hwframe_get_buffer` → get encoder VAAPI surface → `clCreateFromVA_APIMediaSurfaceINTEL` (write-only, planes 0+1) → acquire → dispatch `rgba_to_nv12_y` (W×H) + `rgba_to_nv12_uv` (W/2×H/2) → release → `avcodec_send_frame(hw_frame)`. Time with `std::chrono`.
 5. Print: decode ms, map ms, filter ms, encode ms, total ms, effective FPS.
+
+**Software fallback path:**
+
+1. `avcodec_receive_frame` → SW `AVFrame` (or `av_hwframe_transfer_data` if VAAPI/CUDA surface). `sws_scale` → RGBA → `enqueueWriteImage`. `cl_src` populated on CPU.
+2. Same filter kernel dispatch (steps 2–3 above).
+3. `sws_scale` RGBA → NV12/YUV420P → `av_hwframe_transfer_data` (if VAAPI encoder) → `avcodec_send_frame`.
 
 #### 4.7 SoftISP (V1 then V2)
 1. Read `.raw` → `cl::Buffer` (uchar, RGGB).
@@ -163,6 +180,8 @@ Provide self-contained, elective case studies for engineers who have completed a
 
 - **vkFFT OpenCL Backend Maturity**: Lags behind Vulkan backend. Some radix configurations may fail on non-Nvidia drivers. Must catch `VkFFTResult != VKFFT_SUCCESS` with human-readable error including the failing FFT configuration.
 - **VAAPI/EGL Surface Mapping Vendor Lock**: `clCreateFromVA_APIMediaSurfaceINTEL` is Intel/AMD-only. Software fallback must be tested on all three GPU vendors. Extension string check must be per-platform.
+- **4.6 NVIDIA h264_cuvid Runtime Failure**: On RTX 4060 (and likely other NVDEC devices), `h264_cuvid` opens successfully but fails at the first `avcodec_receive_frame` call with `CUDA_ERROR_NOT_SUPPORTED`. The SW fallback (`h264`) activates automatically. Hardware timing waiver applies on this path.
+- **4.6 prof_queue Must Follow Interop Context Rebuild**: `CL_QUEUE_PROFILING_ENABLE` is set at queue creation time. The profiling `cl::CommandQueue` must be created after the CL context is rebuilt with `CL_CONTEXT_VA_API_DISPLAY_INTEL`; a queue created against the initial context will not capture profiling events from the interop path.
 - **SVM Fine-Grained Availability**: Not supported on NVIDIA OpenCL drivers. Must detect `CL_DEVICE_SVM_CAPABILITIES` at runtime and skip inaccessible paths with a clear message — not a crash.
 - **4.4 SVM Gating via `CL_DEVICE_OPENCL_C_VERSION` is Wrong**: `CL_DEVICE_OPENCL_C_VERSION` returns "OpenCL C 1.2" on Intel OpenCL 3.0 drivers even when SVM is fully supported. Gate must use `CL_DEVICE_SVM_CAPABILITIES` bitmask directly. Fixed in implementation.
 - **4.4 Intel Iris Xe UMA — All Paths Equal**: On Intel Iris Xe (iGPU, UMA), `COPY_HOST_PTR`, `USE_HOST_PTR`, and SVM coarse-grained all report ~0.48 ms. The driver zero-copies all three paths over shared memory. The ≤ 50% performance gate is waived for UMA configurations. SVM fine-grained system is not supported on this device.
@@ -230,7 +249,10 @@ Provide self-contained, elective case studies for engineers who have completed a
   ├── 4_6_FFmpeg_Pipeline/
   │   ├── CMakeLists.txt
   │   ├── main.cpp
-  │   └── kernels/filter.cl
+  │   └── kernels/
+  │       ├── filter.cl
+  │       ├── nv12_to_rgba.cl
+  │       └── rgba_to_nv12.cl
   └── 4_7_SoftISP/
       ├── CMakeLists.txt
       ├── main.cpp
@@ -268,7 +290,7 @@ Provide self-contained, elective case studies for engineers who have completed a
   - 4.3: Module 1 only.
   - 4.4: Any Module 2 track.
   - 4.5: Track B (B3 complete) + Track C (C3 complete) + ROS 2 Jazzy.
-  - 4.6: Track A (A4 complete) + `libavcodec-dev libavformat-dev libavutil-dev libswscale-dev`. Per-vendor HW interop packages (Ubuntu 24.04): NVIDIA — `libva2 libva-drm2 nvidia-vaapi-driver`; AMD — `mesa-va-drivers` (decode) + `rocm-opencl-runtime` (zero-copy interop); Intel — `intel-media-va-driver-non-free intel-opencl-icd`.
+  - 4.6: Track A (A4 complete) + `libavcodec-dev libavformat-dev libavutil-dev libswscale-dev libva-dev`. Per-vendor HW interop packages (Ubuntu 24.04): NVIDIA — `libva2 libva-drm2 nvidia-vaapi-driver`; AMD — `mesa-va-drivers` (decode) + `rocm-opencl-runtime` (zero-copy interop); Intel — `intel-media-va-driver-non-free intel-opencl-icd`. `libva-dev` required on all platforms for `<va/va.h>` (VASurfaceID, VADisplay).
   - 4.7: Toolbox `LocalMemory` reviewed. No external library dependencies.
 - Assets: `assets/sample.wav` (4.1), `assets/raw_bayer_4k.raw` (4.7), `assets/sample.mp4` (4.6). 4.5 has no required asset — use `voxel_point_cloud_publisher` for live testing or `ros2 bag play <bag>` for bag replay.
 

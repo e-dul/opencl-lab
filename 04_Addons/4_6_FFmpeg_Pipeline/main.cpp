@@ -1,7 +1,12 @@
 // main.cpp — FFmpeg OpenCL Transcoder
 //
-// Pipeline per frame:
-//   Decode (VAAPI/NVDEC or SW) → Map to OpenCL → Filter kernel → Re-encode (H.264)
+// Pipeline per frame (zero-copy path when cl_intel_va_api_media_sharing available):
+//   Decode (VAAPI) → import VAAPI surface as CL image (zero-copy)
+//                  → NV12→RGBA kernel → Filter kernel → Re-encode (h264_vaapi)
+//
+// Fallback (CPU copy path):
+//   Decode (VAAPI/NVDEC or SW) → av_hwframe_transfer_data → sws_scale → enqueueWriteImage
+//                              → Filter kernel → Re-encode
 //
 // Per-frame timing:
 //   - Decode / Encode: std::chrono::steady_clock (FFmpeg stages are CPU-bound)
@@ -25,12 +30,22 @@
 #include <CLI/CLI.hpp>
 
 extern "C" {
+#include <va/va.h>                       // VASurfaceID, VADisplay
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libavutil/hwcontext.h>
+#include <libavutil/hwcontext_vaapi.h>   // AVVAAPIDeviceContext
 #include <libavutil/avutil.h>
 #include <libswscale/swscale.h>
 }
+
+// WHY CL_NO_NON_ICD_DISPATCH_EXTENSION_PROTOTYPES: the Intel VAAPI sharing functions
+// (clCreateFromVA_APIMediaSurfaceINTEL etc.) are NOT in the ICD dispatch table and
+// therefore not exported by libOpenCL.so — linking against the declarations would
+// produce undefined-reference errors. We suppress them and load via
+// clGetExtensionFunctionAddressForPlatform at runtime instead.
+#define CL_NO_NON_ICD_DISPATCH_EXTENSION_PROTOTYPES
+#include <CL/cl_va_api_media_sharing_intel.h>
 
 #include <array>
 #include <chrono>
@@ -102,35 +117,86 @@ static int run(int argc, char** argv)
     if (!fs::exists(input_path))
         throw std::runtime_error("Input file not found: " + input_path);
 
-    // ── OpenCL context ───────────────────────────────────────────────────────
+    // ── OpenCL device selection (context created later after VAAPI init) ────────
     OclContext ocl = create_context();
 
-    // WHY separate profiling queue: create_context() returns a standard queue
-    // without CL_QUEUE_PROFILING_ENABLE; CL_PROFILING_COMMAND_* queries require
-    // that flag to be set at queue creation time.
-    cl::CommandQueue prof_queue(ocl.context, ocl.device, CL_QUEUE_PROFILING_ENABLE);
-
     // ── Hardware interop detection ───────────────────────────────────────────
-    // cl_intel_va_api_media_sharing → Intel/AMD VAAPI zero-copy
+    // cl_intel_va_api_media_sharing → Intel VAAPI zero-copy (NV12 surfaces ↔ CL images)
     // cl_khr_egl_image              → Nvidia EGL zero-copy
-    bool hw_interop = device_has_ext(ocl.device, "cl_intel_va_api_media_sharing")
-                   || device_has_ext(ocl.device, "cl_khr_egl_image");
-    if (!hw_interop)
-        std::cout << "[INFO] Hardware interop unavailable; using software copy path.\n";
+    bool hw_interop = device_has_ext(ocl.device, "cl_intel_va_api_media_sharing");
 
     // ── VAAPI device (shared for HW decoder + encoder) ───────────────────────
-    // WHY shared: both h264_vaapi decoder and encoder need the same VAAPI device;
-    // a single av_hwdevice_ctx avoids double driver init and enables surface reuse.
+    // WHY shared: h264_vaapi decoder, h264_vaapi encoder, and CL interop context
+    // all need the same VADisplay; creating it once avoids double driver init.
     AVBufferRef* vaapi_dev_ctx = nullptr;
+    if (av_hwdevice_ctx_create(&vaapi_dev_ctx, AV_HWDEVICE_TYPE_VAAPI,
+                               nullptr, nullptr, 0) < 0) {
+        std::cout << "[INFO] VAAPI device init failed; HW codec paths disabled.\n";
+        vaapi_dev_ctx = nullptr;
+        hw_interop = false;
+    }
+
+    // ── OpenCL context (with VAAPI interop properties when available) ─────────
+    // WHY rebuild context: clCreateContext must receive CL_CONTEXT_VA_API_DISPLAY_INTEL
+    // at creation time — it cannot be added to an existing context.
+    if (hw_interop && vaapi_dev_ctx) {
+        auto* hw_av  = reinterpret_cast<AVHWDeviceContext*>(vaapi_dev_ctx->data);
+        auto* va_av  = reinterpret_cast<AVVAAPIDeviceContext*>(hw_av->hwctx);
+
+        cl_context_properties props[] = {
+            CL_CONTEXT_PLATFORM,           (cl_context_properties)ocl.platform(),
+            CL_CONTEXT_VA_API_DISPLAY_INTEL,(cl_context_properties)va_av->display,
+            CL_CONTEXT_INTEROP_USER_SYNC,   CL_FALSE,
+            0
+        };
+        cl_int err = CL_SUCCESS;
+        cl_context raw = clCreateContext(props, 1, &ocl.device(), nullptr, nullptr, &err);
+        if (err == CL_SUCCESS) {
+            // WHY retainObject=false: clCreateContext returns refcount=1; the
+            // cl::Context wrapper will release it on destruction — no extra retain.
+            ocl.context = cl::Context(raw, false);
+            std::cout << "[INFO] CL-VAAPI interop context: zero-copy enabled.\n";
+        } else {
+            std::cout << "[INFO] CL-VAAPI interop context failed (err=" << err
+                      << "); using copy path.\n";
+            hw_interop = false;
+        }
+    }
+    // ── Load VAAPI-sharing extension function pointers ────────────────────────
+    // WHY runtime load: these symbols are not in the ICD dispatch table and are
+    // absent from libOpenCL.so; clGetExtensionFunctionAddressForPlatform resolves
+    // them through the platform-specific ICD at runtime.
+    clCreateFromVA_APIMediaSurfaceINTEL_fn    clCreateFromVA_surf   = nullptr;
+    clEnqueueAcquireVA_APIMediaSurfacesINTEL_fn clAcquireVA_surfs   = nullptr;
+    clEnqueueReleaseVA_APIMediaSurfacesINTEL_fn clReleaseVA_surfs   = nullptr;
+
     if (hw_interop) {
-        if (av_hwdevice_ctx_create(&vaapi_dev_ctx, AV_HWDEVICE_TYPE_VAAPI,
-                                   nullptr, nullptr, 0) < 0) {
-            std::cout << "[INFO] VAAPI device init failed; falling back to SW paths.\n";
-            vaapi_dev_ctx = nullptr;
+        clCreateFromVA_surf = reinterpret_cast<clCreateFromVA_APIMediaSurfaceINTEL_fn>(
+            clGetExtensionFunctionAddressForPlatform(
+                ocl.platform(), "clCreateFromVA_APIMediaSurfaceINTEL"));
+        clAcquireVA_surfs = reinterpret_cast<clEnqueueAcquireVA_APIMediaSurfacesINTEL_fn>(
+            clGetExtensionFunctionAddressForPlatform(
+                ocl.platform(), "clEnqueueAcquireVA_APIMediaSurfacesINTEL"));
+        clReleaseVA_surfs = reinterpret_cast<clEnqueueReleaseVA_APIMediaSurfacesINTEL_fn>(
+            clGetExtensionFunctionAddressForPlatform(
+                ocl.platform(), "clEnqueueReleaseVA_APIMediaSurfacesINTEL"));
+
+        if (!clCreateFromVA_surf || !clAcquireVA_surfs || !clReleaseVA_surfs) {
+            std::cout << "[INFO] VAAPI sharing entry points not found; "
+                         "falling back to copy path.\n";
+            hw_interop = false;
         }
     }
 
-    // ── Build filter kernel ───────────────────────────────────────────────────
+    if (!hw_interop)
+        std::cout << "[INFO] Using software copy path (VAAPI→CPU→CL).\n";
+
+    // WHY separate profiling queue: must be created AFTER the final context is set;
+    // CL_QUEUE_PROFILING_ENABLE must be passed at queue creation time.
+    cl::CommandQueue prof_queue(ocl.context, ocl.device, CL_QUEUE_PROFILING_ENABLE);
+
+    // ── Build kernels ─────────────────────────────────────────────────────────
+    // filter.cl — blur or sepia on RGBA images
     std::string kernel_src = load_kernel_source("kernels/filter.cl");
     cl::Program program(ocl.context, kernel_src);
 
@@ -141,8 +207,37 @@ static int run(int argc, char** argv)
         std::string log = program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(ocl.device);
         throw std::runtime_error("Kernel build failed:\n" + log);
     }
-
     cl::Kernel kernel(program, "apply_filter");
+
+    // nv12_to_rgba.cl — zero-copy decode path: NV12 VAAPI surface planes → RGBA image
+    cl::Kernel nv12_kernel;
+    if (hw_interop) {
+        std::string nv12_src = load_kernel_source("kernels/nv12_to_rgba.cl");
+        cl::Program nv12_prog(ocl.context, nv12_src);
+        try {
+            nv12_prog.build({ocl.device});
+        } catch (const cl::Error&) {
+            std::string log = nv12_prog.getBuildInfo<CL_PROGRAM_BUILD_LOG>(ocl.device);
+            throw std::runtime_error("NV12→RGBA kernel build failed:\n" + log);
+        }
+        nv12_kernel = cl::Kernel(nv12_prog, "nv12_to_rgba");
+    }
+
+    // rgba_to_nv12.cl — zero-copy encode path: RGBA cl::Image2D → NV12 VAAPI surface planes
+    cl::Kernel rgba_nv12_y_kernel;
+    cl::Kernel rgba_nv12_uv_kernel;
+    if (hw_interop) {
+        std::string rgba_nv12_src = load_kernel_source("kernels/rgba_to_nv12.cl");
+        cl::Program rgba_nv12_prog(ocl.context, rgba_nv12_src);
+        try {
+            rgba_nv12_prog.build({ocl.device});
+        } catch (const cl::Error&) {
+            std::string log = rgba_nv12_prog.getBuildInfo<CL_PROGRAM_BUILD_LOG>(ocl.device);
+            throw std::runtime_error("RGBA→NV12 kernel build failed:\n" + log);
+        }
+        rgba_nv12_y_kernel  = cl::Kernel(rgba_nv12_prog, "rgba_to_nv12_y");
+        rgba_nv12_uv_kernel = cl::Kernel(rgba_nv12_prog, "rgba_to_nv12_uv");
+    }
 
     // ── FFmpeg: open input ───────────────────────────────────────────────────
     AVFormatContext* fmt_ctx = nullptr;
@@ -374,8 +469,13 @@ static int run(int argc, char** argv)
 
     // ── OpenCL image objects (RGBA UNORM_INT8) ────────────────────────────────
     cl::ImageFormat img_fmt(CL_RGBA, CL_UNORM_INT8);
-    cl::Image2D cl_src(ocl.context, CL_MEM_READ_ONLY,  img_fmt, frame_w, frame_h);
-    cl::Image2D cl_dst(ocl.context, CL_MEM_WRITE_ONLY, img_fmt, frame_w, frame_h);
+    // WHY READ_WRITE: zero-copy path writes RGBA into cl_src via nv12_to_rgba
+    // kernel; copy path writes via enqueueWriteImage. Both are device writes;
+    // the filter kernel reads. READ_ONLY would block the kernel write.
+    cl::Image2D cl_src(ocl.context, CL_MEM_READ_WRITE, img_fmt, frame_w, frame_h);
+    // WHY READ_WRITE: the filter kernel writes cl_dst; the zero-copy encode path
+    // reads it via the RGBA→NV12 kernel. WRITE_ONLY would block that read.
+    cl::Image2D cl_dst(ocl.context, CL_MEM_READ_WRITE, img_fmt, frame_w, frame_h);
 
     // Integer safety: promote to size_t before multiply.
     const size_t rgba_bytes = static_cast<size_t>(frame_w) * frame_h * 4;
@@ -447,46 +547,86 @@ static int run(int argc, char** argv)
             auto t_dec_end  = Clock::now();
             double decode_ms = Ms(t_dec_end - t_dec_start).count();
 
-            // ── Map: YUV → RGBA → cl::Image2D ──────────────────────────────
+            // ── Map: VAAPI surface / YUV → RGBA cl::Image2D ────────────────
             auto t_map_start = Clock::now();
 
-            // Transfer HW surface (VAAPI or CUDA) to CPU memory for sws_scale.
-            // WHY: sws_scale cannot operate on HW pixel formats directly.
-            AVFrame* sw_frame = dec_frame;
-            AVFrame* hw_tmp   = nullptr;
-            if (dec_frame->format == AV_PIX_FMT_VAAPI ||
-                dec_frame->format == AV_PIX_FMT_CUDA) {
-                hw_tmp = av_frame_alloc();
-                if (av_hwframe_transfer_data(hw_tmp, dec_frame, 0) < 0)
-                    throw std::runtime_error("av_hwframe_transfer_data failed");
-                sw_frame = hw_tmp;
+            cl::Event map_event;
+            if (hw_interop && dec_frame->format == AV_PIX_FMT_VAAPI) {
+                // ── Zero-copy path ───────────────────────────────────────────
+                // Import the VAAPI surface directly as two read-only CL images;
+                // the NV12→RGBA kernel converts on-GPU — no CPU readback.
+                VASurfaceID va_surf = static_cast<VASurfaceID>(
+                    reinterpret_cast<uintptr_t>(dec_frame->data[3]));
+
+                cl_int err = CL_SUCCESS;
+                cl_mem y_mem = clCreateFromVA_surf(
+                    ocl.context(), CL_MEM_READ_ONLY, &va_surf, 0, &err);
+                if (err != CL_SUCCESS)
+                    throw std::runtime_error("clCreateFromVA_surf(Y) failed: err=" + std::to_string(err));
+                cl_mem uv_mem = clCreateFromVA_surf(
+                    ocl.context(), CL_MEM_READ_ONLY, &va_surf, 1, &err);
+                if (err != CL_SUCCESS) { clReleaseMemObject(y_mem); throw std::runtime_error("clCreateFromVA_surf(UV) failed: err=" + std::to_string(err)); }
+
+                cl_mem mems[2] = {y_mem, uv_mem};
+                CL_CHECK(clAcquireVA_surfs(prof_queue(), 2, mems, 0, nullptr, nullptr));
+
+                // Wrap in cl::Image2D for setArg (retainObject=true: we own the
+                // underlying cl_mem, but the wrapper adds an extra retain here
+                // which we balance by releasing the raw handles after the kernel).
+                cl::Image2D y_img(y_mem,   true);
+                cl::Image2D uv_img(uv_mem, true);
+
+                CL_CHECK(nv12_kernel.setArg(0, y_img));
+                CL_CHECK(nv12_kernel.setArg(1, uv_img));
+                CL_CHECK(nv12_kernel.setArg(2, cl_src));
+                CL_CHECK(nv12_kernel.setArg(3, frame_w));
+                CL_CHECK(nv12_kernel.setArg(4, frame_h));
+
+                CL_CHECK(prof_queue.enqueueNDRangeKernel(
+                    nv12_kernel, cl::NullRange,
+                    cl::NDRange(static_cast<size_t>(frame_w),
+                                static_cast<size_t>(frame_h)),
+                    cl::NullRange, nullptr, &map_event));
+                CL_CHECK(prof_queue.finish());
+
+                CL_CHECK(clReleaseVA_surfs(prof_queue(), 2, mems, 0, nullptr, nullptr));
+                clReleaseMemObject(y_mem);
+                clReleaseMemObject(uv_mem);
+            } else {
+                // ── Copy path (VAAPI/CUDA → CPU → CL) ───────────────────────
+                AVFrame* sw_frame = dec_frame;
+                AVFrame* hw_tmp   = nullptr;
+                if (dec_frame->format == AV_PIX_FMT_VAAPI ||
+                    dec_frame->format == AV_PIX_FMT_CUDA) {
+                    hw_tmp = av_frame_alloc();
+                    if (av_hwframe_transfer_data(hw_tmp, dec_frame, 0) < 0)
+                        throw std::runtime_error("av_hwframe_transfer_data failed");
+                    sw_frame = hw_tmp;
+                }
+
+                if (!sws_to_rgba) {
+                    sws_to_rgba = sws_getContext(
+                        frame_w, frame_h,
+                        static_cast<AVPixelFormat>(sw_frame->format),
+                        frame_w, frame_h, AV_PIX_FMT_RGBA,
+                        SWS_BILINEAR, nullptr, nullptr, nullptr);
+                    if (!sws_to_rgba)
+                        throw std::runtime_error("sws_getContext (->RGBA) failed");
+                }
+
+                uint8_t* dst_data[4]   = {rgba_in.data(), nullptr, nullptr, nullptr};
+                int      dst_stride[4] = {frame_w * 4, 0, 0, 0};
+                sws_scale(sws_to_rgba,
+                          sw_frame->data, sw_frame->linesize, 0, frame_h,
+                          dst_data, dst_stride);
+                if (hw_tmp) av_frame_free(&hw_tmp);
+
+                CL_CHECK(prof_queue.enqueueWriteImage(
+                    cl_src, CL_TRUE,
+                    img_origin, img_region,
+                    static_cast<size_t>(frame_w) * 4, 0,
+                    rgba_in.data()));
             }
-
-            // Lazy sws_to_rgba: created on the first frame using the actual
-            // decoded pixel format, which may differ between HW and SW decoders.
-            if (!sws_to_rgba) {
-                sws_to_rgba = sws_getContext(
-                    frame_w, frame_h,
-                    static_cast<AVPixelFormat>(sw_frame->format),
-                    frame_w, frame_h, AV_PIX_FMT_RGBA,
-                    SWS_BILINEAR, nullptr, nullptr, nullptr);
-                if (!sws_to_rgba)
-                    throw std::runtime_error("sws_getContext (->RGBA) failed");
-            }
-
-            uint8_t*       dst_data[4]   = {rgba_in.data(), nullptr, nullptr, nullptr};
-            int            dst_stride[4] = {frame_w * 4, 0, 0, 0};
-            sws_scale(sws_to_rgba,
-                      sw_frame->data, sw_frame->linesize, 0, frame_h,
-                      dst_data, dst_stride);
-
-            if (hw_tmp) av_frame_free(&hw_tmp);
-
-            CL_CHECK(prof_queue.enqueueWriteImage(
-                cl_src, CL_TRUE,
-                img_origin, img_region,
-                static_cast<size_t>(frame_w) * 4, 0,
-                rgba_in.data()));
 
             auto t_map_end = Clock::now();
             double map_ms  = Ms(t_map_end - t_map_start).count();
@@ -507,38 +647,105 @@ static int run(int argc, char** argv)
 
             double filter_ms = event_ms(filter_event);
 
-            // Read back filtered RGBA.
-            CL_CHECK(prof_queue.enqueueReadImage(
-                cl_dst, CL_TRUE,
-                img_origin, img_region,
-                static_cast<size_t>(frame_w) * 4, 0,
-                rgba_out.data()));
+            // WHY conditional readback: zero-copy encode path feeds cl_dst directly
+            // to the RGBA→NV12 kernels — no CPU readback needed in that path.
+            if (!(hw_interop && enc_using_vaapi)) {
+                CL_CHECK(prof_queue.enqueueReadImage(
+                    cl_dst, CL_TRUE,
+                    img_origin, img_region,
+                    static_cast<size_t>(frame_w) * 4, 0,
+                    rgba_out.data()));
+            }
 
-            // ── Encode: RGBA → NV12/YUV420P → (upload to VAAPI?) → avcodec ──
+            // ── Encode ─────────────────────────────────────────────────────────
             auto t_enc_start = Clock::now();
 
-            if (av_frame_make_writable(enc_frame) < 0)
-                throw std::runtime_error("av_frame_make_writable failed");
-
-            const uint8_t* src_data[4]   = {rgba_out.data(), nullptr, nullptr, nullptr};
-            int            src_stride[4] = {frame_w * 4, 0, 0, 0};
-            sws_scale(sws_to_yuv,
-                      src_data, src_stride, 0, frame_h,
-                      enc_frame->data, enc_frame->linesize);
-
-            enc_frame->pts = static_cast<int64_t>(frame_idx);
-
-            // For VAAPI encoder: upload the sw NV12 frame into a VAAPI surface.
-            AVFrame* send_frame = enc_frame;
+            AVFrame* send_frame = nullptr;
             AVFrame* hw_frame   = nullptr;
-            if (enc_using_vaapi) {
+
+            if (hw_interop && enc_using_vaapi) {
+                // ── Zero-copy encode path ────────────────────────────────────
+                // Get an encoder VAAPI surface from the pool, import it as two
+                // write-only CL images, run RGBA→NV12 kernels directly from
+                // cl_dst — no CPU readback, no sws_scale, no av_hwframe_transfer_data.
                 hw_frame = av_frame_alloc();
                 if (av_hwframe_get_buffer(enc_ctx->hw_frames_ctx, hw_frame, 0) < 0)
                     throw std::runtime_error("av_hwframe_get_buffer failed");
-                if (av_hwframe_transfer_data(hw_frame, enc_frame, 0) < 0)
-                    throw std::runtime_error("av_hwframe_transfer_data (upload) failed");
-                hw_frame->pts = enc_frame->pts;
-                send_frame = hw_frame;
+
+                VASurfaceID enc_surf = static_cast<VASurfaceID>(
+                    reinterpret_cast<uintptr_t>(hw_frame->data[3]));
+
+                cl_int err = CL_SUCCESS;
+                cl_mem enc_y_mem  = clCreateFromVA_surf(
+                    ocl.context(), CL_MEM_WRITE_ONLY, &enc_surf, 0, &err);
+                if (err != CL_SUCCESS)
+                    throw std::runtime_error("clCreateFromVA_surf(enc Y) err=" + std::to_string(err));
+                cl_mem enc_uv_mem = clCreateFromVA_surf(
+                    ocl.context(), CL_MEM_WRITE_ONLY, &enc_surf, 1, &err);
+                if (err != CL_SUCCESS) {
+                    clReleaseMemObject(enc_y_mem);
+                    throw std::runtime_error("clCreateFromVA_surf(enc UV) err=" + std::to_string(err));
+                }
+
+                cl_mem enc_mems[2] = {enc_y_mem, enc_uv_mem};
+                CL_CHECK(clAcquireVA_surfs(prof_queue(), 2, enc_mems, 0, nullptr, nullptr));
+
+                cl::Image2D enc_y_img(enc_y_mem,   true);
+                cl::Image2D enc_uv_img(enc_uv_mem, true);
+
+                // Y plane: full W×H resolution
+                CL_CHECK(rgba_nv12_y_kernel.setArg(0, cl_dst));
+                CL_CHECK(rgba_nv12_y_kernel.setArg(1, enc_y_img));
+                CL_CHECK(rgba_nv12_y_kernel.setArg(2, frame_w));
+                CL_CHECK(rgba_nv12_y_kernel.setArg(3, frame_h));
+                CL_CHECK(prof_queue.enqueueNDRangeKernel(
+                    rgba_nv12_y_kernel, cl::NullRange,
+                    cl::NDRange(static_cast<size_t>(frame_w),
+                                static_cast<size_t>(frame_h)),
+                    cl::NullRange));
+
+                // UV plane: half resolution (4:2:0 chroma subsampling)
+                CL_CHECK(rgba_nv12_uv_kernel.setArg(0, cl_dst));
+                CL_CHECK(rgba_nv12_uv_kernel.setArg(1, enc_uv_img));
+                CL_CHECK(rgba_nv12_uv_kernel.setArg(2, frame_w));
+                CL_CHECK(rgba_nv12_uv_kernel.setArg(3, frame_h));
+                CL_CHECK(prof_queue.enqueueNDRangeKernel(
+                    rgba_nv12_uv_kernel, cl::NullRange,
+                    cl::NDRange(static_cast<size_t>((frame_w + 1) / 2),
+                                static_cast<size_t>((frame_h + 1) / 2)),
+                    cl::NullRange));
+
+                CL_CHECK(prof_queue.finish());
+
+                CL_CHECK(clReleaseVA_surfs(prof_queue(), 2, enc_mems, 0, nullptr, nullptr));
+                clReleaseMemObject(enc_y_mem);
+                clReleaseMemObject(enc_uv_mem);
+
+                hw_frame->pts = static_cast<int64_t>(frame_idx);
+                send_frame    = hw_frame;
+            } else {
+                // ── CPU encode path ──────────────────────────────────────────
+                if (av_frame_make_writable(enc_frame) < 0)
+                    throw std::runtime_error("av_frame_make_writable failed");
+
+                const uint8_t* src_data[4]   = {rgba_out.data(), nullptr, nullptr, nullptr};
+                int            src_stride[4] = {frame_w * 4, 0, 0, 0};
+                sws_scale(sws_to_yuv,
+                          src_data, src_stride, 0, frame_h,
+                          enc_frame->data, enc_frame->linesize);
+                enc_frame->pts = static_cast<int64_t>(frame_idx);
+                send_frame     = enc_frame;
+
+                if (enc_using_vaapi) {
+                    // Non-interop VAAPI: upload SW NV12 frame to VAAPI surface.
+                    hw_frame = av_frame_alloc();
+                    if (av_hwframe_get_buffer(enc_ctx->hw_frames_ctx, hw_frame, 0) < 0)
+                        throw std::runtime_error("av_hwframe_get_buffer failed");
+                    if (av_hwframe_transfer_data(hw_frame, enc_frame, 0) < 0)
+                        throw std::runtime_error("av_hwframe_transfer_data (upload) failed");
+                    hw_frame->pts = enc_frame->pts;
+                    send_frame    = hw_frame;
+                }
             }
 
             if (avcodec_send_frame(enc_ctx, send_frame) >= 0) {

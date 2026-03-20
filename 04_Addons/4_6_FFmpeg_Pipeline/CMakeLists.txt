@@ -36,6 +36,7 @@ target_link_libraries(ffmpeg_opencl_transcoder PRIVATE
     OpenCL::OpenCL
     CLI11::CLI11
     ${FFMPEG_LIBRARIES}
+    va          # libva — VASurfaceID, VADisplay (cl_intel_va_api_media_sharing)
 )
 
 target_compile_options(ffmpeg_opencl_transcoder PRIVATE ${FFMPEG_CFLAGS_OTHER})
