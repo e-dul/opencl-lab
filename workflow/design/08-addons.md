@@ -34,7 +34,7 @@ Provide self-contained, elective case studies for engineers who have completed a
   - *Context*: Executive Summary §4.3; `04_Addons/4_3_Deployment/Deployment.md`
 - [x] Phase 4: 4.4 SVM Deep Dive — Standalone benchmark: `CL_MEM_COPY_HOST_PTR` vs `USE_HOST_PTR` vs SVM coarse-grained vs SVM fine-grained; BMP artifact from image round-trip.
   - *Context*: Executive Summary §4.4; `04_Addons/4_4_SVM_Theory/SVMTheory.md`
-- [ ] Phase 5: 4.5 Voxel Mapping — DDA ray casting over voxel grid from LiDAR point cloud; reuses B3 ray-AABB math; subscribes to live `sensor_msgs/PointCloud2` topic (bags played via `ros2 bag play`).
+- [x] Phase 5: 4.5 Voxel Mapping — DDA ray casting over voxel grid from LiDAR point cloud; reuses B3 ray-AABB math; subscribes to live `sensor_msgs/PointCloud2` topic (bags played via `ros2 bag play`).
   - *Context*: Executive Summary §4.5; `04_Addons/4_5_Voxel_Mapping/VoxelMapping.md`
 - [ ] Phase 6: 4.6 FFmpeg Pipeline — Hardware decode (NVDEC/VAAPI) → zero-copy OpenCL surface map → filter kernel from Track A → re-encode; per-frame breakdown.
   - *Context*: Executive Summary §4.6; `04_Addons/4_6_FFmpeg_Pipeline/FFmpegPipeline.md`
@@ -77,7 +77,7 @@ Provide self-contained, elective case studies for engineers who have completed a
 
 - **4.4 SVM Benchmark** (`4_4_SVM_Theory/`): Four memory transfer paths for 1080p image round-trip: `CL_MEM_COPY_HOST_PTR`, `CL_MEM_USE_HOST_PTR`, SVM coarse-grained, SVM fine-grained (guarded `#ifdef CL_VERSION_2_0`). Reports ms per path; writes `output_svm_verify.bmp`. CLI: `--width`, `--height`, `--iterations`.
 
-- **4.5 Voxel Mapping** (`4_5_Voxel_Mapping/`): Two binaries. `voxel_mapping`: subscribes to `--topic` (`sensor_msgs/PointCloud2`), accumulates voxel grid across frames, writes `output_voxel_slice.bmp` on shutdown. CLI: `--topic`, `--resolution`, `--output`, `--enable-flip-filter`, `--flip-threshold`. `voxel_point_cloud_publisher`: synthetic publisher with `--scene static|dynamic` (dynamic scene orbits sphere clusters per frame to exercise flip-count filter). Bags played via `ros2 bag play`. No `rosbag2_cpp` dependency.
+- **4.5 Voxel Mapping** (`4_5_Voxel_Mapping/`): Two binaries. `voxel_mapping`: subscribes to `--topic` (`sensor_msgs/PointCloud2`), accumulates voxel grid across frames, writes `output_voxel_slice.bmp` on shutdown. Publishes two live debug topics each frame: `/voxel_map` (`sensor_msgs/PointCloud2` of occupied voxel XYZ centroids in world frame) and `/voxel_slice` (`sensor_msgs/Image`, MONO8, above-sensor column projection). CLI: `--topic`, `--resolution`, `--output`, `--enable-flip-filter`, `--flip-threshold`. `voxel_point_cloud_publisher`: synthetic publisher with `--scene static|dynamic` (dynamic scene orbits sphere clusters per frame to exercise flip-count filter). Bags played via `ros2 bag play`. No `rosbag2_cpp` dependency.
 
 - **4.6 FFmpeg Transcoder** (`4_6_FFmpeg_Pipeline/`): Reads `.mp4`, hardware-decodes to GPU surface (VAAPI/EGL), maps to OpenCL image (zero-copy), applies blur/filter kernel from Track A, re-encodes. Per-frame stage breakdown. CLI: `--input`, `--output`, `--effect` (`bokeh`|`sepia`).
 
@@ -104,9 +104,12 @@ Provide self-contained, elective case studies for engineers who have completed a
 1. Subscriber callback receives `PointCloud2::SharedPtr`.
 2. Upload points → `cl::Buffer` (non-blocking) → `cl::Event`.
 3. DDA kernel: one work-item per point, marks FREE voxels along ray and OCCUPIED at endpoint via `atomic_or` → `cl::Event`.
-4. (Challenge) Flip-count kernel: classify dynamic voxels.
-5. Extract 2D top-down slice → colorize RGBA (black/white/grey) → BMP.
-6. Assert total < 5 ms.
+4. (Optional) Flip-count kernel: classify dynamic voxels → `cl::Event`. Host-side: zero occupancy where `flip_count > threshold`.
+5. Read back grid buffer (synchronous, for debug publishers).
+6. Build `/voxel_map` cloud: iterate grid, collect voxels with `OCCUPIED_BIT`, convert indices → world XYZ centroids, publish `sensor_msgs/PointCloud2`.
+7. Build `/voxel_slice` image: above-sensor column projection (z ≥ gz/2), colorize (OCCUPIED=black(0), FREE=white(255), UNKNOWN=grey(128)), publish `sensor_msgs/Image` (MONO8, width=gx, height=gy).
+8. Assert total GPU pipeline (upload + DDA [+ flip]) < 5 ms. Print `[WARN]` if exceeded.
+9. On shutdown: run same projection → write `output_voxel_slice.bmp`.
 
 #### 4.6 FFmpeg Transcoder (per frame)
 1. `avcodec_receive_frame` → hardware `AVFrame`.
@@ -161,6 +164,9 @@ Provide self-contained, elective case studies for engineers who have completed a
 - **4.4 SVM Gating via `CL_DEVICE_OPENCL_C_VERSION` is Wrong**: `CL_DEVICE_OPENCL_C_VERSION` returns "OpenCL C 1.2" on Intel OpenCL 3.0 drivers even when SVM is fully supported. Gate must use `CL_DEVICE_SVM_CAPABILITIES` bitmask directly. Fixed in implementation.
 - **4.4 Intel Iris Xe UMA — All Paths Equal**: On Intel Iris Xe (iGPU, UMA), `COPY_HOST_PTR`, `USE_HOST_PTR`, and SVM coarse-grained all report ~0.48 ms. The driver zero-copies all three paths over shared memory. The ≤ 50% performance gate is waived for UMA configurations. SVM fine-grained system is not supported on this device.
 - **4.5 Atomic Contention at High Point Density**: DDA traversal with `atomic_or` on shared voxel grid serializes under high point density. Document in console output and README. Mitigation (per-thread staging buffer + merge kernel) is the challenge, not base implementation.
+- **4.5 flip_count_buf_ Requires Per-Cycle Reset**: After a flip-count threshold crossing zeroes a voxel's occupancy, `flip_count_buf_` must be reset to 0 for that voxel; otherwise dynamic voxels are permanently filtered even when they become static. Reset is implemented in the host-side post-processing pass each frame.
+- **4.5 Sensor Pose is Static**: No odometry integration. All frames accumulate in sensor frame. Correct only when the sensor does not move. Printed as `[INFO]` on first message; documented in README.
+- **4.5 Above-Sensor Column Projection Excludes Ground Level**: `/voxel_slice` and `output_voxel_slice.bmp` project z from `gz/2 + 1` (not `gz/2`) to `gz - 1`, excluding the ground-level voxel layer to reduce ground-return noise in the 2D footprint.
 - **4.7 LDS Tile Halo Boundary**: Work-items at image edges must clamp indices to `[0, width-1]` × `[0, height-1]`. Incorrect clamping is the most common bug; pixel-identity assertion catches it.
 - **4.3 Docker PoCL vs Native Driver**: Dockerfile must install `ocl-icd-libopencl1` and at minimum PoCL. `GPU` env var selection must still work inside the container. *(Resolved: GPU passthrough via `--device /dev/dri` + host ICD/library mounts works; PoCL CPU fallback confirmed without GPU.)*
 - **4.3 AppImage Kernel Path**: Kernel files must be copied to `AppDir/usr/bin/kernels/` (next to binary) — not only `usr/share/`. The binary resolves kernels via `std::filesystem::read_symlink("/proc/self/exe").parent_path() / "kernels/"` to work inside the squashfs mount path.
@@ -235,7 +241,7 @@ Provide self-contained, elective case studies for engineers who have completed a
   - 4.2: `report.md` present and non-empty. No binary.
   - 4.3: `docker build` succeeds; `docker run` produces `output.bmp`.
   - 4.4: `output_svm_verify.bmp` matches input. Console: time table for all available paths.
-  - 4.5: `output_voxel_slice.bmp` (occupied black, free white, unknown grey). Console: per-stage ms < 5 ms total.
+  - 4.5: `output_voxel_slice.bmp` (occupied black, free white, unknown grey). Console: per-stage ms < 5 ms total. Live RViz: `/voxel_map` cloud + `/voxel_slice` image visible each frame.
   - 4.6: `filtered.mp4` plays correctly with effect visible. Console: per-frame breakdown.
   - 4.7: `output_rgb_v1.bmp` and `output_rgb_v2.bmp` pixel-identical and visually correct. Console: V1 ms, V2 ms, speedup.
 

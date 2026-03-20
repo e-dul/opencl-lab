@@ -29,7 +29,7 @@ cmake -B build && cmake --build build
 
 # Dynamic scene (exercises flip-count filter):
 ./build/voxel_point_cloud_publisher --scene dynamic --hz 10 --frames 50 &
-./build/voxel_mapping --topic /points --resolution 0.1 --enable-flip-filter
+./build/voxel_mapping --topic /points --resolution 0.1 --enable-flip-filter --flip-threshold 3 --move-speed 0.2
 ```
 
 **From a bag (any PointCloud2 bag, XYZI point_step=16):**
@@ -43,11 +43,35 @@ ros2 bag play <path/to/bag>
 - `output_voxel_slice.bmp` — top-down 2D slice (occupied = black, free = white, unknown = grey)
 - Console prints:
   ```
-  Voxel grid: 200x200x50 @ 0.1m resolution
-  [GPU] Ray casting (100k pts):  3.1 ms per frame
-  [GPU] Map update:              1.4 ms per frame
-  Total pipeline:                4.5 ms  ← inherits C3 performance gate (< 5 ms)
+  [INFO] Sensor pose assumed static. Odometry integration not implemented.
+  [INFO] Voxel grid: 200x200x50 @ 0.10m resolution (3 MB)
+    [GPU] Upload     : 0.312 ms
+    [GPU] DDA cast   : 1.847 ms
+    [GPU] Flip filter: 0.211 ms   ← only when --enable-flip-filter
+    Total pipeline   : 2.370 ms (10000 pts)
   ```
+  Total must remain < 5 ms @ 100k points (C3 performance gate). A `[WARN]` line is printed if the gate is exceeded.
+
+## Live Visualisation (RViz)
+
+Two debug topics are published every frame and can be inspected in RViz without recording a bag:
+
+| Topic | Type | Content |
+| :--- | :--- | :--- |
+| `/voxel_map` | `sensor_msgs/PointCloud2` | XYZ centroids of all `OCCUPIED` voxels in world frame |
+| `/voxel_slice` | `sensor_msgs/Image` (MONO8) | Above-sensor column projection; width=gx, height=gy |
+
+**RViz setup:**
+1. Set **Fixed Frame** to `map` (or whatever frame the publisher uses).
+2. Add a **PointCloud2** display, topic `/voxel_map`. Set Style to `Voxels` or `Points`.
+3. Add an **Image** display, topic `/voxel_slice`. Each pixel encodes: 0 = occupied (black), 255 = free (white), 128 = unknown (grey).
+
+The slice projects z from `gz/2 + 1` upward, so ground-return voxels are excluded from the 2D footprint.
+
+Spot-check a single image message without RViz:
+```bash
+ros2 topic echo --once /voxel_slice
+```
 
 ## Concept: Ray Casting in Voxel Space
 
@@ -78,20 +102,28 @@ void trace_ray(__global uint* grid, int3 grid_dims, float3 origin, float3 endpoi
 }
 ```
 
+Three kernels drive the pipeline:
+- `dda_cast.cl` — marks FREE bits along each ray and sets `OCCUPIED_BIT` at the endpoint.
+- `flip_count.cl` — increments a per-voxel counter on every FREE/OCCUPIED transition.
+- `clear_occupied.cl` — clears only `OCCUPIED_BIT` per frame (preserving accumulated `FREE_BIT`) when `--enable-flip-filter` is active, so dynamic voxels are suppressed without erasing free-space history.
+
 ## Challenge: Dynamic Object Filter
 
 If a voxel flips between OCCUPIED and FREE more than N times per second, classify it as dynamic (moving person/vehicle) and exclude it from the static map.
 
-1. Add a `flip_count` buffer alongside the occupancy grid
-2. Increment `flip_count[voxel_id]` atomically on every state change
-3. In a post-processing kernel, zero out occupancy for voxels where `flip_count > threshold`
-4. Profile the counter buffer overhead vs the base ray casting time
+1. Add a `flip_count` buffer alongside the occupancy grid.
+2. Increment `flip_count[voxel_id]` atomically on every state change.
+3. In a post-processing kernel, zero out occupancy for voxels where `flip_count > threshold`.
+4. After zeroing, reset `flip_count` to 0 for those voxels so they can be re-detected in subsequent cycles. Filtering is periodic, not permanent — a voxel that stops moving will accumulate occupancy again once it no longer flips past the threshold.
+5. Profile the counter buffer overhead vs the base ray casting time.
 
 ## Troubleshooting
 
 - **Voxel slice shows all grey (unknown)**: check that the publisher or `ros2 bag play` is running and publishing on the same topic as `--topic`. Default is `/points`.
 - **Map drifts over time**: sensor pose is assumed static. For a moving robot, integrate odometry into the origin parameter per frame.
 - **Pipeline exceeds 5 ms**: the voxel update step uses global atomics. If this dominates, reduce grid resolution (`--resolution 0.2`) or use a hierarchical update (only mark changed voxels).
+- **Dynamic objects never re-appear after filtering**: flip counts must be reset to 0 after each threshold crossing. If objects are permanently absent, verify that `clear_occupied.cl` is dispatched each frame and that the host-side reset pass runs before the next DDA cast.
+- **`/voxel_slice` missing ground detail**: the projection starts at `z = gz/2 + 1` to exclude ground-level voxels. Lower this offset if your sensor is mounted near the bottom half of the grid.
 
 ---
 
