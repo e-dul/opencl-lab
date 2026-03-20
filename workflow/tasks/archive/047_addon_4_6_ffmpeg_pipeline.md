@@ -120,10 +120,10 @@ Task-specific:
 - **Status:** COMPLETE — performance gate met; awaiting MANUAL visual sign-off
 - **Session:** 2026-03-20
 
-### NVIDIA RTX 4060 (initial validation)
+### NVIDIA RTX 4060 — CPU SW path (initial)
 
 - **Hardware:** NVIDIA GeForce RTX 4060 Laptop GPU (OpenCL 3.0)
-- **Note:** `h264_cuvid` opens but fails at decode time (CUDA_ERROR_NOT_SUPPORTED). Runtime SW-fallback kicks in. Hardware timing waiver applies.
+- **Note:** `h264_cuvid` opens but fails at decode time (CUDA_ERROR_NOT_SUPPORTED). Runtime SW-fallback kicks in. Hardware timing waiver applies. CPU `sws_scale` for colour conversion.
 
 ```text
 Platform : NVIDIA CUDA
@@ -136,6 +136,27 @@ Frame  | Decode    | Map       | Filter    | Encode    | Total
 0      |   3.22 ms  |  10.13 ms  |   0.19 ms  |   6.00 ms  |  19.55 ms
 ...
 Average FPS: 49.6  (over 73 frames)
+```
+
+### NVIDIA RTX 4060 — GPU-assisted SW path (final)
+
+- **Hardware:** NVIDIA GeForce RTX 4060 Laptop GPU (OpenCL 3.0)
+- **Decoder:** `h264` + `hw_device_ctx` (VAAPI via `nvidia-vaapi-driver`) → `AV_PIX_FMT_VAAPI`
+- **Encoder:** `h264_vaapi` (VAAPI via `nvidia-vaapi-driver`) — no CL interop
+- **Optimization:** NV12 planes uploaded to GPU (~3 MB) instead of RGBA (~8 MB); `nv12_to_rgba` kernel replaces CPU `sws_scale` on decode side; `rgba_to_nv12` kernels + NV12 readback replace RGBA readback + CPU `sws_scale` on encode side.
+
+```text
+Platform : NVIDIA CUDA  [GPU=NVIDIA]
+Device   : NVIDIA GeForce RTX 4060 Laptop GPU
+[INFO] Using software copy path (VAAPI→CPU→CL).
+[INFO] Decoder: h264 (hardware)
+[INFO] Encoder: h264_vaapi (hardware/vaapi)
+
+Frame  | Decode    | Map       | Filter    | Encode    | Total
+-------|-----------|-----------|-----------|-----------|----------
+3      |   0.14 ms  |   4.17 ms  |   0.18 ms  |   1.24 ms  |   5.72 ms
+...
+Average FPS: 144.5  (over 73 frames)
 ```
 
 ### Intel Iris Xe — SW path (intermediate)
@@ -180,13 +201,15 @@ Average FPS: 227.1  (over 73 frames)
 
 ### Performance Summary
 
-| Stage  | SW path  | Zero-copy | Speedup              |
-|--------|----------|-----------|----------------------|
-| Decode | ~3 ms    | ~0.1 ms   | 30×                  |
-| Map    | ~10 ms   | ~2 ms     | 5×                   |
-| Filter | ~0.2 ms  | ~1.2 ms   | — (larger kernel on Xe) |
-| Encode | ~6 ms    | ~0.9 ms   | 7×                   |
-| **Total** | ~19 ms | **~4 ms** | **~5×**             |
+| Stage     | CPU SW path (NVIDIA) | GPU-assisted SW (NVIDIA) | Zero-copy (Intel Xe) |
+|-----------|----------------------|--------------------------|----------------------|
+| Decode    | ~3 ms                | ~0.1 ms                  | ~0.1 ms              |
+| Map       | ~10 ms               | ~4–5 ms                  | ~1.4 ms              |
+| Filter    | ~0.2 ms              | ~0.18 ms                 | ~1.2 ms              |
+| Encode    | ~6 ms                | ~1.5 ms                  | ~0.9 ms              |
+| **Total** | ~19 ms (50 FPS)      | **~7 ms (144 FPS)**      | **~4 ms (227 FPS)**  |
+
+GPU-assisted SW vs CPU SW: **~2.25× speedup** — PCIe traffic reduced from ~16 MB/frame (2× RGBA) to ~6 MB/frame (2× NV12); CPU `sws_scale` eliminated on both sides.
 
 ### Files Changed
 
@@ -204,8 +227,11 @@ Average FPS: 227.1  (over 73 frames)
 - VAAPI extension functions not in ICD dispatch table — loaded via `clGetExtensionFunctionAddressForPlatform`; `CL_NO_NON_ICD_DISPATCH_EXTENSION_PROTOTYPES` suppresses linker-breaking extern declarations.
 - CL context rebuilt with `CL_CONTEXT_VA_API_DISPLAY_INTEL` after VAAPI device init (cannot add property post-creation).
 - `cl_dst` changed to `CL_MEM_READ_WRITE` — write-only blocked the encode-side read in the RGBA→NV12 kernel.
-- NVIDIA path unaffected: zero-copy branch gates on `hw_interop && enc_using_vaapi`.
+- Intel zero-copy branch gates on `hw_interop && enc_using_vaapi`; NVIDIA SW path is the `else` branch and unaffected by interop changes.
 - `prof_queue` created after interop context rebuild — `CL_QUEUE_PROFILING_ENABLE` must be set at queue creation time.
+- GPU-assisted SW path: `nv12_to_rgba`/`rgba_to_nv12` kernels built unconditionally (removed `if (hw_interop)` guard); `cl_nv12_y`/`cl_nv12_uv` images allocated persistently and shared between map and encode stages.
+- `enc_sw_fmt` unified to `AV_PIX_FMT_NV12` for all non-VAAPI-interop paths — NVENC and libx264 both accept NV12; `sws_to_yuv` removed entirely.
+- SW map path gates on `sw_frame->format == AV_PIX_FMT_NV12` for GPU path; YUV420P (SW decoder retry) falls through to CPU `sws_scale` + RGBA upload.
 
 ### Remaining (MANUAL)
 

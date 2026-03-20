@@ -209,35 +209,28 @@ static int run(int argc, char** argv)
     }
     cl::Kernel kernel(program, "apply_filter");
 
-    // nv12_to_rgba.cl — zero-copy decode path: NV12 VAAPI surface planes → RGBA image
-    cl::Kernel nv12_kernel;
-    if (hw_interop) {
-        std::string nv12_src = load_kernel_source("kernels/nv12_to_rgba.cl");
-        cl::Program nv12_prog(ocl.context, nv12_src);
-        try {
-            nv12_prog.build({ocl.device});
-        } catch (const cl::Error&) {
-            std::string log = nv12_prog.getBuildInfo<CL_PROGRAM_BUILD_LOG>(ocl.device);
-            throw std::runtime_error("NV12→RGBA kernel build failed:\n" + log);
-        }
-        nv12_kernel = cl::Kernel(nv12_prog, "nv12_to_rgba");
+    // nv12_to_rgba.cl — used by both the zero-copy VA path and the GPU-assisted SW map path.
+    std::string nv12_src = load_kernel_source("kernels/nv12_to_rgba.cl");
+    cl::Program nv12_prog(ocl.context, nv12_src);
+    try {
+        nv12_prog.build({ocl.device});
+    } catch (const cl::Error&) {
+        std::string log = nv12_prog.getBuildInfo<CL_PROGRAM_BUILD_LOG>(ocl.device);
+        throw std::runtime_error("NV12→RGBA kernel build failed:\n" + log);
     }
+    cl::Kernel nv12_kernel(nv12_prog, "nv12_to_rgba");
 
-    // rgba_to_nv12.cl — zero-copy encode path: RGBA cl::Image2D → NV12 VAAPI surface planes
-    cl::Kernel rgba_nv12_y_kernel;
-    cl::Kernel rgba_nv12_uv_kernel;
-    if (hw_interop) {
-        std::string rgba_nv12_src = load_kernel_source("kernels/rgba_to_nv12.cl");
-        cl::Program rgba_nv12_prog(ocl.context, rgba_nv12_src);
-        try {
-            rgba_nv12_prog.build({ocl.device});
-        } catch (const cl::Error&) {
-            std::string log = rgba_nv12_prog.getBuildInfo<CL_PROGRAM_BUILD_LOG>(ocl.device);
-            throw std::runtime_error("RGBA→NV12 kernel build failed:\n" + log);
-        }
-        rgba_nv12_y_kernel  = cl::Kernel(rgba_nv12_prog, "rgba_to_nv12_y");
-        rgba_nv12_uv_kernel = cl::Kernel(rgba_nv12_prog, "rgba_to_nv12_uv");
+    // rgba_to_nv12.cl — used by both the zero-copy VA encode path and the GPU-assisted SW encode path.
+    std::string rgba_nv12_src = load_kernel_source("kernels/rgba_to_nv12.cl");
+    cl::Program rgba_nv12_prog(ocl.context, rgba_nv12_src);
+    try {
+        rgba_nv12_prog.build({ocl.device});
+    } catch (const cl::Error&) {
+        std::string log = rgba_nv12_prog.getBuildInfo<CL_PROGRAM_BUILD_LOG>(ocl.device);
+        throw std::runtime_error("RGBA→NV12 kernel build failed:\n" + log);
     }
+    cl::Kernel rgba_nv12_y_kernel(rgba_nv12_prog, "rgba_to_nv12_y");
+    cl::Kernel rgba_nv12_uv_kernel(rgba_nv12_prog, "rgba_to_nv12_uv");
 
     // ── FFmpeg: open input ───────────────────────────────────────────────────
     AVFormatContext* fmt_ctx = nullptr;
@@ -418,7 +411,7 @@ static int run(int argc, char** argv)
             if (!enc_ctx) throw std::runtime_error("avcodec_alloc_context3 failed (encoder SW fallback)");
             enc_ctx->width        = frame_w;
             enc_ctx->height       = frame_h;
-            enc_ctx->pix_fmt      = AV_PIX_FMT_YUV420P;
+            enc_ctx->pix_fmt      = AV_PIX_FMT_NV12;   // matches rgba_to_nv12 kernel output
             enc_ctx->time_base    = {1, 25};
             enc_ctx->bit_rate     = 2'000'000;
             enc_ctx->gop_size     = 12;
@@ -451,15 +444,10 @@ static int run(int argc, char** argv)
     if (avformat_write_header(out_ctx, nullptr) < 0)
         throw std::runtime_error("avformat_write_header failed");
 
-    // ── SwsContext: RGBA → NV12 (VAAPI path) or YUV420P (SW path) ────────────
-    // WHY NV12 for VAAPI: h264_vaapi hw surfaces use NV12 as their sw_format;
-    // uploading YUV420P would require an extra conversion inside the driver.
-    AVPixelFormat enc_sw_fmt = enc_using_vaapi ? AV_PIX_FMT_NV12 : AV_PIX_FMT_YUV420P;
-    SwsContext* sws_to_yuv = sws_getContext(
-        frame_w, frame_h, AV_PIX_FMT_RGBA,
-        frame_w, frame_h, enc_sw_fmt,
-        SWS_BILINEAR, nullptr, nullptr, nullptr);
-    if (!sws_to_yuv) throw std::runtime_error("sws_getContext (→YUV) failed");
+    // WHY always NV12: RGBA→NV12 conversion is done on GPU (rgba_to_nv12 kernels) for
+    // all paths. NVENC and libx264 both accept NV12 natively; h264_vaapi requires it.
+    // This avoids CPU sws_scale and shrinks the encode-side PCIe readback by ~2.67×.
+    AVPixelFormat enc_sw_fmt = AV_PIX_FMT_NV12;
 
     // WHY lazy sws_to_rgba: the decoded frame's pixel format is unknown until the
     // first frame arrives — HW decoders may output NV12/CUDA surfaces while SW
@@ -479,8 +467,17 @@ static int run(int argc, char** argv)
 
     // Integer safety: promote to size_t before multiply.
     const size_t rgba_bytes = static_cast<size_t>(frame_w) * frame_h * 4;
-    std::vector<uint8_t> rgba_in(rgba_bytes);
-    std::vector<uint8_t> rgba_out(rgba_bytes);
+    std::vector<uint8_t> rgba_in(rgba_bytes);   // fallback: YUV420P→RGBA on CPU
+
+    // Persistent NV12 images shared by the GPU-assisted SW map (NV12 upload→nv12_to_rgba)
+    // and SW encode (rgba_to_nv12→NV12 readback) paths.
+    // WHY READ_WRITE: nv12_to_rgba writes cl_nv12_y/uv (decode side);
+    // rgba_to_nv12_y/uv reads them are separate images so no conflict — still READ_WRITE
+    // to keep the flag consistent with cl_src/cl_dst convention.
+    cl::Image2D cl_nv12_y (ocl.context, CL_MEM_READ_WRITE,
+                            cl::ImageFormat(CL_R,  CL_UNORM_INT8), frame_w,      frame_h);
+    cl::Image2D cl_nv12_uv(ocl.context, CL_MEM_READ_WRITE,
+                            cl::ImageFormat(CL_RG, CL_UNORM_INT8), frame_w / 2, frame_h / 2);
 
     // ── Allocate frame / packet objects ──────────────────────────────────────
     AVFrame*  dec_frame = av_frame_alloc();
@@ -509,6 +506,8 @@ static int run(int argc, char** argv)
     const std::array<size_t, 3> img_origin = {0, 0, 0};
     const std::array<size_t, 3> img_region = {static_cast<size_t>(frame_w),
                                                static_cast<size_t>(frame_h), 1};
+    const std::array<size_t, 3> uv_region  = {static_cast<size_t>(frame_w / 2),
+                                               static_cast<size_t>(frame_h / 2), 1};
 
     for (int attempt = 0; attempt < 2; ++attempt) {
         if (attempt == 1) {
@@ -593,7 +592,8 @@ static int run(int argc, char** argv)
                 clReleaseMemObject(y_mem);
                 clReleaseMemObject(uv_mem);
             } else {
-                // ── Copy path (VAAPI/CUDA → CPU → CL) ───────────────────────
+                // ── GPU-assisted copy path ────────────────────────────────────
+                // Transfer HW surface to CPU as NV12 (VAAPI/CUDA → system RAM).
                 AVFrame* sw_frame = dec_frame;
                 AVFrame* hw_tmp   = nullptr;
                 if (dec_frame->format == AV_PIX_FMT_VAAPI ||
@@ -604,28 +604,52 @@ static int run(int argc, char** argv)
                     sw_frame = hw_tmp;
                 }
 
-                if (!sws_to_rgba) {
-                    sws_to_rgba = sws_getContext(
-                        frame_w, frame_h,
-                        static_cast<AVPixelFormat>(sw_frame->format),
-                        frame_w, frame_h, AV_PIX_FMT_RGBA,
-                        SWS_BILINEAR, nullptr, nullptr, nullptr);
-                    if (!sws_to_rgba)
-                        throw std::runtime_error("sws_getContext (->RGBA) failed");
+                if (sw_frame->format == AV_PIX_FMT_NV12) {
+                    // WHY upload NV12 instead of RGBA: NV12 is ~3 MB vs 8 MB RGBA
+                    // (2.67× smaller PCIe transfer). The nv12_to_rgba kernel runs
+                    // the colour conversion on GPU, eliminating CPU sws_scale.
+                    CL_CHECK(prof_queue.enqueueWriteImage(
+                        cl_nv12_y, CL_TRUE, img_origin, img_region,
+                        static_cast<size_t>(sw_frame->linesize[0]), 0,
+                        sw_frame->data[0]));
+                    CL_CHECK(prof_queue.enqueueWriteImage(
+                        cl_nv12_uv, CL_TRUE, img_origin, uv_region,
+                        static_cast<size_t>(sw_frame->linesize[1]), 0,
+                        sw_frame->data[1]));
+                    CL_CHECK(nv12_kernel.setArg(0, cl_nv12_y));
+                    CL_CHECK(nv12_kernel.setArg(1, cl_nv12_uv));
+                    CL_CHECK(nv12_kernel.setArg(2, cl_src));
+                    CL_CHECK(nv12_kernel.setArg(3, frame_w));
+                    CL_CHECK(nv12_kernel.setArg(4, frame_h));
+                    CL_CHECK(prof_queue.enqueueNDRangeKernel(
+                        nv12_kernel, cl::NullRange,
+                        cl::NDRange(static_cast<size_t>(frame_w),
+                                    static_cast<size_t>(frame_h)),
+                        cl::NullRange, nullptr, &map_event));
+                    CL_CHECK(prof_queue.finish());
+                } else {
+                    // CPU fallback for YUV420P (SW decoder retry path).
+                    if (!sws_to_rgba) {
+                        sws_to_rgba = sws_getContext(
+                            frame_w, frame_h,
+                            static_cast<AVPixelFormat>(sw_frame->format),
+                            frame_w, frame_h, AV_PIX_FMT_RGBA,
+                            SWS_BILINEAR, nullptr, nullptr, nullptr);
+                        if (!sws_to_rgba)
+                            throw std::runtime_error("sws_getContext (->RGBA) failed");
+                    }
+                    uint8_t* dst_data[4]   = {rgba_in.data(), nullptr, nullptr, nullptr};
+                    int      dst_stride[4] = {frame_w * 4, 0, 0, 0};
+                    sws_scale(sws_to_rgba,
+                              sw_frame->data, sw_frame->linesize, 0, frame_h,
+                              dst_data, dst_stride);
+                    CL_CHECK(prof_queue.enqueueWriteImage(
+                        cl_src, CL_TRUE, img_origin, img_region,
+                        static_cast<size_t>(frame_w) * 4, 0,
+                        rgba_in.data()));
                 }
 
-                uint8_t* dst_data[4]   = {rgba_in.data(), nullptr, nullptr, nullptr};
-                int      dst_stride[4] = {frame_w * 4, 0, 0, 0};
-                sws_scale(sws_to_rgba,
-                          sw_frame->data, sw_frame->linesize, 0, frame_h,
-                          dst_data, dst_stride);
                 if (hw_tmp) av_frame_free(&hw_tmp);
-
-                CL_CHECK(prof_queue.enqueueWriteImage(
-                    cl_src, CL_TRUE,
-                    img_origin, img_region,
-                    static_cast<size_t>(frame_w) * 4, 0,
-                    rgba_in.data()));
             }
 
             auto t_map_end = Clock::now();
@@ -646,16 +670,6 @@ static int run(int argc, char** argv)
             CL_CHECK(prof_queue.finish());
 
             double filter_ms = event_ms(filter_event);
-
-            // WHY conditional readback: zero-copy encode path feeds cl_dst directly
-            // to the RGBA→NV12 kernels — no CPU readback needed in that path.
-            if (!(hw_interop && enc_using_vaapi)) {
-                CL_CHECK(prof_queue.enqueueReadImage(
-                    cl_dst, CL_TRUE,
-                    img_origin, img_region,
-                    static_cast<size_t>(frame_w) * 4, 0,
-                    rgba_out.data()));
-            }
 
             // ── Encode ─────────────────────────────────────────────────────────
             auto t_enc_start = Clock::now();
@@ -724,15 +738,45 @@ static int run(int argc, char** argv)
                 hw_frame->pts = static_cast<int64_t>(frame_idx);
                 send_frame    = hw_frame;
             } else {
-                // ── CPU encode path ──────────────────────────────────────────
+                // ── GPU-assisted encode path ──────────────────────────────────
+                // RGBA→NV12 on GPU: avoids 8 MB RGBA readback + CPU sws_scale.
+                // cl_nv12_y/cl_nv12_uv are reused from the map path allocation.
                 if (av_frame_make_writable(enc_frame) < 0)
                     throw std::runtime_error("av_frame_make_writable failed");
 
-                const uint8_t* src_data[4]   = {rgba_out.data(), nullptr, nullptr, nullptr};
-                int            src_stride[4] = {frame_w * 4, 0, 0, 0};
-                sws_scale(sws_to_yuv,
-                          src_data, src_stride, 0, frame_h,
-                          enc_frame->data, enc_frame->linesize);
+                CL_CHECK(rgba_nv12_y_kernel.setArg(0, cl_dst));
+                CL_CHECK(rgba_nv12_y_kernel.setArg(1, cl_nv12_y));
+                CL_CHECK(rgba_nv12_y_kernel.setArg(2, frame_w));
+                CL_CHECK(rgba_nv12_y_kernel.setArg(3, frame_h));
+                CL_CHECK(prof_queue.enqueueNDRangeKernel(
+                    rgba_nv12_y_kernel, cl::NullRange,
+                    cl::NDRange(static_cast<size_t>(frame_w),
+                                static_cast<size_t>(frame_h)),
+                    cl::NullRange));
+
+                CL_CHECK(rgba_nv12_uv_kernel.setArg(0, cl_dst));
+                CL_CHECK(rgba_nv12_uv_kernel.setArg(1, cl_nv12_uv));
+                CL_CHECK(rgba_nv12_uv_kernel.setArg(2, frame_w));
+                CL_CHECK(rgba_nv12_uv_kernel.setArg(3, frame_h));
+                CL_CHECK(prof_queue.enqueueNDRangeKernel(
+                    rgba_nv12_uv_kernel, cl::NullRange,
+                    cl::NDRange(static_cast<size_t>((frame_w + 1) / 2),
+                                static_cast<size_t>((frame_h + 1) / 2)),
+                    cl::NullRange));
+
+                CL_CHECK(prof_queue.finish());
+
+                // WHY read NV12 Y+UV separately: ~3 MB total vs 8 MB RGBA (2.67× less PCIe).
+                // enc_frame->linesize[0/1] used as row_pitch so FFmpeg alignment is respected.
+                CL_CHECK(prof_queue.enqueueReadImage(
+                    cl_nv12_y, CL_TRUE, img_origin, img_region,
+                    static_cast<size_t>(enc_frame->linesize[0]), 0,
+                    enc_frame->data[0]));
+                CL_CHECK(prof_queue.enqueueReadImage(
+                    cl_nv12_uv, CL_TRUE, img_origin, uv_region,
+                    static_cast<size_t>(enc_frame->linesize[1]), 0,
+                    enc_frame->data[1]));
+
                 enc_frame->pts = static_cast<int64_t>(frame_idx);
                 send_frame     = enc_frame;
 
@@ -811,7 +855,6 @@ static int run(int argc, char** argv)
 
     // ── Teardown ──────────────────────────────────────────────────────────────
     if (sws_to_rgba) sws_freeContext(sws_to_rgba);
-    sws_freeContext(sws_to_yuv);
     av_frame_free(&dec_frame);
     av_frame_free(&enc_frame);
     av_packet_free(&pkt);

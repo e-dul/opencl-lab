@@ -1,6 +1,6 @@
 # Module 4: Add-ons (Bonus Case Studies)
 
-**Version:** 1.2
+**Version:** 1.4
 **Status:** Active — Phase 4 complete
 **Module Path:** `04_Addons/`
 
@@ -43,6 +43,8 @@ Provide self-contained, elective case studies for engineers who have completed a
   - *Context*: Executive Summary §4.7; `04_Addons/4_7_SoftISP/SoftISP.md`
 - [ ] Phase 8: Module review and cleanup — Verify all standalone builds, align CMake conventions with Module 1/2 patterns, confirm asset references resolve.
   - [ ] Realign `04_Addons/4_2_OpenCL_vs_CUDA/OpenCLvsCUDA.md` README: remove reference to `portability_demo` binary (4.2 is report + code samples only; no binary by design — see Key Decision #3).
+  - [ ] Prepare potential redesign and cleanup for  `04_Addons/4_6_FFmpeg_Pipeline/main.cpp` to increase readability 
+  - [ ] Realign `04_Addons/4_6_FFmpeg_Pipeline/FFmpegPipeline.md` README: to design document after few redesigns and prerequisites update.
 
 ---
 
@@ -132,11 +134,13 @@ Provide self-contained, elective case studies for engineers who have completed a
 4. `av_hwframe_get_buffer` → get encoder VAAPI surface → `clCreateFromVA_APIMediaSurfaceINTEL` (write-only, planes 0+1) → acquire → dispatch `rgba_to_nv12_y` (W×H) + `rgba_to_nv12_uv` (W/2×H/2) → release → `avcodec_send_frame(hw_frame)`. Time with `std::chrono`.
 5. Print: decode ms, map ms, filter ms, encode ms, total ms, effective FPS.
 
-**Software fallback path:**
+**GPU-assisted software fallback path** (when `hw_interop` is false, e.g. NVIDIA):
 
-1. `avcodec_receive_frame` → SW `AVFrame` (or `av_hwframe_transfer_data` if VAAPI/CUDA surface). `sws_scale` → RGBA → `enqueueWriteImage`. `cl_src` populated on CPU.
-2. Same filter kernel dispatch (steps 2–3 above).
-3. `sws_scale` RGBA → NV12/YUV420P → `av_hwframe_transfer_data` (if VAAPI encoder) → `avcodec_send_frame`.
+1. `avcodec_receive_frame` → `av_hwframe_transfer_data` → SW `AVFrame` (NV12 on CPU).
+   - If `sw_frame->format == AV_PIX_FMT_NV12`: upload Y plane (W×H, CL_R) + UV plane (W/2×H/2, CL_RG) to `cl_nv12_y`/`cl_nv12_uv` (~3 MB PCIe); dispatch `nv12_to_rgba` kernel → `cl_src`. Eliminates CPU `sws_scale` and reduces upload size 2.67× vs RGBA.
+   - Else (YUV420P from SW decoder retry): CPU `sws_scale` → RGBA → `enqueueWriteImage` (8 MB). Kept as fallback.
+2. Same `apply_filter` kernel dispatch (`cl_src` → `cl_dst`).
+3. Dispatch `rgba_to_nv12_y` (W×H) + `rgba_to_nv12_uv` (W/2×H/2) → `cl_nv12_y`/`cl_nv12_uv`. `enqueueReadImage` Y + UV planes (~3 MB) into `enc_frame` (NV12). `av_hwframe_transfer_data` upload (if VAAPI encoder). `avcodec_send_frame`. Eliminates RGBA readback (8 MB) + CPU `sws_scale`.
 
 #### 4.7 SoftISP (V1 then V2)
 1. Read `.raw` → `cl::Buffer` (uchar, RGGB).
@@ -180,7 +184,7 @@ Provide self-contained, elective case studies for engineers who have completed a
 
 - **vkFFT OpenCL Backend Maturity**: Lags behind Vulkan backend. Some radix configurations may fail on non-Nvidia drivers. Must catch `VkFFTResult != VKFFT_SUCCESS` with human-readable error including the failing FFT configuration.
 - **VAAPI/EGL Surface Mapping Vendor Lock**: `clCreateFromVA_APIMediaSurfaceINTEL` is Intel/AMD-only. Software fallback must be tested on all three GPU vendors. Extension string check must be per-platform.
-- **4.6 NVIDIA h264_cuvid Runtime Failure**: On RTX 4060 (and likely other NVDEC devices), `h264_cuvid` opens successfully but fails at the first `avcodec_receive_frame` call with `CUDA_ERROR_NOT_SUPPORTED`. The SW fallback (`h264`) activates automatically. Hardware timing waiver applies on this path.
+- **4.6 NVIDIA GPU-assisted SW path**: `cl_intel_va_api_media_sharing` is absent on NVIDIA CUDA OpenCL stack — zero-copy interop unavailable. Pipeline uses VAAPI decode + encode via `nvidia-vaapi-driver` with GPU colour conversion: NV12 planes uploaded (~3 MB) → `nv12_to_rgba` kernel; `rgba_to_nv12` kernels → NV12 readback (~3 MB). Achieves 144 FPS @ 1080p (RTX 4060). `h264_cuvid` path attempted first; falls back to `h264`+`hw_device_ctx` if cuvid fails (`CUDA_ERROR_NOT_SUPPORTED` on some NVDEC configs).
 - **4.6 prof_queue Must Follow Interop Context Rebuild**: `CL_QUEUE_PROFILING_ENABLE` is set at queue creation time. The profiling `cl::CommandQueue` must be created after the CL context is rebuilt with `CL_CONTEXT_VA_API_DISPLAY_INTEL`; a queue created against the initial context will not capture profiling events from the interop path.
 - **SVM Fine-Grained Availability**: Not supported on NVIDIA OpenCL drivers. Must detect `CL_DEVICE_SVM_CAPABILITIES` at runtime and skip inaccessible paths with a clear message — not a crash.
 - **4.4 SVM Gating via `CL_DEVICE_OPENCL_C_VERSION` is Wrong**: `CL_DEVICE_OPENCL_C_VERSION` returns "OpenCL C 1.2" on Intel OpenCL 3.0 drivers even when SVM is fully supported. Gate must use `CL_DEVICE_SVM_CAPABILITIES` bitmask directly. Fixed in implementation.
@@ -207,7 +211,7 @@ Provide self-contained, elective case studies for engineers who have completed a
 | 4.1 vkFFT vs FFTW | Speedup | ≥ 10× (reported in console) |
 | 4.4 SVM Benchmark | `USE_HOST_PTR` vs `COPY_HOST_PTR` | Reported; USE_HOST_PTR expected ≤ 50% of COPY time on iGPU. **UMA waiver**: on Intel Iris Xe (shared memory), all three paths (COPY, USE, SVM coarse) converge to ~0.48 ms — driver zero-copies all paths; ≤ 50% gap does not apply. |
 | 4.5 Voxel Mapping | End-to-end pipeline per frame | < 5 ms @ 100k points |
-| 4.6 FFmpeg Transcoder | decode + map + filter + encode per frame | < 10 ms @ 1080p (≥ 100 FPS) |
+| 4.6 FFmpeg Transcoder | decode + map + filter + encode per frame | < 10 ms @ 1080p (≥ 100 FPS). **Met**: Intel Iris Xe zero-copy ~4 ms (227 FPS); NVIDIA RTX 4060 GPU-assisted SW ~7 ms (144 FPS). |
 | 4.7 SoftISP V2 LDS | Debayer 4K RGGB → RGBA | < 10 ms (≥ 100 FPS @ 3840×2160) |
 | 4.7 V2 vs V1 | Speedup | ≥ 3× reported in console |
 
