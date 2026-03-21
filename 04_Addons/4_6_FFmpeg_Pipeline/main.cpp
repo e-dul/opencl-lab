@@ -60,19 +60,14 @@ namespace fs = std::filesystem;
 using Clock = std::chrono::steady_clock;
 using Ms    = std::chrono::duration<double, std::milli>;
 
+// NV12 plane indices: Y (luma) is plane 0, UV (interleaved chroma) is plane 1.
+// These map directly to the plane_index argument of clCreateFromVA_APIMediaSurfaceINTEL.
+static constexpr int Y_PLANE  = 0;
+static constexpr int UV_PLANE = 1;
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-// load_kernel_source() is provided by opencl_utils.hpp (included via ocl_wrapper.hpp).
-
-// Extract elapsed GPU time in milliseconds from a profiled cl::Event.
-static double event_ms(const cl::Event& ev)
-{
-    cl_ulong start = ev.getProfilingInfo<CL_PROFILING_COMMAND_START>();
-    cl_ulong end   = ev.getProfilingInfo<CL_PROFILING_COMMAND_END>();
-    return static_cast<double>(end - start) * 1.0e-6;
-}
 
 // Case-sensitive substring search in the device extension string.
 static bool device_has_ext(const cl::Device& dev, const std::string& ext)
@@ -121,8 +116,7 @@ static int run(int argc, char** argv)
     OclContext ocl = create_context();
 
     // ── Hardware interop detection ───────────────────────────────────────────
-    // cl_intel_va_api_media_sharing → Intel VAAPI zero-copy (NV12 surfaces ↔ CL images)
-    // cl_khr_egl_image              → Nvidia EGL zero-copy
+    // cl_intel_va_api_media_sharing → Intel/AMD VAAPI zero-copy (NV12 surfaces ↔ CL images)
     bool hw_interop = device_has_ext(ocl.device, "cl_intel_va_api_media_sharing");
 
     // ── VAAPI device (shared for HW decoder + encoder) ───────────────────────
@@ -196,39 +190,28 @@ static int run(int argc, char** argv)
     cl::CommandQueue prof_queue(ocl.context, ocl.device, CL_QUEUE_PROFILING_ENABLE);
 
     // ── Build kernels ─────────────────────────────────────────────────────────
-    // filter.cl — blur or sepia on RGBA images
-    std::string kernel_src = load_kernel_source("kernels/filter.cl");
-    cl::Program program(ocl.context, kernel_src);
+    // WHY get_binary_dir(): the binary may be invoked from any working directory;
+    // cmake's copy_kernels() places .cl files next to the executable, so the exe
+    // path is the only reliable anchor for finding them at runtime.
+    const fs::path kernel_dir = get_binary_dir() / "kernels";
 
+    // filter.cl — blur or sepia on RGBA images.
+    // WHY pass build_opts: the same source file implements both effects via
+    // preprocessor macros; the build option selects the active code path.
     std::string build_opts = (effect == "sepia") ? "-D EFFECT_SEPIA" : "-D EFFECT_BLUR";
-    try {
-        program.build({ocl.device}, build_opts.c_str());
-    } catch (const cl::Error&) {
-        std::string log = program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(ocl.device);
-        throw std::runtime_error("Kernel build failed:\n" + log);
-    }
+    cl::Program program    = build_program(ocl.context, ocl.device,
+                                           (kernel_dir / "filter.cl").string(),
+                                           build_opts);
     cl::Kernel kernel(program, "apply_filter");
 
     // nv12_to_rgba.cl — used by both the zero-copy VA path and the GPU-assisted SW map path.
-    std::string nv12_src = load_kernel_source("kernels/nv12_to_rgba.cl");
-    cl::Program nv12_prog(ocl.context, nv12_src);
-    try {
-        nv12_prog.build({ocl.device});
-    } catch (const cl::Error&) {
-        std::string log = nv12_prog.getBuildInfo<CL_PROGRAM_BUILD_LOG>(ocl.device);
-        throw std::runtime_error("NV12→RGBA kernel build failed:\n" + log);
-    }
+    cl::Program nv12_prog = build_program(ocl.context, ocl.device,
+                                          (kernel_dir / "nv12_to_rgba.cl").string());
     cl::Kernel nv12_kernel(nv12_prog, "nv12_to_rgba");
 
     // rgba_to_nv12.cl — used by both the zero-copy VA encode path and the GPU-assisted SW encode path.
-    std::string rgba_nv12_src = load_kernel_source("kernels/rgba_to_nv12.cl");
-    cl::Program rgba_nv12_prog(ocl.context, rgba_nv12_src);
-    try {
-        rgba_nv12_prog.build({ocl.device});
-    } catch (const cl::Error&) {
-        std::string log = rgba_nv12_prog.getBuildInfo<CL_PROGRAM_BUILD_LOG>(ocl.device);
-        throw std::runtime_error("RGBA→NV12 kernel build failed:\n" + log);
-    }
+    cl::Program rgba_nv12_prog = build_program(ocl.context, ocl.device,
+                                               (kernel_dir / "rgba_to_nv12.cl").string());
     cl::Kernel rgba_nv12_y_kernel(rgba_nv12_prog, "rgba_to_nv12_y");
     cl::Kernel rgba_nv12_uv_kernel(rgba_nv12_prog, "rgba_to_nv12_uv");
 
@@ -457,11 +440,12 @@ static int run(int argc, char** argv)
 
     // ── OpenCL image objects (RGBA UNORM_INT8) ────────────────────────────────
     cl::ImageFormat img_fmt(CL_RGBA, CL_UNORM_INT8);
-    // WHY READ_WRITE: zero-copy path writes RGBA into cl_src via nv12_to_rgba
+
+    // WHY READ_WRITE for cl_src: zero-copy path writes RGBA into cl_src via nv12_to_rgba
     // kernel; copy path writes via enqueueWriteImage. Both are device writes;
     // the filter kernel reads. READ_ONLY would block the kernel write.
     cl::Image2D cl_src(ocl.context, CL_MEM_READ_WRITE, img_fmt, frame_w, frame_h);
-    // WHY READ_WRITE: the filter kernel writes cl_dst; the zero-copy encode path
+    // WHY READ_WRITE for cl_dst: the filter kernel writes cl_dst; the zero-copy encode path
     // reads it via the RGBA→NV12 kernel. WRITE_ONLY would block that read.
     cl::Image2D cl_dst(ocl.context, CL_MEM_READ_WRITE, img_fmt, frame_w, frame_h);
 
@@ -559,11 +543,11 @@ static int run(int argc, char** argv)
 
                 cl_int err = CL_SUCCESS;
                 cl_mem y_mem = clCreateFromVA_surf(
-                    ocl.context(), CL_MEM_READ_ONLY, &va_surf, 0, &err);
+                    ocl.context(), CL_MEM_READ_ONLY, &va_surf, Y_PLANE, &err);
                 if (err != CL_SUCCESS)
                     throw std::runtime_error("clCreateFromVA_surf(Y) failed: err=" + std::to_string(err));
                 cl_mem uv_mem = clCreateFromVA_surf(
-                    ocl.context(), CL_MEM_READ_ONLY, &va_surf, 1, &err);
+                    ocl.context(), CL_MEM_READ_ONLY, &va_surf, UV_PLANE, &err);
                 if (err != CL_SUCCESS) { clReleaseMemObject(y_mem); throw std::runtime_error("clCreateFromVA_surf(UV) failed: err=" + std::to_string(err)); }
 
                 cl_mem mems[2] = {y_mem, uv_mem};
@@ -669,7 +653,7 @@ static int run(int argc, char** argv)
                 cl::NullRange, nullptr, &filter_event));
             CL_CHECK(prof_queue.finish());
 
-            double filter_ms = event_ms(filter_event);
+            double filter_ms = duration_ms(filter_event);
 
             // ── Encode ─────────────────────────────────────────────────────────
             auto t_enc_start = Clock::now();
@@ -691,11 +675,11 @@ static int run(int argc, char** argv)
 
                 cl_int err = CL_SUCCESS;
                 cl_mem enc_y_mem  = clCreateFromVA_surf(
-                    ocl.context(), CL_MEM_WRITE_ONLY, &enc_surf, 0, &err);
+                    ocl.context(), CL_MEM_WRITE_ONLY, &enc_surf, Y_PLANE, &err);
                 if (err != CL_SUCCESS)
                     throw std::runtime_error("clCreateFromVA_surf(enc Y) err=" + std::to_string(err));
                 cl_mem enc_uv_mem = clCreateFromVA_surf(
-                    ocl.context(), CL_MEM_WRITE_ONLY, &enc_surf, 1, &err);
+                    ocl.context(), CL_MEM_WRITE_ONLY, &enc_surf, UV_PLANE, &err);
                 if (err != CL_SUCCESS) {
                     clReleaseMemObject(enc_y_mem);
                     throw std::runtime_error("clCreateFromVA_surf(enc UV) err=" + std::to_string(err));

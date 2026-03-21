@@ -7,23 +7,20 @@ See [main README](../../README.md) for base requirements (OpenCL 1.2+, CMake 3.1
 
 - Any Module 2 track.
 
-## Build & Run
-```bash
-cd 04_Addons/4_2_OpenCL_vs_CUDA
-cmake -B build && cmake --build build
-./build/portability_demo    # runs the same kernel on all detected OpenCL devices
-```
+## What's in This Add-on
+
+This add-on is a written analysis — there is no binary to build.
+
+- `report.md` — structured analysis: ecosystem comparison table, use-case decision matrix, pragmatic recommendation.
+- `code_comparison/vector_add.cu` and `code_comparison/vector_add.cl` — side-by-side implementations of the same algorithm in both APIs, illustrating key structural differences in memory management and kernel dispatch.
 
 ## Verify
-Console lists all detected platforms and reports kernel time per device:
-```
-[NVIDIA RTX 3080 ] MAD kernel (1080p): 0.31 ms
-[Intel UHD 770   ] MAD kernel (1080p): 1.82 ms
-[AMD RX 6700 XT  ] MAD kernel (1080p): 0.44 ms
-[PoCL CPU        ] MAD kernel (1080p): 8.91 ms
-```
 
-One binary, four devices. Try doing that with CUDA.
+Confirm the written artifacts are present and non-empty:
+```bash
+ls -lh 04_Addons/4_2_OpenCL_vs_CUDA/report.md
+ls -lh 04_Addons/4_2_OpenCL_vs_CUDA/code_comparison/
+```
 
 ## Where CUDA Wins
 
@@ -50,7 +47,7 @@ If you control the deployment environment and target Nvidia, use CUDA. If you ne
 
 ## Mini-Challenge
 
-Run `portability_demo` on a machine with both a discrete GPU and an integrated GPU. Profile the same kernel on both. What is the iGPU/dGPU performance ratio? Does zero-copy (`CL_MEM_USE_HOST_PTR`) change the iGPU result?
+Read `code_comparison/vector_add.cu` and `vector_add.cl`. Identify three structural differences in memory management between CUDA and OpenCL. Which API requires more explicit resource lifecycle management, and why?
 
 ---
 

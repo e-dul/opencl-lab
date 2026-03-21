@@ -8,22 +8,23 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # Pull in CLI11, stb, and OpenCL via the shared helper (idempotent).
 include(${CMAKE_CURRENT_SOURCE_DIR}/../../common/common.cmake)
 
-# OpenCL is already included by common.cmake; listed explicitly per spec.
-find_package(OpenCL REQUIRED)
-
 # FFmpeg via pkg-config (libswscale needed for YUV↔RGBA conversion).
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(FFMPEG REQUIRED libavcodec libavformat libavutil libswscale)
 
 add_executable(ffmpeg_opencl_transcoder main.cpp)
 
+# WHY opencl_lab_target: provides OpenCL::OpenCL, CLI11::CLI11, and the common/vendor
+# include paths transitively — no need to list them manually here.
+opencl_lab_target(ffmpeg_opencl_transcoder)
+
 target_include_directories(ffmpeg_opencl_transcoder PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../common
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../vendor
-    ${stb_SOURCE_DIR}
     ${FFMPEG_INCLUDE_DIRS}
 )
 
+# WHY explicit defines: opencl_lab_target does not set CL_HPP_* macros;
+# these must be set before opencl_utils.hpp is included to enable exceptions
+# and pin the target version.
 target_compile_definitions(ffmpeg_opencl_transcoder PRIVATE
     CL_HPP_ENABLE_EXCEPTIONS
     CL_HPP_TARGET_OPENCL_VERSION=120
@@ -33,15 +34,13 @@ target_compile_definitions(ffmpeg_opencl_transcoder PRIVATE
 target_link_directories(ffmpeg_opencl_transcoder PRIVATE ${FFMPEG_LIBRARY_DIRS})
 
 target_link_libraries(ffmpeg_opencl_transcoder PRIVATE
-    OpenCL::OpenCL
-    CLI11::CLI11
     ${FFMPEG_LIBRARIES}
     va          # libva — VASurfaceID, VADisplay (cl_intel_va_api_media_sharing)
 )
 
 target_compile_options(ffmpeg_opencl_transcoder PRIVATE ${FFMPEG_CFLAGS_OTHER})
 
-# Copy kernels/ next to binary so load path "kernels/filter.cl" resolves at runtime.
+# Copy kernels/ next to binary so get_binary_dir() / "kernels" resolves at runtime.
 copy_kernels(ffmpeg_opencl_transcoder)
 
 # Warn if the default sample asset is absent — build still succeeds.

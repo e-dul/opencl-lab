@@ -11,7 +11,7 @@ See [main README](../../README.md) for base requirements (OpenCL 1.2+, CMake 3.1
 
 **All platforms — FFmpeg dev libs (required):**
 ```bash
-sudo apt install ffmpeg libavcodec-dev libavformat-dev libavutil-dev libswscale-dev
+sudo apt install ffmpeg libavcodec-dev libavformat-dev libavutil-dev libswscale-dev libva-dev
 ```
 
 **NVIDIA (cuvid / NVDEC + optional VAAPI):**
@@ -68,36 +68,45 @@ cmake -B build && cmake --build build
 - `filtered.mp4` plays correctly with the effect applied
 - Console prints per-frame breakdown:
   ```
-  Decode (NVDEC/VAAPI): 1.2 ms
-  Map decoder → OpenCL: 0.1 ms   (zero-copy)
-  OpenCL filter:        3.4 ms
-  Encode (NVENC/VAAPI): 1.8 ms
-  Total:                6.5 ms   (153 FPS @ 1080p)
+  Frame  | Decode    | Map       | Filter    | Encode    | Total
+  -------|-----------|-----------|-----------|-----------|----------
+  0      |   1.20 ms |   0.10 ms |   3.40 ms |   1.80 ms |   6.50 ms
+  1      |   1.15 ms |   0.09 ms |   3.38 ms |   1.77 ms |   6.39 ms
+  ...
+
+  Average FPS: 153.1  (over 75 frames)
+  Output: filtered.mp4
   ```
 
 ## Concept: Hardware Decode → OpenCL Zero-Copy
 
 Software decode produces a `AVFrame` in system RAM — then you call `clEnqueueWriteBuffer` to upload it. That's the copy to eliminate.
 
-Hardware decode outputs a frame already in GPU memory as an `AVHWFramesContext`. Map it directly to an OpenCL image:
+Hardware decode outputs a frame already in GPU memory as an `AVHWFramesContext`. Map it directly to an OpenCL image.
+
+The `clCreateFromVA_APIMediaSurfaceINTEL` function is **not** in the standard ICD dispatch table. It must be loaded at runtime via `clGetExtensionFunctionAddressForPlatform`:
 
 ```cpp
-// Retrieve hardware frame context after avcodec_receive_frame()
-AVFrame* hw_frame = av_frame_alloc();
-avcodec_receive_frame(codec_ctx, hw_frame);   // hw_frame->data[3] = VAAPI surface
+// WHY runtime load: these symbols are absent from libOpenCL.so.
+// clGetExtensionFunctionAddressForPlatform resolves them through
+// the platform-specific ICD at runtime.
+auto clCreateFromVA_surf =
+    (clCreateFromVA_APIMediaSurfaceINTEL_fn)
+    clGetExtensionFunctionAddressForPlatform(
+        platform, "clCreateFromVA_APIMediaSurfaceINTEL");
 
-// Map VAAPI surface to OpenCL (Intel/AMD path)
-cl_mem cl_img = clCreateFromVA_APIMediaSurfaceINTEL(
-    context, CL_MEM_READ_ONLY, (VASurfaceID*)hw_frame->data[3], 0, &err);
+// Import the VAAPI surface as a CL image (zero-copy — same GPU memory)
+cl_mem y_img = clCreateFromVA_surf(
+    context, CL_MEM_READ_ONLY, &va_surf_id, 0 /* Y plane */, &err);
 
-// Acquire for OpenCL use
-clEnqueueAcquireVA_APIMediaSurfacesINTEL(queue, 1, &cl_img, 0, NULL, NULL);
+// Acquire for exclusive OpenCL access before dispatching the kernel
+clEnqueueAcquireVA_APIMediaSurfacesINTEL(queue, 1, &y_img, 0, NULL, NULL);
 
 // Run your filter kernel — same kernel as A4_Smart_Webcam, unchanged
-kernel.setArg(0, cl::Buffer(cl_img));
+kernel.setArg(0, cl::Image2D(y_img, true));
 queue.enqueueNDRangeKernel(kernel, ...);
 
-clEnqueueReleaseVA_APIMediaSurfacesINTEL(queue, 1, &cl_img, 0, NULL, NULL);
+clEnqueueReleaseVA_APIMediaSurfacesINTEL(queue, 1, &y_img, 0, NULL, NULL);
 ```
 
 The filter kernel from `A4_Smart_Webcam` runs unchanged — only the buffer source differs.
@@ -108,7 +117,7 @@ Add a second effect (`--effect sepia`) using the [GenericKernelTemplates](../../
 
 ## Troubleshooting
 
-- **`clCreateFromVA_APIMediaSurfaceINTEL` not found**: requires `cl_intel_va_api_media_sharing` extension. Check: `clinfo | grep va_api`. Not available on Nvidia — use EGL interop (`cl_khr_egl_image`) instead.
+- **`clCreateFromVA_APIMediaSurfaceINTEL` not found**: requires `cl_intel_va_api_media_sharing` extension. Check: `clinfo | grep va_api`. Not available on Nvidia — the pipeline falls back to the GPU-assisted software path: NV12 planes (~3 MB) uploaded to OpenCL, colour-converted on the GPU, and encoded via VAAPI or libx264.
 - **Hardware decode fails, falls back to software**: verify `ffmpeg -hwaccels` shows your backend and that the codec is supported (H.264/H.265 are most widely accelerated).
 - **Output video has green frame at start**: the first decoded frame may be a reference frame with no pixel data. Skip frames where `hw_frame->pict_type == AV_PICTURE_TYPE_NONE`.
 
