@@ -149,7 +149,7 @@ Standard items from `.claude/rules/00_master_specs.md §8` apply.
 - [x] `4_6_FFmpeg_Pipeline/main.cpp` contains no local `event_ms()` definition; all timing calls use `duration_ms()`.
 - [x] `4_6_FFmpeg_Pipeline/main.cpp` kernel paths use `get_binary_dir() / "kernels" / ...`.
 - [x] MANUAL: **Intel** — Run `GPU=INTEL ./build/ffmpeg_opencl_transcoder --input ../../../assets/sample.mp4 --output filtered.mp4 --effect blur`; confirm `[INFO] CL-VAAPI interop context: zero-copy enabled.` appears, `filtered.mp4` is produced, and per-frame breakdown shows ≤ 10 ms total.
-- [ ] MANUAL: **NVIDIA** — Run `GPU=NVIDIA ./build/ffmpeg_opencl_transcoder --input ../../../assets/sample.mp4 --output filtered.mp4 --effect blur`; confirm `[INFO] Using software copy path` appears (expected — no `cl_intel_va_api_media_sharing` on NVIDIA), `filtered.mp4` is produced, and per-frame breakdown prints correctly.
+- [x] MANUAL: **NVIDIA** — Run `GPU=NVIDIA ./build/ffmpeg_opencl_transcoder --input ../../../assets/sample.mp4 --output filtered.mp4 --effect blur`; confirm `[INFO] Using software copy path` appears (expected — no `cl_intel_va_api_media_sharing` on NVIDIA), `filtered.mp4` is produced, and per-frame breakdown prints correctly.
 
 ---
 
@@ -164,7 +164,7 @@ Standard items from `.claude/rules/00_master_specs.md §8` apply.
 |------|--------|
 | A — 4.2 README cleanup | Removed `## Build & Run` + `## Verify` (portability_demo). Added `## What's in This Add-on` (report.md, code_comparison/). Updated Mini-Challenge to reading exercise. Added artifact `## Verify` using `ls`. |
 | B — 4.6 README realignment | Added `libva-dev` to All platforms apt line. Replaced bare `clCreateFromVA_APIMediaSurfaceINTEL` call with `clGetExtensionFunctionAddressForPlatform` loading pattern. Updated Verify console block to match actual per-frame table format. Corrected Troubleshooting fallback to GPU-assisted SW path. |
-| C — main.cpp refactor | Added `Y_PLANE`/`UV_PLANE` named constants. Replaced all WHAT comments with WHY comments at non-obvious call sites (`CL_MEM_READ_WRITE`, context rebuild, get_format callback). |
+| C — main.cpp refactor | Added `Y_PLANE`/`UV_PLANE` named constants. Replaced all WHAT comments with WHY comments at non-obvious call sites (`CL_MEM_READ_WRITE`, context rebuild, get_format callback). Extracted 5 free functions (`init_vaapi_interop`, `open_decoder`, `open_encoder`, `map_frame_to_cl`, `encode_cl_to_frame`) + `dispatch` lambda; reduced `run()` from 761 → ~345 lines. |
 | D — 4.6 CMakeLists: use opencl_lab_target | Replaced manual `find_package(OpenCL)`, `target_include_directories(../../common ../../vendor stb)`, and `OpenCL::OpenCL CLI11::CLI11` link with `opencl_lab_target(ffmpeg_opencl_transcoder)`. Kept FFmpeg-specific additions. |
 | E — 4.4 CMakeLists: add CXX_STANDARD_REQUIRED | Added `set(CMAKE_CXX_STANDARD_REQUIRED ON)` after `set(CMAKE_CXX_STANDARD 17)`. |
 | F — 4.6 main.cpp: replace local utility duplicates | Deleted local `event_ms()`. Replaced `filter_ms = event_ms(...)` with `duration_ms(...)`. Replaced 3 manual `load_kernel_source` + try/catch build blocks with `build_program()`. Replaced relative `"kernels/filter.cl"` paths with `get_binary_dir() / "kernels" / ...`. |
@@ -203,10 +203,10 @@ FFmpeg OpenCL Transcoder — HW decode → OpenCL filter → re-encode
 |------|--------|
 | `04_Addons/4_2_OpenCL_vs_CUDA/OpenCLvsCUDA.md` | Removed portability_demo references; added What's in This Add-on; updated Verify and Mini-Challenge |
 | `04_Addons/4_6_FFmpeg_Pipeline/FFmpegPipeline.md` | Added libva-dev; fixed Concept section; updated Verify output; corrected Troubleshooting fallback |
-| `04_Addons/4_6_FFmpeg_Pipeline/main.cpp` | Removed event_ms(); use duration_ms(), build_program(), get_binary_dir(); added Y_PLANE/UV_PLANE; WHY comments |
+| `04_Addons/4_6_FFmpeg_Pipeline/main.cpp` | Removed event_ms(); use duration_ms(), build_program(), get_binary_dir(); added Y_PLANE/UV_PLANE; WHY comments; extracted VaapiInterop+init_vaapi_interop, DecoderCtx+open_decoder, EncoderCtx+open_encoder, map_frame_to_cl, encode_cl_to_frame, dispatch lambda |
 | `04_Addons/4_6_FFmpeg_Pipeline/CMakeLists.txt` | Use opencl_lab_target(); remove redundant find_package/include dirs/link libs |
 | `04_Addons/4_4_SVM_Theory/CMakeLists.txt` | Added CMAKE_CXX_STANDARD_REQUIRED ON |
 
 ### Remaining
 
-- [ ] MANUAL items (Intel zero-copy path, NVIDIA SW path) — require hardware
+- Done

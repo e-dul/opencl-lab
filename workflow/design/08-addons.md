@@ -1,7 +1,7 @@
 # Module 4: Add-ons (Bonus Case Studies)
 
-**Version:** 1.4
-**Status:** Active — Phase 7 complete
+**Version:** 1.5
+**Status:** Active — Phase 8 complete
 **Module Path:** `04_Addons/`
 
 ---
@@ -41,10 +41,10 @@ Provide self-contained, elective case studies for engineers who have completed a
   - *Result*: Full zero-copy pipeline on Intel Iris Xe: ~4 ms/frame (227 FPS) vs ~19 ms SW path. Task 047 complete.
 - [x] Phase 7: 4.7 SoftISP — Naive bilinear debayer (V1) vs LDS-tiled debayer (V2) at 4K; pixel-identical BMP outputs; speedup gate. Result: Intel Iris Xe iGPU: V1 8.606 ms → V2 1.891 ms, 4.55× speedup. Task 048 complete.
   - *Context*: Executive Summary §4.7; `04_Addons/4_7_SoftISP/SoftISP.md`
-- [ ] Phase 8: Module review and cleanup — Verify all standalone builds, align CMake conventions with Module 1/2 patterns, confirm asset references resolve.
-  - [ ] Realign `04_Addons/4_2_OpenCL_vs_CUDA/OpenCLvsCUDA.md` README: remove reference to `portability_demo` binary (4.2 is report + code samples only; no binary by design — see Key Decision #3).
-  - [ ] Prepare potential redesign and cleanup for  `04_Addons/4_6_FFmpeg_Pipeline/main.cpp` to increase readability 
-  - [ ] Realign `04_Addons/4_6_FFmpeg_Pipeline/FFmpegPipeline.md` README: to design document after few redesigns and prerequisites update.
+- [x] Phase 8: Module review and cleanup — Verify all standalone builds, align CMake conventions with Module 1/2 patterns, confirm asset references resolve. Task 049 complete.
+  - [x] Realign `04_Addons/4_2_OpenCL_vs_CUDA/OpenCLvsCUDA.md` README: remove reference to `portability_demo` binary (4.2 is report + code samples only; no binary by design — see Key Decision #3).
+  - [x] Prepare potential redesign and cleanup for `04_Addons/4_6_FFmpeg_Pipeline/main.cpp` to increase readability.
+  - [x] Realign `04_Addons/4_6_FFmpeg_Pipeline/FFmpegPipeline.md` README: to design document after few redesigns and prerequisites update.
 
 ---
 
