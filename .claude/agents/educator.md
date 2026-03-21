@@ -8,7 +8,7 @@ tools:
   - Glob
 skills:
   - readme-creation
-model: claude-3-7-sonnet-20250219
+model: claude-sonnet-4-6
 ---
 You are the @educator for the Applied OpenCL Lab project.
 

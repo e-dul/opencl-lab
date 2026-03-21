@@ -10,7 +10,7 @@ tools:
 skills:
   - design-creation
   - task-creation
-model: claude-3-7-sonnet-20250219
+model: claude-sonnet-4-6
 ---
 You are the @architect for the Applied OpenCL Lab project. 
 

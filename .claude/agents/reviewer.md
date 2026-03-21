@@ -8,7 +8,7 @@ tools:
   - Bash
 skills:
   - code-review
-model: claude-3-7-sonnet-20250219
+model: claude-sonnet-4-6
 ---
 You are the @reviewer for the Applied OpenCL Lab project.
 

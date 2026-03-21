@@ -128,31 +128,48 @@ Structure:
 ## Definition of Done (DoD)
 
 Standard items from `.claude/rules/00_master_specs.md` §8:
-- [ ] `cmake -B build && cmake --build build` succeeds with zero errors and zero warnings from `04_Addons/4_7_SoftISP/`.
-- [ ] Binary runs without arguments (using defaults) and completes without error (asset present).
-- [ ] `--help` prints CLI11-generated usage including `--input`, `--width`, `--height`.
-- [ ] `GPU=<vendor> ./build/softisp` selects the correct device without crashing.
+- [x] `cmake -B build && cmake --build build` succeeds with zero errors and zero warnings from `04_Addons/4_7_SoftISP/`.
+- [x] Binary runs without arguments (using defaults) and completes without error (asset present).
+- [x] `--help` prints CLI11-generated usage including `--input`, `--width`, `--height`.
+- [x] `GPU=<vendor> ./build/softisp` selects the correct device without crashing.
 
 Task-specific:
-- [ ] `output_rgb_v1.bmp` and `output_rgb_v2.bmp` are written to the binary directory.
-- [ ] Console prints V1 ms, V2 ms, speedup (≥ 3× on dGPU — hardware waiver applies on iGPU/UMA).
-- [ ] V2 < 10 ms at 3840×2160 on discrete GPU (hardware waiver applies if physically impossible).
-- [ ] In-binary byte-exact assertion passes (no mismatch error) when V1 and V2 are correct.
-- [ ] Binary exits with `std::runtime_error` (non-zero) if `--input` file is missing.
-- [ ] MANUAL: Open `output_rgb_v1.bmp` and `output_rgb_v2.bmp`; verify the image is a visually correct colour-demosaiced photograph (no green/red cast, no grid artefacts, smooth gradients).
+- [x] `output_rgb_v1.bmp` and `output_rgb_v2.bmp` are written to the binary directory.
+- [x] Console prints V1 ms, V2 ms, speedup (≥ 3× on dGPU — hardware waiver applies on iGPU/UMA).
+- [x] V2 < 10 ms at 3840×2160 on discrete GPU (hardware waiver applies if physically impossible).
+- [x] In-binary byte-exact assertion passes (no mismatch error) when V1 and V2 are correct.
+- [x] Binary exits with `std::runtime_error` (non-zero) if `--input` file is missing.
+- [x] MANUAL: Open `output_rgb_v1.bmp` and `output_rgb_v2.bmp`; verify the image is a visually correct colour-demosaiced photograph (no green/red cast, no grid artefacts, smooth gradients).
 
 ---
 
 ## Execution Report
-<!-- Filled by @coder after implementation. -->
 
-- **Status:** PENDING
-- **Session:** —
+- **Status:** DONE
+- **Session:** 2026-03-21
 
 ### Validation
 ```
-[output here]
+Platform : Intel(R) OpenCL Graphics  [GPU=INTEL]
+Device   : Intel(R) Iris(R) Xe Graphics
+
+V1 (naive bilinear):     8.606 ms  (116.2 FPS)
+V2 (LDS tiled):          1.891 ms  (528.8 FPS)
+Speedup:                  4.55x
+
+Outputs written: output_rgb_v1.bmp, output_rgb_v2.bmp
 ```
+
+### Visual Comparison vs `assets/rgb_4k.bmp`
+
+Compared debayered output against the reference using pixel-level diff (amplified ×5):
+
+- **95.6% of pixels are exact** (diff = 0). PSNR: **31.39 dB**.
+- Errors are confined to two structures inherent to bilinear demosaicing:
+  1. **Diagonal edges** — `testsrc2` contains angled lines; bilinear cannot distinguish axis-aligned neighbors from diagonal transitions, causing sub-pixel colour fringing.
+  2. **Hard colour boundaries** — at saturated colour block edges (e.g. cyan/magenta), bilinear averaging pulls in the wrong channel from the opposite side ("zipper" artefact).
+- No systematic channel bias (R mean: +0.007, G: +0.011, B: −0.028).
+- These are **expected artefacts of the algorithm**, not implementation bugs. A direction-adaptive algorithm (Malvar-He-Cutler, AHD) would be needed to eliminate them.
 
 ### Changed Files
 | File | Change |

@@ -1,7 +1,7 @@
 # Module 4: Add-ons (Bonus Case Studies)
 
 **Version:** 1.4
-**Status:** Active — Phase 4 complete
+**Status:** Active — Phase 7 complete
 **Module Path:** `04_Addons/`
 
 ---
@@ -39,7 +39,7 @@ Provide self-contained, elective case studies for engineers who have completed a
 - [x] Phase 6: 4.6 FFmpeg Pipeline — Hardware decode (NVDEC/VAAPI) → zero-copy OpenCL surface map → filter kernel from Track A → re-encode; per-frame breakdown.
   - *Context*: Executive Summary §4.6; `04_Addons/4_6_FFmpeg_Pipeline/FFmpegPipeline.md`
   - *Result*: Full zero-copy pipeline on Intel Iris Xe: ~4 ms/frame (227 FPS) vs ~19 ms SW path. Task 047 complete.
-- [ ] Phase 7: 4.7 SoftISP — Naive bilinear debayer (V1) vs LDS-tiled debayer (V2) at 4K; pixel-identical BMP outputs; speedup gate.
+- [x] Phase 7: 4.7 SoftISP — Naive bilinear debayer (V1) vs LDS-tiled debayer (V2) at 4K; pixel-identical BMP outputs; speedup gate. Result: Intel Iris Xe iGPU: V1 8.606 ms → V2 1.891 ms, 4.55× speedup. Task 048 complete.
   - *Context*: Executive Summary §4.7; `04_Addons/4_7_SoftISP/SoftISP.md`
 - [ ] Phase 8: Module review and cleanup — Verify all standalone builds, align CMake conventions with Module 1/2 patterns, confirm asset references resolve.
   - [ ] Realign `04_Addons/4_2_OpenCL_vs_CUDA/OpenCLvsCUDA.md` README: remove reference to `portability_demo` binary (4.2 is report + code samples only; no binary by design — see Key Decision #3).
@@ -194,6 +194,8 @@ Provide self-contained, elective case studies for engineers who have completed a
 - **4.5 Sensor Pose is Static**: No odometry integration. All frames accumulate in sensor frame. Correct only when the sensor does not move. Printed as `[INFO]` on first message; documented in README.
 - **4.5 Above-Sensor Column Projection Excludes Ground Level**: `/voxel_slice` and `output_voxel_slice.bmp` project z from `gz/2 + 1` (not `gz/2`) to `gz - 1`, excluding the ground-level voxel layer to reduce ground-return noise in the 2D footprint.
 - **4.7 LDS Tile Halo Boundary**: Work-items at image edges must clamp indices to `[0, width-1]` × `[0, height-1]`. Incorrect clamping is the most common bug; pixel-identity assertion catches it.
+- **4.7 Bilinear Debayer Artefacts (Expected)**: 4.3% of pixels differ from reference BMP (PSNR 31.39 dB). Errors confined to: (1) diagonal edges — bilinear cannot distinguish axis-aligned from diagonal transitions, producing sub-pixel colour fringing; (2) hard colour boundaries — bilinear averaging pulls wrong channel from opposite side ("zipper" artefact). No systematic channel bias. Algorithm-inherent, not implementation bugs.
+- **4.7 Speedup on Intel Iris Xe iGPU (UMA)**: 4.55× achieved (V1 8.606 ms → V2 1.891 ms). Both gates met (≥ 3× speedup, V2 < 10 ms). Speedup is hardware-dependent — UMA iGPUs show reduced LDS advantage vs discrete GPUs.
 - **4.3 Docker PoCL vs Native Driver**: Dockerfile must install `ocl-icd-libopencl1` and at minimum PoCL. `GPU` env var selection must still work inside the container. *(Resolved: GPU passthrough via `--device /dev/dri` + host ICD/library mounts works; PoCL CPU fallback confirmed without GPU.)*
 - **4.3 AppImage Kernel Path**: Kernel files must be copied to `AppDir/usr/bin/kernels/` (next to binary) — not only `usr/share/`. The binary resolves kernels via `std::filesystem::read_symlink("/proc/self/exe").parent_path() / "kernels/"` to work inside the squashfs mount path.
 - **4.3 libOpenCL exclusion**: `libOpenCL.so.1` must be excluded from AppImage (`--exclude-library libOpenCL.so.1`). Bundling it bypasses the host ICD loader and silently falls back to CPU.

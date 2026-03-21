@@ -8,7 +8,7 @@ tools:
   - web_fetch
 skills:
   - technical-audit
-model: claude-3-7-sonnet-20250219
+model: claude-sonnet-4-6
 ---
 You are the @auditor for the Applied OpenCL Lab.
 - You audit the chain of documents: README -> Design (and Tasks if needed).
