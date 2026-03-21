@@ -41,6 +41,15 @@
 - `/sync` (@architect): runs only after both pass — updates design doc, archives task.
 - Fix loops always go back to `/implement` (@coder owns all source changes).
 
+## Content Quality & Consistency
+- `/test-ux` (@tester): reads `<module>/README.md` and module source code. Simulates a junior student walkthrough by mentally executing bash commands and verifying the pedagogical flow to identify missing prerequisites or steep cognitive leaps. Output: Pedagogical Gaps & UX Friction report.
+- `/audit` (@auditor): reads both `<module>/README.md` and `workflow/design/<module>.md` (inspecting tasks if necessary). Uses web search to validate technical claims against online sources and identifies/removes redundant comments across the document chain. Output: Audit report with citations and direct file edits.
+
+## State Reconciliation
+- `/update-design` (@architect): reads a specific `workflow/tasks/<task_file>.md` (e.g., when execution reveals blockers or requires a technical pivot). Reverse-syncs these findings by updating the parent `workflow/design/<module>.md` (Key Decisions, Known Issues). Output: Updated design doc.
+- `/update-readme` (@educator): reads the updated `workflow/design/<module>.md`. Forward-syncs any architectural or state changes down into the student-facing `<module>/README.md`, ensuring the technical reality matches the documentation without breaking the educational tone. Output: Updated README.
+
+
 ## Known Issues
 [TODO: Add issues here]
 

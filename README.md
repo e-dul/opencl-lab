@@ -117,8 +117,6 @@ This repository is optimized for collaboration with AI assistants.
 ## TODO
 
 - Add links to external resources for more in depth information
-- Command, agent and skill to review content without specific focus on code - pseudo user experience
-- Command, agent and skill to review - technical audit, validate claims and conclusions
 - Move B1 CLBlast section to addons
 - Summarize command, agents, skills and usage for this project
 - Mark sections with strict HW or OpenCL version dependencies
@@ -128,4 +126,3 @@ This repository is optimized for collaboration with AI assistants.
 - **[Feature] `global_work_offset` — tiled processing benchmark**: Natural fit is explicit work partitioning over a static grid, not face-detection ROI (which forces an artificial host read-back). Candidate exercise: process a 4K image in 4 quadrants (2×2 tiles), each launched with `global_work_offset = {tile_x, tile_y}` / `global_work_size = {W/2, H/2}`. Compare against single dispatch with explicit offset arithmetic inside the kernel body.
 - Consider removing C1 node acceleration - marginal value
 - Consider ROS2 related examples to integrate with ROS world better
-- Command to update readme after changes in design or in opposite direction
