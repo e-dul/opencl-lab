@@ -1,0 +1,35 @@
+# Build artifacts
+build/
+build_*/
+cmake-build-*/
+*.o
+*.so
+*.a
+*.exe
+*.lib
+*.dll
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary
+*.tmp
+*.bak
+*~
+
+# Images
+*.bmp
+*.png
+
+*.mp4
+
+# Claude
+.claude/settings.json
+kernel.errors.txt
