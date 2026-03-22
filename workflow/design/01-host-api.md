@@ -70,7 +70,7 @@ Establish foundational skills for C++ OpenCL host-side programming with a profil
 
 ## Known Issues / Risks
 - **Platform-specific event timing**: Intel CPU runtimes may report zero for QUEUED→SUBMIT deltas.
-- **Driver quirks**: NVIDIA requires `CL_QUEUE_PROFILING_ENABLE` at queue creation.
+- **Driver quirks**: All OpenCL implementations require `CL_QUEUE_PROFILING_ENABLE` at queue creation — omitting it returns `CL_PROFILING_INFO_NOT_AVAILABLE` on any vendor.
 - **User profiling avoidance**: Tasks must strictly enforce timing output in DoD.
 
 ## Performance Gate (Module Completion)

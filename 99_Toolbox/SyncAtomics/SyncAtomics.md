@@ -102,7 +102,7 @@ float old_val, new_val;
 do {
     old_val = *(__global float*)addr;
     new_val = old_val + delta;
-} while (atom_cmpxchg((__global int*)addr,
+} while (atomic_cmpxchg((__global int*)addr,
                       *(int*)&old_val,
                       *(int*)&new_val) != *(int*)&old_val);
 ```

@@ -41,6 +41,8 @@ ls -lh 04_Addons/4_2_OpenCL_vs_CUDA/code_comparison/
 | AMD on Linux | ROCm is the primary path; OpenCL is the stable portable layer on top. |
 | Portable deployment | One codebase runs on Nvidia, AMD, Intel, and CPU fallback. |
 
+> **Note:** The FPGA row may be outdated. Accurate for Intel FPGAs (Intel oneAPI still supports OpenCL for FPGAs). AMD/Xilinx shifted toward SYCL/HLS C++ as their primary compute path as of 2024 — OpenCL support remains but is no longer the recommended entry point. Verify against current Vitis HLS and oneAPI FPGA documentation before citing this as current best practice.
+
 ## The Pragmatic Decision
 
 If you control the deployment environment and target Nvidia, use CUDA. If you need to run on multiple vendors, embedded hardware, or FPGAs — or if you're shipping software to customers with unknown hardware — use OpenCL.

@@ -75,7 +75,7 @@ In the BVH traversal kernel from [B3_Ray_Tracer_BVH](../../02_Projects/B_Graphic
 
 ## Troubleshooting
 
-- **`native_sqrt` returns NaN for negative inputs**: Standard `sqrt` clamps negative inputs; `native_sqrt` does not. Guard with `max(0.0f, x)` before calling.
+- **`native_sqrt` returns NaN for negative inputs**: `sqrt(x < 0)` returns NaN per the OpenCL spec — standard `sqrt` does not clamp; `native_sqrt` has no guarantee at all. Guard with `max(0.0f, x)` before calling either variant.
 - **Results differ between devices**: `native_` precision is hardware-defined — AMD, Nvidia, and Intel produce different results. If your algorithm depends on bit-exact reproducibility, do not use `native_`.
 - **`-cl-fast-relaxed-math` breaks convergence in iterative solver**: The flag allows FP reordering which changes accumulation order. Use explicit `native_` calls only on the specific functions that need speed instead.
 

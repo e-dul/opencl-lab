@@ -55,6 +55,9 @@ FROM intel/oneapi-basekit
 # AMD (ROCm)
 FROM rocm/opencl-dev
 ```
+
+> **Note:** The `rocm/opencl-dev` image name is unverified. AMD ROCm Docker images typically use the naming pattern `rocm/dev-ubuntu-<version>` (e.g., `rocm/dev-ubuntu-22.04`). Verify the correct base image tag at [hub.docker.com/r/rocm](https://hub.docker.com/r/rocm) before use.
+
 Mount `/dev/dri` for AMD/Intel passthrough: `docker run --device /dev/dri ...`
 
 **Windows installer**: include `OpenCL.dll` (Khronos ICD loader) in your installer. Vendor ICDs are installed with the GPU driver — link to the driver download page in your installer UI.

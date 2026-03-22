@@ -54,6 +54,8 @@ ros2 bag play <path/to/bag>
   ```
   Total must remain < 5 ms @ 100k points (C3 performance gate). A `[WARN]` line is printed if the gate is exceeded.
 
+> **Note:** The "3 MB" figure is storage-type-dependent and undocumented. 200×200×50 voxels = 2,000,000 cells. As `uint` (4 bytes): 8 MB; as `uchar` (1 byte): 2 MB; as a 2-bit packed field: ~0.5 MB. Update this line to match the actual `cl::Buffer` element type used in `dda_cast.cl`.
+
 ## Live Visualisation (RViz)
 
 Two debug topics are published every frame and can be inspected in RViz without recording a bag:

@@ -71,7 +71,7 @@ vtune -collect gpu-hotspots -- ./build/your_demo
 vtune-gui
 
 # AMD: rocprof (OpenCL via ROCm)
-rocprof --hsa-trace ./build/your_demo
+rocprof --opencl-trace ./build/your_demo
 ```
 
 Look for:

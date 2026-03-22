@@ -12,7 +12,7 @@ See [main README](../README.md) for base requirements (OpenCL 1.2+, CMake 3.18+)
 | [4.2 OpenCL vs CUDA](4_2_OpenCL_vs_CUDA/OpenCLvsCUDA.md) | Any Module 2 track | None |
 | [4.3 Deployment](4_3_Deployment/Deployment.md) | Module 1 only | Docker installed |
 | [4.4 SVM Deep Dive](4_4_SVM_Theory/SVMTheory.md) | Any Module 2 track | OpenCL 2.0+ device for fine-grained SVM paths (falls back gracefully on 1.2) |
-| [4.5 Voxel Mapping](4_5_Voxel_Mapping/VoxelMapping.md) | Track B (B3) + Track C (C3) + ROS 2 Humble+ | Asset: `assets/lidar_sample.bag` (*optional* — requires `assets/lidar_sample.bag`; use the synthetic publisher if unavailable) |
+| [4.5 Voxel Mapping](4_5_Voxel_Mapping/VoxelMapping.md) | Track B (B3) + Track C (C3) + ROS 2 Jazzy | Asset: `assets/lidar_sample.bag` (*optional* — requires `assets/lidar_sample.bag`; use the synthetic publisher if unavailable) |
 | [4.6 FFmpeg Pipeline](4_6_FFmpeg_Pipeline/FFmpegPipeline.md) | Track A (A4) | `sudo apt install libavcodec-dev libavformat-dev libavutil-dev libswscale-dev libva-dev` (includes `libswscale-dev libva-dev` required for 4.6) · Asset: `assets/sample.mp4` |
 | [4.7 SoftISP](4_7_SoftISP/SoftISP.md) | Toolbox `LocalMemory` reviewed | Asset: `assets/raw_bayer_4k.raw` |
 

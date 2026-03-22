@@ -236,7 +236,7 @@ This module is complete when:
 
 Module 2 applies these host-side skills to real integration problems. Choose your track:
 
-- **[Track A: Multimedia](../02_Projects/A_Multimedia/README.md)** — Video AI, OpenCV interop, smart webcam project
+- **[Track A: Multimedia](../02_Projects/A_Multimedia/Multimedia.md)** — Video AI, OpenCV interop, smart webcam project
 - **[Track B: Graphics/HPC](../02_Projects/B_Graphics_HPC/GraphicsHPC.md)** — Ray tracing, CLBlast, advanced rendering
 - **[Track C: Robotics](../02_Projects/C_Robotics_ROS2/RoboticsROS2.md)** — ROS 2 node acceleration, perception pipelines
 

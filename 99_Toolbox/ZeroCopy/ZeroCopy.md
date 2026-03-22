@@ -34,6 +34,8 @@ Three `cl::Buffer` creation flags, three different memory contracts:
 
 `CL_MEM_ALLOC_HOST_PTR` + `enqueueMapBuffer` is the most portable zero-copy pattern on discrete GPUs. `CL_MEM_USE_HOST_PTR` is only truly zero-copy on UMA architectures (Intel iGPU, ARM Mali).
 
+For a hardware-level explanation of why UMA changes the cost of each flag, see [4.4 SVM Theory](../../04_Addons/4_4_SVM_Theory/SVMTheory.md).
+
 ## Mini-Challenge
 
 Switch the demo to `CL_MEM_ALLOC_HOST_PTR` and profile with `--width 3840 --height 2160`. At what resolution does the gap between `COPY_HOST_PTR` and `ALLOC_HOST_PTR` exceed 10 ms?

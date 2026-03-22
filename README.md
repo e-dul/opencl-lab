@@ -153,3 +153,4 @@ This repository is optimized for collaboration with AI assistants.
 - Consider removing C1 node acceleration - marginal value
 - Consider ROS2 related examples to integrate with ROS world better(launch files,)
 - Improve using assets
+- Work on setup with docker

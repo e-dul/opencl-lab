@@ -50,7 +50,7 @@ Modify the demo to use a checkerboard mask (alternating pixels, maximum divergen
 ## Troubleshooting
 
 - **`select()` shows no speedup**: Some compilers optimize `if-else` to `select` automatically when the branch bodies are side-effect-free. Inspect the generated ISA with `clGetProgramInfo(CL_PROGRAM_BINARIES)` to confirm.
-- **Divergence penalty varies by device**: AMD RDNA uses 32-wide waves; Nvidia uses 32-wide warps; Intel Arc uses 16-wide SIMD. The penalty scales with wave width.
+- **Divergence penalty varies by device**: AMD RDNA default is wave64 (wave32 is opt-in via compiler flag); Nvidia uses 32-wide warps; Intel Arc uses 16-wide SIMD. The penalty scales with wave width.
 
 ## Used In
 - [Track A — A4_Smart_Webcam](../../02_Projects/A_Multimedia/Multimedia.md#a4_smart_webcam--flagship-project) (Bokeh mask conditional)

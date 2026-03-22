@@ -24,7 +24,7 @@ Provide a library of isolated, standalone GPU optimization techniques. Each tool
 
 - [x] Phase 1: ZeroCopy — `CL_MEM_COPY_HOST_PTR` vs `ALLOC_HOST_PTR` vs `USE_HOST_PTR`; visual BMP output + timing table.
   - *Context*: Executive Summary §Tool 1; `99_Toolbox/ZeroCopy/ZeroCopy.md`.
-- [x] Phase 2: CoalescedAccess — row-major vs column-major vs transposed access patterns; 7x gap visible on discrete GPU.
+- [x] Phase 2: CoalescedAccess — row-major vs column-major vs transposed access patterns; 8.1× gap visible on integrated GPU (RTX 4060 discrete shows only 1.3× due to cache masking).
   - *Context*: Executive Summary §Tool 1; `99_Toolbox/CoalescedAccess/CoalescedAccess.md`.
 - [x] Phase 3: LocalMemory (LDS) — global vs local memory box blur (tile + halo pattern); 4x+ speedup at radius 5.
   - *Context*: Executive Summary §Tool 2; `99_Toolbox/LocalMemory/LocalMemory.md`.

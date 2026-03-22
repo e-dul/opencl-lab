@@ -375,13 +375,7 @@ Zero `WARN: double-buffer contention` entries over 10 seconds at 200 Hz, 100k po
 
 > **Note**: The 5 ms latency gate may not be achievable on all hardware. Check the Performance Gate table for hardware-specific expectations (gates marked † apply a hardware waiver for CPU-fallback and integrated GPU devices).
 
-**MANUAL — RViz verification:** Open RViz, add a PointCloud2 display on `/filtered_points`. With the publisher running at `--hz 200 --points 100000` and the node launched with `ground_z:=0.1 min_intensity:=50`, the display must show only the three valid clusters — no ground or low-intensity points — with no visible frame drops or stuttering over 10 seconds.
-
-Mixed-scene layout for verification:
-- 3 valid clusters at (2, 0, 1), (−2, 0, 1), (0, 3, 1), radius 0.3 m, intensity 150 — must appear in `/filtered_points`
-- Ground band z ∈ [−0.1, 0.05] m, intensity 200 — removed by `ground_z:=0.1`
-- Low-intensity cloud at (0, 0, 2), intensity 10 — removed by `min_intensity:=50`
-- `/cluster_features` centroids must be within 0.05 m of the three cluster positions above
+**MANUAL — RViz verification:** Open RViz, add a PointCloud2 display on `/filtered_points`. With the publisher running at `--hz 200 --points 100000` and the node launched with `ground_z:=0.1 min_intensity:=50`, the display must show only the three valid clusters — no ground or low-intensity points — with no visible frame drops or stuttering over 10 seconds. (Scene layout: see `--scene mixed` description above.)
 
 ### Testing hints
 
@@ -429,8 +423,6 @@ This track is complete when all gates below are met. Gates marked with † may n
 ## Known Issues
 
 - **C2 LDS tiling yields ~1.0x on RTX 4060 / Radeon 680M**: Dense 2D neighbourhood scans are not LDS-bandwidth-bound on these architectures. A 128-byte L1 cache line covers 128 `uchar` cells; a warp scanning the same search-window row generates at most one cache miss per row — the same reuse LDS would provide, without the barrier overhead. Tiled was ~5% slower than naive across all tested map sizes (512²–2048²) and radii (r=10–60). The hardware-waiver † applies to the C2 tiled ≥ 1.5× speedup gate on these devices. The correct optimisation for large radii is algorithmic: a separable 1D distance transform (Meijster/Saito) reduces O(r²) per-cell work to O(1) regardless of memory hierarchy.
-
-- **C1 `SyntheticPublisher` merged into `main.cpp`**: The design spec lists `synthetic_publisher.cpp` as a separate source file compiled into `accel_node`. The current implementation merged `SyntheticPublisher` directly into `main.cpp`. Functionally identical; the file split is cosmetic and will be aligned in the Module Cleanup phase.
 
 ---
 

@@ -52,7 +52,7 @@ CPU RAM == GPU "VRAM"  (same physical DRAM)
 |:---------|:-------------|:----------|:-----------------|
 | Coarse-grained | `clEnqueueSVMMap` / `Unmap` | Manual | Most OpenCL 2.0 devices |
 | Fine-grained buffer | None | Cache-coherent | AMD APU, Intel Arc |
-| Fine-grained system | None | Any `malloc` pointer visible to GPU | ARM Mali, Apple (via Metal) |
+| Fine-grained system | None | Any `malloc` pointer visible to GPU | ARM Mali |
 
 SVM fine-grained requires a unified cache hierarchy — the CPU and GPU L2/L3 caches must be coherent. Discrete Nvidia GPUs do not expose this via OpenCL.
 
