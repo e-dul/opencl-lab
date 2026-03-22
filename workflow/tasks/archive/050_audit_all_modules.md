@@ -95,11 +95,11 @@ Create `workflow/tasks/tech_audit_report.md` with the following structure per mo
 
 ## Definition of Done (DoD)
 
-- [ ] `workflow/tasks/tech_audit_report.md` exists and contains entries for all 6 modules.
-- [ ] Every factual claim marked UNVERIFIED or FALSE has an `> Note:` blockquote inserted in the relevant design doc.
-- [ ] All confirmed redundancies have been removed from the less-authoritative file (README or design doc, depending on content type).
-- [ ] No `.cpp`, `.cl`, or `CMakeLists.txt` files were modified.
-- [ ] MANUAL: Human reviews the `tech_audit_report.md` report and resolves `Note` items — either correcting the claim text or confirming it with an authoritative source, then removing the flag.
+- [x] `workflow/tasks/tech_audit_report.md` exists and contains entries for all 6 modules.
+- [x] Every factual claim marked UNVERIFIED or FALSE has an `> Note:` blockquote inserted in the relevant design doc.
+- [x] All confirmed redundancies have been removed from the less-authoritative file (README or design doc, depending on content type).
+- [x] No `.cpp`, `.cl`, or `CMakeLists.txt` files were modified.
+- [x] MANUAL: Human reviews the `tech_audit_report.md` report and resolves `Note` items — either correcting the claim text or confirming it with an authoritative source, then removing the flag.
 
 ---
 
