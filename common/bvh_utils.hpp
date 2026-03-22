@@ -35,11 +35,13 @@ struct Aabb {
                                  std::numeric_limits<float>::lowest(),
                                  std::numeric_limits<float>::lowest() };
 
+    // Grow the AABB to include point (x, y, z) — called once per triangle vertex during BVH build.
     void expand(float x, float y, float z) {
         lo[0] = std::min(lo[0], x); lo[1] = std::min(lo[1], y); lo[2] = std::min(lo[2], z);
         hi[0] = std::max(hi[0], x); hi[1] = std::max(hi[1], y); hi[2] = std::max(hi[2], z);
     }
 
+    // Grow the AABB to enclose another AABB — used when merging child bounds up to a parent node.
     void expand(const Aabb& o) {
         for (int i = 0; i < 3; ++i) {
             lo[i] = std::min(lo[i], o.lo[i]);
@@ -84,12 +86,14 @@ struct TriangleCpu {
     std::array<float, 3> n[3];  // per-vertex normals
     int original_index;         // index into the original unsorted triangle list
 
+    // Tight AABB around the triangle — fed into the BVH build to compute parent bounds.
     Aabb aabb() const {
         Aabb b;
         for (int i = 0; i < 3; ++i) b.expand(v[i][0], v[i][1], v[i][2]);
         return b;
     }
 
+    // Geometric centroid of the triangle — used by the SAH splitter to sort triangles along an axis.
     std::array<float, 3> centroid() const {
         return { (v[0][0] + v[1][0] + v[2][0]) / 3.0f,
                  (v[0][1] + v[1][1] + v[2][1]) / 3.0f,
@@ -128,8 +132,9 @@ static_assert(sizeof(BvhNode) == 48, "BvhNode must be 48 bytes");
 // ---------------------------------------------------------------------------
 // BVH build result
 // ---------------------------------------------------------------------------
+// Flat BVH build result — passed to the GPU upload step after build_bvh() returns.
 struct BvhTree {
-    std::vector<BvhNode>     nodes;
+    std::vector<BvhNode>     nodes;        // depth-first ordered node array; index 0 is root
     std::vector<TriangleCpu> sorted_tris;  // reordered by BVH leaf grouping
 };
 
