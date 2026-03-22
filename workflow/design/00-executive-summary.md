@@ -1,7 +1,7 @@
 # Executive Summary: Applied OpenCL Lab
 
-**Version:** 1.0 (Final)
-**Status:** Active Strategy
+**Version:** 2.0 (Final)
+**Status:** Major update - see Pivot to Cookbook v2.0 Summary 
 **Target Audience:** Mid/Senior C++ Engineers, Roboticists, HPC Developers
 
 ---
@@ -305,3 +305,33 @@ Success is defined by metrics, not just compilation.
     6.  **Educational Goal:** The perfect example of Local Memory (LDS) optimization. Memory bound operation. Tile-based processing pattern.
     7.  **Visual Effect:** Turning a green-pink checkerboard (RAW) into a beautiful, colorful RGB image – huge satisfaction.
     8.  **Market Niche:** Embedded vision engineers using cheap sensors (without hardware ISP) or raw industrial cameras.
+
+
+## Pivot to Cookbook v2.0 Summary (2026-03-22)
+
+### Context
+
+v1 was module-based (00_Setup → 04_Addons). Too linear for "code-first" philosophy.
+
+**Decision:** Full Cookbook Reorganization. Convert to Hub & Spoke with independent, runnable recipes:
+
+New structure: 
+- Parts 0-1: Sequential foundations (Setup + Host API)
+- Parts 2-4: Three parallel Tracks (A: Multimedia, B: Graphics/HPC, C: Robotics)
+- Part 5: Toolbox (reference tools)
+- Part 6: Bonus (standalone recipes, cross-track capstones)
+
+Detailed changes:
+
+1. Move FFmpeg Pipeline and SoftISP from Addons to Multimedia track
+2. Rename Addons to Bonus
+3. Move CLBlast and Device Enqueue from GraphicsHPC to Bonus
+4. Move OpenCL vs CUDA, SVM Theory and Deployment from Bonus to Toolbox
+5. Update main folder to match new structure
+    - Split 02_Projects to -> 02_Multimedia, 03_GraphicsHPC, 04_Robotics
+    - Rename 99_Toolbox to 05_Toolbox
+    - Rename 04_Addons to 06_Bonus
+
+### Protocol changes
+
+Updated name formats: T<id>_*.md for tasks and D<id>_*.md for designs for easier filtering.
