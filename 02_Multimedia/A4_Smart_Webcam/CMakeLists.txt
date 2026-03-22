@@ -26,3 +26,4 @@ target_link_libraries(smart_webcam PRIVATE openvino::runtime ${OpenCV_LIBS})
 
 # POST_BUILD: copy kernels/ next to the binary so runtime load_kernel_source() works.
 copy_kernels(smart_webcam)
+symlink_assets(smart_webcam)

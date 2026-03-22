@@ -14,3 +14,4 @@ add_executable(thread_divergence main.cpp)
 opencl_lab_target(thread_divergence)
 
 copy_kernels(thread_divergence)
+symlink_assets(thread_divergence)

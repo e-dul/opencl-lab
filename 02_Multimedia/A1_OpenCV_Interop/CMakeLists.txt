@@ -16,5 +16,6 @@ opencl_lab_target(A1_OpenCV_Interop)
 
 target_link_libraries(A1_OpenCV_Interop PRIVATE ${OpenCV_LIBS})
 target_include_directories(A1_OpenCV_Interop PRIVATE ${OpenCV_INCLUDE_DIRS})
+symlink_assets(A1_OpenCV_Interop)
 
 # No kernel copy needed — pure host-side benchmark, no .cl files

@@ -15,6 +15,7 @@ opencl_lab_target(deployment_demo)
 
 # POST_BUILD: copy kernels/ next to the binary so load_kernel_source() finds them.
 copy_kernels(deployment_demo)
+symlink_assets(deployment_demo)
 
 # ── Install rules ─────────────────────────────────────────────────────────────
 # Binary → <prefix>/bin/deployment_demo

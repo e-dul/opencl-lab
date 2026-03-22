@@ -42,6 +42,7 @@ target_compile_options(ffmpeg_opencl_transcoder PRIVATE ${FFMPEG_CFLAGS_OTHER})
 
 # Copy kernels/ next to binary so get_binary_dir() / "kernels" resolves at runtime.
 copy_kernels(ffmpeg_opencl_transcoder)
+symlink_assets(ffmpeg_opencl_transcoder)
 
 # Warn if the default sample asset is absent — build still succeeds.
 if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../assets/sample.mp4")

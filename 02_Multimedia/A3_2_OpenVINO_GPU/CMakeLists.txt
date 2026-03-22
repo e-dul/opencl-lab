@@ -23,3 +23,4 @@ target_link_libraries(a3_2_openvino_gpu PRIVATE openvino::runtime)
 
 # POST_BUILD: copy kernels/ next to the binary so runtime load_kernel_source() works.
 copy_kernels(a3_2_openvino_gpu)
+symlink_assets(a3_2_openvino_gpu)

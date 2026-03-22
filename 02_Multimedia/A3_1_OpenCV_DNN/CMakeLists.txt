@@ -17,3 +17,4 @@ target_link_libraries(a3_1_opencv_dnn PRIVATE ${OpenCV_LIBS})
 target_include_directories(a3_1_opencv_dnn PRIVATE ${OpenCV_INCLUDE_DIRS})
 
 copy_kernels(a3_1_opencv_dnn)
+symlink_assets(a3_1_opencv_dnn)

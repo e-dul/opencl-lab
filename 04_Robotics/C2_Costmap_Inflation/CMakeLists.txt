@@ -34,3 +34,4 @@ target_include_directories(costmap_node PRIVATE
 opencl_lab_ros2_target(costmap_node rclcpp rclcpp_lifecycle nav_msgs lifecycle_msgs)
 
 copy_kernels(costmap_node)
+symlink_assets(costmap_node)

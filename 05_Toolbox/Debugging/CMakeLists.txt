@@ -17,6 +17,7 @@ opencl_lab_target(debug_demo)
 # Copy kernels/ next to the binary at build time so the executable can locate
 # them via a relative path regardless of where cmake --build is invoked.
 copy_kernels(debug_demo)
+symlink_assets(debug_demo)
 
 # Optional: detect Oclgrind for the user.  The build must NOT fail if absent;
 # only the runtime verification (oclgrind ./build/debug_demo) requires it.

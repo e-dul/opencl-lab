@@ -23,3 +23,4 @@ opencl_lab_fetch_tinyobjloader(b3_ray_tracer_bvh)
 opencl_lab_optional_gl_interop(b3_ray_tracer_bvh)
 
 copy_kernels(b3_ray_tracer_bvh)
+symlink_assets(b3_ray_tracer_bvh)

@@ -17,3 +17,4 @@ target_link_libraries(A2_YUV_Pipeline PRIVATE ${OpenCV_LIBS})
 target_include_directories(A2_YUV_Pipeline PRIVATE ${OpenCV_INCLUDE_DIRS})
 
 copy_kernels(A2_YUV_Pipeline)
+symlink_assets(A2_YUV_Pipeline)

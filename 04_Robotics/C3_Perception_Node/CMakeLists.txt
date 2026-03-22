@@ -35,6 +35,7 @@ target_include_directories(perception_node PRIVATE
 opencl_lab_ros2_target(perception_node rclcpp rclcpp_lifecycle sensor_msgs lifecycle_msgs)
 
 copy_kernels(perception_node)
+symlink_assets(perception_node)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Target 2: point_cloud_publisher (point_cloud_publisher.cpp)

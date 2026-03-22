@@ -24,6 +24,7 @@ add_custom_command(TARGET 01_basic_mad POST_BUILD
             "$<TARGET_FILE_DIR:01_basic_mad>/kernels"
     COMMENT "Copying kernels for 01_basic_mad"
 )
+symlink_assets(01_basic_mad)
 
 # ── 02_Generic_MAD ────────────────────────────────────────────────────────────
 # Builds mad_kernel.cl twice: -D TYPE=uchar and -D TYPE=float.
@@ -37,6 +38,7 @@ add_custom_command(TARGET 02_generic_mad POST_BUILD
             "$<TARGET_FILE_DIR:02_generic_mad>/kernels"
     COMMENT "Copying kernels for 02_generic_mad"
 )
+symlink_assets(02_generic_mad)
 
 # ── 03_AutoTune ───────────────────────────────────────────────────────────────
 # Builds uchar, float, and optionally half variants. Selects the fastest.
@@ -49,3 +51,4 @@ add_custom_command(TARGET 03_autotune POST_BUILD
             "$<TARGET_FILE_DIR:03_autotune>/kernels"
     COMMENT "Copying kernels for 03_autotune"
 )
+symlink_assets(03_autotune)

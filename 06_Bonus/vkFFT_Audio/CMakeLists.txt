@@ -73,5 +73,6 @@ endif()
 
 # ── Kernel copy (magnitude.cl → binary dir/kernels/) ─────────────────────────
 copy_kernels(vkfft_audio)
+symlink_assets(vkfft_audio)
 
 message(STATUS "vkfft_audio configured. Run: ./build/vkfft_audio --input <path>.wav")

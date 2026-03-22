@@ -20,3 +20,4 @@ opencl_lab_target(b2_ray_tracer)
 opencl_lab_optional_gl_interop(b2_ray_tracer)
 
 copy_kernels(b2_ray_tracer)
+symlink_assets(b2_ray_tracer)

@@ -19,7 +19,7 @@ Reorganize the Applied OpenCL Lab repository from a linear, module-numbered layo
 - [x] Phase 1: Folder Restructuring — Rename and split top-level directories to match the v2.0 layout.
 - [x] Phase 2: Content Migration — Move recipes between tracks as specified; update internal CMake target names and include paths.
 - [ ] Phase 3: README Unification — Split fat single-file READMEs (Multimedia, GraphicsHPC, Robotics, Host API) into the two-level index + sub-module doc structure.
-- [ ] Phase 4: CMake POST_BUILD Assets Symlink — Add `create_symlink` command to every module's `CMakeLists.txt`.
+- [x] Phase 4: CMake POST_BUILD Assets Symlink — Add `create_symlink` command to every module's `CMakeLists.txt`.
 - [ ] Phase 5: New Toolbox Entry — Add `global_work_offset` & Tiled Benchmark recipe under `05_Toolbox/`.
 - [~] Phase 6: Protocol Rename — Rename existing task and design files to the `T<id>_*.md` / `D<id>_*.md` format; update MEMORY.md references. CANCELLED - v1 files doesn't need update.
 - [ ] Phase 7: Final Verification — Verify all modules build from their standalone directory; verify docs cross-links; update progress counters in MEMORY.md.
@@ -173,7 +173,8 @@ No depth-relative `../../../assets/` paths remain after Phase 4.
 
 ## Known Issues / Risks
 
-- **CMake `CMAKE_SOURCE_DIR` in standalone builds**: When a module is built standalone (without the root `CMakeLists.txt`), `CMAKE_SOURCE_DIR` resolves to the module directory, not the repo root. The symlink target must use an absolute path derived from the repo root. Mitigation: compute assets path relative to `CMAKE_CURRENT_LIST_DIR` at configure time or pass `-DASSETS_DIR=<abs_path>` as a CMake variable. This is a Phase 4 implementation detail for the coder.
+- **CMake `CMAKE_SOURCE_DIR` in standalone builds** (RESOLVED — Phase 4): `CMAKE_CURRENT_SOURCE_DIR`/../../assets` is used as the absolute symlink target in `symlink_assets()`. No `-DASSETS_DIR` flag is required.
+- **`04_Robotics/C1_Node_Acceleration` requires `ROS_DISTRO`**: This module skips configure/build when `ROS_DISTRO` is not set in the environment. Pre-existing condition; unrelated to the assets symlink work. No mitigation in scope.
 - **Duplication as a side effect**: Independent runnable recipes may duplicate context-init boilerplate. This is accepted per the Non-goals and Duplication Policy above.
 - **Linux-only scope**: Any recipe relying on ROS 2, V4L2, or `/dev/video*` has no cross-platform mitigation in scope.
 - **T053 spec count discrepancy**: Task DoD stated "16 files" but items A–D sum to 7+3+3+2=15. The changed-files table confirms 15 files were fixed. The "16" in the DoD checkbox text was a typo in the task spec; no file was missed.

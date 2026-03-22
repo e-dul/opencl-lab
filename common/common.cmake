@@ -5,6 +5,7 @@
 #   - OpenCL + stb dependencies
 #   - opencl_lab_target(<target>)  — wires include dirs and link libs
 #   - copy_kernels(<target>)       — POST_BUILD copy of kernels/ next to binary
+#   - symlink_assets(<target>)     — POST_BUILD symlink of repo-root assets/ into binary dir
 #   - opencl_lab_optional_gl_interop(<target>) — optional GLFW+OpenGL+EGL detection
 #   - opencl_lab_fetch_tinyobjloader(<target>) — FetchContent tinyobjloader + link
 #
@@ -59,6 +60,19 @@ function(copy_kernels TARGET_NAME)
             "${CMAKE_CURRENT_SOURCE_DIR}/kernels"
             "$<TARGET_FILE_DIR:${TARGET_NAME}>/kernels"
         COMMENT "Copying kernels for ${TARGET_NAME}"
+    )
+endfunction()
+
+# ── symlink_assets(<target>) ──────────────────────────────────────────────────
+# POST_BUILD: creates <binary_dir>/assets → <repo_root>/assets/ symlink.
+# WHY explicit target arg: mirrors copy_kernels() convention; avoids PROJECT_NAME
+# vs executable-name mismatches across modules. Repo layout fixed at 2 levels deep.
+function(symlink_assets TARGET_NAME)
+    add_custom_command(TARGET ${TARGET_NAME} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E create_symlink
+            "${CMAKE_CURRENT_SOURCE_DIR}/../../assets"
+            "$<TARGET_FILE_DIR:${TARGET_NAME}>/assets"
+        COMMENT "Symlinking assets for ${TARGET_NAME}"
     )
 endfunction()
 

@@ -36,3 +36,4 @@ opencl_lab_fetch_tinyobjloader(b4_device_enqueue)
 opencl_lab_optional_gl_interop(b4_device_enqueue)
 
 copy_kernels(b4_device_enqueue)
+symlink_assets(b4_device_enqueue)

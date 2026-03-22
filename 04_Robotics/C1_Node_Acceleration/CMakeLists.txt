@@ -37,3 +37,4 @@ target_include_directories(accel_node PRIVATE
 opencl_lab_ros2_target(accel_node rclcpp rclcpp_lifecycle std_msgs lifecycle_msgs)
 
 copy_kernels(accel_node)
+symlink_assets(accel_node)

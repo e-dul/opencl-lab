@@ -25,6 +25,7 @@ target_link_libraries(async_demo PRIVATE Threads::Threads)
 
 # Copies kernels/ next to the binary after build
 copy_kernels(async_demo)
+symlink_assets(async_demo)
 
 # Expose common/ and vendor/ for all translation units in this target
 target_include_directories(async_demo PRIVATE

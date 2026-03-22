@@ -23,3 +23,4 @@ opencl_lab_fetch_tinyobjloader(b3_ray_tracer_dynamic)
 target_compile_definitions(b3_ray_tracer_dynamic PRIVATE NO_GL_INTEROP)
 
 copy_kernels(b3_ray_tracer_dynamic)
+symlink_assets(b3_ray_tracer_dynamic)

@@ -37,3 +37,10 @@ add_custom_command(TARGET svm_demo POST_BUILD
             $<TARGET_FILE_DIR:svm_demo>/kernels
     COMMENT "Copying kernels for svm_demo"
 )
+# POST_BUILD: symlink repo-root assets/ into binary dir so --input paths work.
+add_custom_command(TARGET svm_demo POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E create_symlink
+            "${CMAKE_CURRENT_SOURCE_DIR}/../../assets"
+            "$<TARGET_FILE_DIR:svm_demo>/assets"
+    COMMENT "Symlinking assets for svm_demo"
+)

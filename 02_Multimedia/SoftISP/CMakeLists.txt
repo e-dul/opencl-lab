@@ -10,6 +10,7 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/../../common/common.cmake)
 add_executable(softisp main.cpp)
 opencl_lab_target(softisp)
 copy_kernels(softisp)
+symlink_assets(softisp)
 
 # Warn if asset missing — not a build error
 if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../assets/raw_bayer_4k.raw")

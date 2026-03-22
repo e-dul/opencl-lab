@@ -18,3 +18,4 @@ opencl_lab_target(coalesced_access)
 # Copy kernels/ next to the binary at build time so the executable can locate
 # them via a relative path regardless of where cmake --build is invoked.
 copy_kernels(coalesced_access)
+symlink_assets(coalesced_access)

@@ -15,6 +15,7 @@ opencl_lab_target(multigpu_strategy)
 
 # Copies kernels/ next to the binary after build
 copy_kernels(multigpu_strategy)
+symlink_assets(multigpu_strategy)
 
 # Expose common/ and vendor/ for all translation units in this target
 target_include_directories(multigpu_strategy PRIVATE

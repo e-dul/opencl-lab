@@ -17,3 +17,4 @@ target_link_libraries(A2b_YUYV_Extension PRIVATE ${OpenCV_LIBS})
 target_include_directories(A2b_YUYV_Extension PRIVATE ${OpenCV_INCLUDE_DIRS})
 
 copy_kernels(A2b_YUYV_Extension)
+symlink_assets(A2b_YUYV_Extension)
