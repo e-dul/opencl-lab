@@ -37,15 +37,6 @@
 #include <string>
 #include <vector>
 
-// ---------------------------------------------------------------------------
-// round_up — next multiple of `multiple` that is >= `value`.
-// WHY: NDRange global size must be a multiple of local size (16) or the
-// runtime returns CL_INVALID_WORK_GROUP_SIZE. Kernels guard the excess.
-// ---------------------------------------------------------------------------
-static size_t round_up(int value, int multiple) {
-    return static_cast<size_t>(
-        ((value + multiple - 1) / multiple) * multiple);
-}
 
 // ---------------------------------------------------------------------------
 // print_row — one formatted timing row in the results table.

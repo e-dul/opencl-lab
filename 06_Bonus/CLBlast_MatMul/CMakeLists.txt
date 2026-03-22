@@ -8,9 +8,9 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # double-definition warnings; explicit flags keep IDE tooling aware.
 add_definitions(-DCL_HPP_ENABLE_EXCEPTIONS -DCL_HPP_TARGET_OPENCL_VERSION=120)
 
-# Module is 3 levels deep: 02_Projects/B_Graphics_HPC/B1_CLBlast_MatMul/
+# Module is 2 levels deep: 06_Bonus/CLBlast_MatMul/
 # common.cmake already calls find_package(OpenCL REQUIRED) and FetchContent for CLI11.
-include(${CMAKE_CURRENT_SOURCE_DIR}/../../../common/common.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/../../common/common.cmake)
 
 # ── CLBlast ───────────────────────────────────────────────────────────────────
 # WHY FetchContent: avoids a system install requirement; users can build

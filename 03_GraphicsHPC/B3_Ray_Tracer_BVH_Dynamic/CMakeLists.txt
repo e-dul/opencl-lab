@@ -8,9 +8,9 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # double-definition warnings; explicit flags keep IDE tooling aware.
 add_definitions(-DCL_HPP_ENABLE_EXCEPTIONS -DCL_HPP_TARGET_OPENCL_VERSION=120)
 
-# Module is 3 levels deep: 02_Projects/B_Graphics_HPC/B3_Ray_Tracer_BVH_Dynamic/
+# Module is 2 levels deep: 03_GraphicsHPC/B3_Ray_Tracer_BVH_Dynamic/
 # common.cmake provides OpenCL, CLI11, stb, and opencl_lab_target() / copy_kernels().
-include(${CMAKE_CURRENT_SOURCE_DIR}/../../../common/common.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/../../common/common.cmake)
 
 add_executable(b3_ray_tracer_dynamic main.cpp)
 

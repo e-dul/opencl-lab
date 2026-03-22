@@ -33,13 +33,15 @@
 #include <vector>
 
 // ---------------------------------------------------------------------------
-// build_program — compile kernel source with given options.
+// build_program_from_source — compile kernel source with given options.
+// WHY not common build_program: source is generated at runtime from a
+// template string, not loaded from a .cl file path.
 // Prints build log and rethrows on error so callers get a clean message.
 // ---------------------------------------------------------------------------
-static cl::Program build_program(const cl::Context& ctx,
-                                 const cl::Device&  dev,
-                                 const std::string& src,
-                                 const std::string& options)
+static cl::Program build_program_from_source(const cl::Context& ctx,
+                                              const cl::Device&  dev,
+                                              const std::string& src,
+                                              const std::string& options)
 {
     cl::Program prog(ctx, cl::Program::Sources{src});
     try {
@@ -158,10 +160,10 @@ int main(int argc, char** argv)
     const std::string src = load_kernel_source("kernels/mad_kernel.cl");
 
     // ── Build uchar variant ───────────────────────────────────────────────────
-    cl::Program prog_u8 = build_program(ocl.context, ocl.device, src, "-D TYPE=uchar");
+    cl::Program prog_u8 = build_program_from_source(ocl.context, ocl.device, src, "-D TYPE=uchar");
 
     // ── Build float variant ───────────────────────────────────────────────────
-    cl::Program prog_f32 = build_program(ocl.context, ocl.device, src, "-D TYPE=float");
+    cl::Program prog_f32 = build_program_from_source(ocl.context, ocl.device, src, "-D TYPE=float");
 
     // ── Run both variants ─────────────────────────────────────────────────────
     std::cout << "\nRunning uchar variant...\n";

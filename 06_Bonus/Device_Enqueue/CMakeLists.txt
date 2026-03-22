@@ -22,8 +22,8 @@ else()
     message(STATUS "OpenCL headers < 2.0 (${OpenCL_VERSION_STRING}) — device enqueue block compiled out")
 endif()
 
-# Module is 3 levels deep: 02_Projects/B_Graphics_HPC/B4_Device_Enqueue/
-include(${CMAKE_CURRENT_SOURCE_DIR}/../../../common/common.cmake)
+# Module is 2 levels deep: 06_Bonus/Device_Enqueue/
+include(${CMAKE_CURRENT_SOURCE_DIR}/../../common/common.cmake)
 
 add_executable(b4_device_enqueue main.cpp)
 

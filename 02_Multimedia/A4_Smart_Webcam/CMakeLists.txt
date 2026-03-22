@@ -14,8 +14,8 @@ find_package(OpenVINO REQUIRED)
 # OpenCV: only for webcam capture (VideoCapture) and display (imshow).
 find_package(OpenCV REQUIRED COMPONENTS core highgui videoio)
 
-# Module is 3 levels deep: 02_Projects/A_Multimedia/A4_Smart_Webcam/
-include(${CMAKE_CURRENT_SOURCE_DIR}/../../../common/common.cmake)
+# Module is 2 levels deep: 02_Multimedia/A4_Smart_Webcam/
+include(${CMAKE_CURRENT_SOURCE_DIR}/../../common/common.cmake)
 
 add_executable(smart_webcam main.cpp)
 

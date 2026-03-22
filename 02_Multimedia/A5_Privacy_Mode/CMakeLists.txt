@@ -14,8 +14,8 @@ add_definitions(-DCL_HPP_ENABLE_EXCEPTIONS -DCL_HPP_TARGET_OPENCL_VERSION=120)
 # videoio for webcam capture.
 find_package(OpenCV REQUIRED COMPONENTS core imgproc dnn objdetect highgui videoio)
 
-# Module is 3 levels deep: 02_Projects/A_Multimedia/A5_Privacy_Mode/
-include(${CMAKE_CURRENT_SOURCE_DIR}/../../../common/common.cmake)
+# Module is 2 levels deep: 02_Multimedia/A5_Privacy_Mode/
+include(${CMAKE_CURRENT_SOURCE_DIR}/../../common/common.cmake)
 
 add_executable(privacy_mode main.cpp)
 

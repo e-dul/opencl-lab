@@ -7,8 +7,8 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 find_package(OpenCV REQUIRED)
 add_definitions(-DCL_HPP_ENABLE_EXCEPTIONS -DCL_HPP_TARGET_OPENCL_VERSION=120)
 
-# Module is 3 levels deep: 02_Projects/A_Multimedia/A3_1_OpenCV_DNN/
-include(${CMAKE_CURRENT_SOURCE_DIR}/../../../common/common.cmake)
+# Module is 2 levels deep: 02_Multimedia/A3_1_OpenCV_DNN/
+include(${CMAKE_CURRENT_SOURCE_DIR}/../../common/common.cmake)
 
 add_executable(a3_1_opencv_dnn main.cpp)
 opencl_lab_target(a3_1_opencv_dnn)

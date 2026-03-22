@@ -8,8 +8,8 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 # common.cmake brings: find_package(OpenCL REQUIRED), CLI11 via FetchContent,
 # opencl_lab_target(), copy_kernels() helpers, and common/vendor include dirs.
-# WHY ../../../: module is 3 levels deep (02_Projects/C_Robotics_ROS2/C1_Node_Acceleration/).
-include(${CMAKE_CURRENT_SOURCE_DIR}/../../../common/common.cmake)
+# Module is 2 levels deep: 04_Robotics/C1_Node_Acceleration/
+include(${CMAKE_CURRENT_SOURCE_DIR}/../../common/common.cmake)
 
 # ── ROS 2 environment guard ───────────────────────────────────────────────────
 opencl_lab_ros2_guard()
@@ -28,8 +28,8 @@ add_executable(accel_node main.cpp synthetic_publisher.cpp)
 
 # ── Include directories ───────────────────────────────────────────────────────
 target_include_directories(accel_node PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../../common
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../../vendor
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../common
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../vendor
     ${CMAKE_CURRENT_SOURCE_DIR}   # synthetic_publisher.hpp lives here
 )
 

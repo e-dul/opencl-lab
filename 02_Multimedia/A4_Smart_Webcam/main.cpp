@@ -59,24 +59,6 @@
 #include <thread>
 #include <vector>
 
-// ---------------------------------------------------------------------------
-// Helper: build a cl::Program, printing build log on failure before re-throw.
-// ---------------------------------------------------------------------------
-static cl::Program build_program(const cl::Context& ctx,
-                                  const cl::Device&  dev,
-                                  const std::string& path)
-{
-    cl::Program prog(ctx, load_kernel_source(path));
-    try {
-        prog.build();
-    } catch (const cl::Error&) {
-        std::string log;
-        CL_CHECK(prog.getBuildInfo(dev, CL_PROGRAM_BUILD_LOG, &log));
-        std::cerr << "Build log (" << path << "):\n" << log << "\n";
-        throw;
-    }
-    return prog;
-}
 
 int main(int argc, char* argv[]) {
     // ── CLI11 ─────────────────────────────────────────────────────────────────

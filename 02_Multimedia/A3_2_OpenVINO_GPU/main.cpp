@@ -47,25 +47,6 @@
 #include <string>
 #include <vector>
 
-// ---------------------------------------------------------------------------
-// Helper: build a cl::Program from a kernel file, printing the build log on
-// failure before re-throwing so the graceful-fallback catch can handle it.
-// ---------------------------------------------------------------------------
-static cl::Program build_program(const cl::Context& ctx,
-                                  const cl::Device&  dev,
-                                  const std::string& path)
-{
-    cl::Program prog(ctx, load_kernel_source(path));
-    try {
-        prog.build();
-    } catch (const cl::Error&) {
-        std::string log;
-        CL_CHECK(prog.getBuildInfo(dev, CL_PROGRAM_BUILD_LOG, &log));
-        std::cerr << "Build log (" << path << "):\n" << log << "\n";
-        throw;
-    }
-    return prog;
-}
 
 int main(int argc, char* argv[]) {
     // ── CLI ──────────────────────────────────────────────────────────────────

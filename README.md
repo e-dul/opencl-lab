@@ -143,7 +143,6 @@ This repository is optimized for collaboration with AI assistants.
 ## TODO
 
 - Add links to external resources for more in depth information
-- Move B1 CLBlast section to addons
 - Summarize command, agents, skills and usage for this project
 - Mark sections with strict HW or OpenCL version dependencies
 - Add better asset with selfie - blur is not clearly visible
@@ -155,3 +154,4 @@ This repository is optimized for collaboration with AI assistants.
 - Improve using assets
 - Work on setup with docker
 - Explore AMD specific SDK features
+- link kernels instead of copy?

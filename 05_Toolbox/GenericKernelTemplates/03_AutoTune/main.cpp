@@ -65,12 +65,14 @@ static bool has_extension(const cl::Device& dev, const std::string& ext)
 }
 
 // ---------------------------------------------------------------------------
-// build_program — compile with options; print log and rethrow on failure.
+// build_program_from_source — compile with options; print log and rethrow on failure.
+// WHY not common build_program: source is a runtime-generated template string,
+// not a .cl file path.
 // ---------------------------------------------------------------------------
-static cl::Program build_program(const cl::Context& ctx,
-                                 const cl::Device&  dev,
-                                 const std::string& src,
-                                 const std::string& opts)
+static cl::Program build_program_from_source(const cl::Context& ctx,
+                                              const cl::Device&  dev,
+                                              const std::string& src,
+                                              const std::string& opts)
 {
     cl::Program prog(ctx, cl::Program::Sources{src});
     try {
@@ -297,7 +299,7 @@ int main(int argc, char** argv)
         std::cout << "  Building " << v.name << " (" << build_opts_clean << ")...\n";
 
         try {
-            cl::Program prog = build_program(ocl.context, ocl.device,
+            cl::Program prog = build_program_from_source(ocl.context, ocl.device,
                                              src_for_build, build_opts_clean);
             v.kernel_ms = run_kernel(prof_queue, prog,
                                      bufs[vi].out, bufs[vi].in,

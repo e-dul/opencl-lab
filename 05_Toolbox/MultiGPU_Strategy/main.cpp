@@ -144,11 +144,14 @@ static std::vector<cl_uchar> generate_gradient(int width, int height) {
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// build_program — compile the slice kernel for a given device/context pair
+// build_program_from_source — compile the slice kernel for a given device/context pair
+// WHY separate from common build_program: this module pre-loads the source once
+// and distributes it across multiple device contexts; the common helper takes a
+// file path and re-reads it each call, which would be wasteful here.
 // ──────────────────────────────────────────────────────────────────────────────
-static cl::Program build_program(const cl::Context& ctx,
-                                 const cl::Device&  dev,
-                                 const std::string& source) {
+static cl::Program build_program_from_source(const cl::Context& ctx,
+                                              const cl::Device&  dev,
+                                              const std::string& source) {
     cl::Program prog(ctx, source);
     try {
         prog.build({dev});
@@ -176,7 +179,7 @@ static double run_single_gpu(const DeviceEntry&           dev_entry,
     // WHY CL_QUEUE_PROFILING_ENABLE: mandatory for cl::Event timestamp queries.
     cl::CommandQueue queue(ctx, dev_entry.device, CL_QUEUE_PROFILING_ENABLE);
 
-    cl::Program prog = build_program(ctx, dev_entry.device, kernel_source);
+    cl::Program prog = build_program_from_source(ctx, dev_entry.device, kernel_source);
     cl::Kernel  kernel(prog, "process_slice");
 
     cl::Buffer buf_in (ctx, CL_MEM_READ_ONLY,  image_bytes);
@@ -272,7 +275,7 @@ static double run_n_gpu(const std::vector<DeviceEntry>&  devices,
                                              input.data() + slice_offset,
                                              nullptr, &ds.ev_write));
 
-        cl::Program prog   = build_program(ds.ctx, devices[i].device, kernel_source);
+        cl::Program prog   = build_program_from_source(ds.ctx, devices[i].device, kernel_source);
         cl::Kernel   kernel(prog, "process_slice");
 
         CL_CHECK(kernel.setArg(0, ds.buf_in));

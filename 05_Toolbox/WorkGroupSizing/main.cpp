@@ -20,14 +20,6 @@
 #include <string>
 #include <vector>
 
-// ---------------------------------------------------------------------------
-// round_up — smallest multiple of base >= n.
-// WHY needed: OpenCL requires global_work_size to be a multiple of
-// local_work_size, otherwise CL_INVALID_WORK_GROUP_SIZE is returned.
-// ---------------------------------------------------------------------------
-static size_t round_up(size_t n, size_t base) {
-    return ((n + base - 1) / base) * base;
-}
 
 int main(int argc, char** argv) {
     // ── CLI ─────────────────────────────────────────────────────────────────

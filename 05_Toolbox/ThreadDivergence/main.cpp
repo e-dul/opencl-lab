@@ -35,15 +35,6 @@
 static constexpr int LOCAL_SIZE = 16;
 
 // ---------------------------------------------------------------------------
-// round_up — smallest multiple of base that is >= n.
-// WHY needed: NDRange global size must be a multiple of local size so the
-// driver can partition the grid evenly; the kernel guards out-of-bound ids.
-// ---------------------------------------------------------------------------
-static size_t round_up(size_t n, size_t base) {
-    return ((n + base - 1) / base) * base;
-}
-
-// ---------------------------------------------------------------------------
 // print_row — fixed-width table row for the timing report.
 // ---------------------------------------------------------------------------
 static void print_row(const std::string& name, double ms, double speedup) {
