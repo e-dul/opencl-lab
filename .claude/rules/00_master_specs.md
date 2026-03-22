@@ -109,3 +109,8 @@ Every task inherits these baseline DoD items unless explicitly marked inapplicab
 - [ ] `GPU=<vendor> ./build/<bin>` selects the correct device without crashing.
 
 DoD performance gates for speedup should include a hardware-waiver clause from the start, rather than targeting a fixed ratio that depends on driver internals.
+
+## 9. Design Limitations
+- **Platform**: Linux only; tested on Ubuntu 24.04.
+- **Directory Structure**: Fixed layout assumed. User relocating folders or CMake files is out of scope.
+- **Code Duplication**: Expected side-effect of the standalone-recipe approach; enables isolated experimentation.
