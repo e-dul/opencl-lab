@@ -1,7 +1,7 @@
-# Task [ID]: [Short Title]
+# Task T[ID]: [Short Title]
 
 ## Context
-- **Design Feature:** `workflow/design/[feature_name].md`
+- **Design Feature:** `workflow/design/D[feature_name].md`
 - **Milestone:** [Phase Name from Design Roadmap]
 - **Relevant Files:**
   - `[path/to/file1]` — (read-only: reference)
