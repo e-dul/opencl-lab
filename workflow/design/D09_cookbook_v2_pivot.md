@@ -16,7 +16,7 @@ Reorganize the Applied OpenCL Lab repository from a linear, module-numbered layo
 
 ## Roadmap / Status
 
-- [ ] Phase 1: Folder Restructuring — Rename and split top-level directories to match the v2.0 layout.
+- [x] Phase 1: Folder Restructuring — Rename and split top-level directories to match the v2.0 layout.
 - [ ] Phase 2: Content Migration — Move recipes between tracks as specified; update internal CMake target names and include paths.
 - [ ] Phase 3: New Toolbox Entry — Add `global_work_offset` & Tiled Benchmark recipe under `05_Toolbox/`.
 - [ ] Phase 4: CMake POST_BUILD Assets Symlink — Add `create_symlink` command to every module's `CMakeLists.txt`.
