@@ -3,7 +3,7 @@
 **Symptom**: Kernel contains `if-else` branching on data-dependent conditions. Kernel time is 2–4x slower than a branchless equivalent would predict.
 
 ## Prerequisites
-See [main README](../../README.md) for base requirements (OpenCL 1.2+, CMake 3.18+).
+Prerequisites: OpenCL 1.2+, CMake 3.18+, `clinfo` installed. See [main README](../../README.md) for base requirements.
 
 ## Build & Run
 ```bash
@@ -39,7 +39,7 @@ output[id] = select(input[id], blurred, mask[id] == BACKGROUND);
 // select() is a single instruction — no divergence
 ```
 
-`select(false_val, true_val, condition)` maps to a hardware conditional-select instruction. No branch, no divergence, no serialization.
+`select(a, b, c)` returns `b` when `c` is non-zero, `a` otherwise — equivalent to `c ? b : a`. It maps to a hardware conditional-select instruction. No branch, no divergence, no serialization.
 
 **When divergence is unavoidable**: restructure the workload so divergent work items are in different work-groups (sort by mask value before dispatch). This is the basis of stream compaction.
 

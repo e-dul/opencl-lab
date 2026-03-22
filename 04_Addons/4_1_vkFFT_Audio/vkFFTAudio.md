@@ -11,8 +11,8 @@ See [main README](../../README.md) for base requirements (OpenCL 1.2+, CMake 3.1
 ```bash
 cd 04_Addons/4_1_vkFFT_Audio
 cmake -B build && cmake --build build
-./build/vkfft_spectrogram --input ../../../assets/sample.wav
-# GPU=NVIDIA ./build/vkfft_spectrogram --input ../../../assets/sample.wav
+./build/vkfft_audio --input ../../../assets/sample.wav
+# GPU=NVIDIA ./build/vkfft_audio --input ../../../assets/sample.wav
 ```
 
 ## Verify

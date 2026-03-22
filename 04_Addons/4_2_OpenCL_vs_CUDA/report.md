@@ -175,6 +175,7 @@ Take `code_comparison/vector_add.cl` and `code_comparison/vector_add.cu`, which 
 1. Count the lines of **host setup code** required before the first data is copied to the GPU in `vector_add.cu` vs `vector_add_host.cpp`. What is the ratio?
 2. Modify `vector_add.cl` to run the kernel on two devices simultaneously (e.g., a discrete GPU and an Intel iGPU). How much host code do you need to add? Attempt the same with `vector_add.cu` — what barrier do you hit?
 3. Compile `vector_add.cu` with `nvcc --ptx` and inspect the PTX intermediate. Then compile `vector_add.cl` to SPIR-V using `clang -x cl --target=spirv64`. Compare the two intermediate representations: what does each disclose about the memory model?
+   > **Note:** The `clang -x cl --target=spirv64` step requires a Khronos-patched clang or `llvm-spirv` — not available in standard LLVM packages. **This step is optional.**
 
 ---
 

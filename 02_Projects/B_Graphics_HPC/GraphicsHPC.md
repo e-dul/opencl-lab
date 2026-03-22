@@ -1,6 +1,6 @@
 # Path B: Graphics & HPC
 
-Build a ray tracer from scratch and make it fast enough to render 100k-triangle scenes at 60 FPS. You start by reaching for a battle-tested math library, discover where naive ray tracing breaks down at scale, then implement the spatial acceleration structure that fixes it.
+Build a ray tracer from scratch and make it fast enough to render complex triangle scenes at 60 FPS. You start by reaching for a battle-tested math library, discover where naive ray tracing breaks down at scale, then implement the spatial acceleration structure that fixes it.
 
 ## Prerequisites
 See [main README](../../README.md) for base requirements (OpenCL, CMake, Docker setup).
@@ -25,13 +25,15 @@ B4_Device_Enqueue/         Advanced: GPU spawning its own GPU work (OpenCL 2.0+)
 
 **Goal**: Benchmark CLBlast GEMM against a naive matrix multiplication kernel and develop the instinct for when to reach for a library versus write your own. Preparation for Ray Tracer.
 
+> **Key terms**: GEMM (General Matrix Multiplication) is the operation C = α·A·B + β·C for dense matrices. For a square N×N multiply (α=1, β=0), the operation count is **FLOPS = 2N³** (N³ multiply-add pairs, each counting as 2 FLOPs). GFLOPS is 10⁹ floating-point operations per second — the standard throughput unit for dense linear algebra benchmarks.
+
 ### Build & run
 ```bash
 cd B1_CLBlast_MatMul
-cmake -B build
+cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build
-./build/matmul_demo --size 1024
-# GPU=NVIDIA ./build/matmul_demo --size 2048
+./build/b1_clblast_matmul --size 1024
+# GPU=NVIDIA ./build/b1_clblast_matmul --size 2048
 ```
 
 ### Verify
@@ -59,18 +61,19 @@ Reduce the matrix size to 64×64 and re-run. Which implementation wins now, and 
 ### Build & run
 ```bash
 cd B2_Ray_Tracer_Basic
-cmake -B build
+cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build
-./build/ray_tracer_basic --width 1280 --height 720 --spheres 16
-# Headless (no display): ./build/ray_tracer_basic --output render.bmp
-# GPU=NVIDIA ./build/ray_tracer_basic --width 1920 --height 1080
+./build/b2_ray_tracer --width 1280 --height 720
+# Live window (requires libglfw3-dev): ./build/b2_ray_tracer --live
+# Headless (no display): ./build/b2_ray_tracer --output render.bmp
+# GPU=NVIDIA ./build/b2_ray_tracer --width 1920 --height 1080
 ```
 
 ### Verify
 - Window opens showing a sphere scene with diffuse lighting and shadows
 - Console prints per-frame kernel time:
   ```
-  Kernel (16 spheres, 1280x720):  4.2 ms
+  Kernel (1280x720):  4.2 ms
   ```
 - Framebuffer is never downloaded to CPU during the render loop — verify programmatically: add a `clEnqueueReadBuffer` call in a `--debug-download` mode and confirm frame time increases by several milliseconds. The baseline (no download) is your proof.
 
@@ -99,9 +102,10 @@ Add a second light source. Where does the kernel time increase — linearly with
 ### Build & run
 ```bash
 cd B3_Ray_Tracer_BVH
-cmake -B build
+cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ./build/ray_tracer_bvh --scene ../../../assets/bunny.obj --width 1920 --height 1080
+# Live window: ./build/ray_tracer_bvh --scene ../../../assets/bunny.obj --live
 # Headless: ./build/ray_tracer_bvh --scene ../../../assets/bunny.obj --output render.bmp --frames 10
 # GPU=NVIDIA ./build/ray_tracer_bvh --scene ../../../assets/bunny.obj
 ```
@@ -122,10 +126,11 @@ cmake --build build
 
 **The solution**: Iterative traversal using a bitmask (or parent pointer encoding) to track which sibling nodes still need to be visited.
 
+Each node stores two precomputed links: `hit_link` points to the left child (follow when the ray hits the bounding box), and `miss_link` points to the right sibling or the parent's right sibling (follow when the ray misses). Both are set on the CPU during BVH build — the GPU kernel only reads them.
+
 ```cl
 // Stackless traversal — no function-call stack required
 uint node = 0;
-uint hit_link = MISS;
 while (node != MISS) {
     if (intersects_aabb(ray, bvh[node].bounds)) {
         if (bvh[node].is_leaf) {
@@ -140,14 +145,15 @@ while (node != MISS) {
 }
 ```
 
-Each node stores a `hit_link` (left child) and `miss_link` (right sibling or parent's right sibling), precomputed on the CPU during BVH build.
-
 **Thread divergence**: Rays in the same warp will follow different tree paths. This is inevitable in BVH traversal — you will see it in the profiler after hitting the gate.
 
 ### BVH Build (CPU side)
-The BVH is built on the CPU using Surface Area Heuristic (SAH) and uploaded once as a flat array. The kernel only traverses — it never modifies the structure.
 
-```
+SAH (Surface Area Heuristic) estimates the cost of a split by weighting the probability of a ray hitting a child node by its surface area.
+
+The BVH is built on the CPU using SAH and uploaded once as a flat array. The kernel only traverses — it never modifies the structure.
+
+```text
 CPU: build SAH-BVH → flatten to array → cl::Buffer upload (once)
 GPU: per-ray stackless traversal (every frame)
 ```
@@ -166,9 +172,12 @@ Visualize BVH depth per pixel: color each pixel by how many nodes the ray visite
 **Goal**: Extend the BVH ray tracer to animate the scene (rigid Y-axis rotation each frame) and benchmark three per-frame BVH strategies: full rebuild, AABB refit, and static (stale BVH). The timing table makes the rebuild vs refit cost difference concrete and visible.
 
 ### Build & run
+
+> Valid `--strategy` values: `rebuild`, `refit`, `static`.
+
 ```bash
 cd B3_Ray_Tracer_BVH_Dynamic
-cmake -B build
+cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 
 # Full SAH rebuild every frame
@@ -220,14 +229,14 @@ Run `--strategy refit --max-depth 1` (3-node tree). Does refit still complete in
 
 **Goal**: Use OpenCL 2.0 Device Enqueue (`enqueue_kernel`) to spawn secondary ray kernels (reflections, refractions) from within the primary ray kernel — no CPU round-trip between bounces.
 
-> **Level**: Advanced (Theory: 9/10). Requires OpenCL 2.0+ runtime. Check: `clinfo | grep "Device OpenCL C"` — must show `2.0` or higher.
+> **Level**: Advanced. Requires OpenCL 2.0+ runtime. Check: `clinfo | grep "Device OpenCL C"` — must show `2.0` or higher.
 
 ### Build & run
 ```bash
 cd B4_Device_Enqueue
-cmake -B build
+cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build
-./build/device_enqueue_demo --scene ../../../assets/cornell_box.obj --bounces 3
+./build/b4_device_enqueue --scene ../../../assets/cornell_box.obj
 ```
 
 ### Verify
@@ -257,7 +266,7 @@ if (hit.is_reflective) {
 
 No CPU involvement between primary and secondary rays.
 
-**Compatibility note**: Nvidia's OpenCL 2.0 support is incomplete — Device Enqueue may not work on Nvidia hardware. Verified on AMD (ROCm) and Intel (NEO) drivers. This is one of OpenCL 2.0's most compelling features that CUDA (as `cudaLaunchKernel` from device) only added later.
+**Compatibility note**: Nvidia's OpenCL 2.0 support is incomplete — Device Enqueue may not work on Nvidia hardware. Verified on AMD (ROCm). Intel NEO (Iris Xe) reports OpenCL C 2.0 but does not implement Device Enqueue (`CL_DEVICE_QUEUE_ON_DEVICE_PROPERTIES == 0`); the binary detects this at runtime and exits gracefully. This is one of OpenCL 2.0's most compelling features; CUDA had equivalent capability earlier (Dynamic Parallelism, CUDA 5.0 / 2012), but `enqueue_kernel` is vendor-neutral.
 
 ### Mini-challenge
 Compare three dispatch strategies for 3-bounce reflections:
@@ -281,6 +290,8 @@ This track is complete when:
 
 **Measure with `cl::Event` profiling** on the kernel, not total frame time. The upload (BVH buffer) is a one-time cost — exclude it from the per-frame measurement.
 
+> **Tip**: Profiling requires `CL_QUEUE_PROFILING_ENABLE` at queue creation — without it, timestamps are zero. Pass this flag when constructing `cl::CommandQueue`: `cl::CommandQueue(ctx, device, CL_QUEUE_PROFILING_ENABLE)`.
+
 **If you're under 60 FPS**: profile with `cl::Event` on the traversal kernel and identify which stage dominates — traversal, triangle intersection, or memory reads. Then consult the [Optimization Toolbox](../../99_Toolbox/Toolbox.md) for the technique that matches your bottleneck.
 
 ---
@@ -293,7 +304,7 @@ This track is complete when:
   ```
 - **OpenGL interop init fails**: Verify `cl_khr_gl_sharing` extension: `clinfo | grep gl_sharing`. Not available on all CPU-fallback runtimes (PoCL).
 - **BVH renders black patches**: Miss-link pointers are wrong — draw the BVH tree to a file and verify parent-child-sibling linkage before running on GPU.
-- **`enqueue_kernel` returns `CL_INVALID_OPERATION` (B4)**: Your runtime does not support Device Enqueue. Check: `clinfo | grep "Device OpenCL C"` for `2.0+`. AMD ROCm and Intel NEO both support it; Nvidia OpenCL typically does not.
+- **`enqueue_kernel` returns `CL_INVALID_OPERATION` (B4)**: Your runtime does not support Device Enqueue. `clinfo | grep "Device OpenCL C"` showing `2.0+` is necessary but not sufficient — Intel NEO (Iris Xe) reports 2.0+ but has `CL_DEVICE_QUEUE_ON_DEVICE_PROPERTIES == 0`. AMD ROCm supports Device Enqueue; Nvidia and Intel NEO typically do not.
 - **CLBlast not found (B1)**: CMake FetchContent downloads it at configure time — requires internet access. Offline: set `-DCMAKE_PREFIX_PATH=/path/to/clblast/install`.
 - **Wrong GPU**: `GPU=NVIDIA ./build/ray_tracer_bvh`, `GPU=AMD ./build/ray_tracer_bvh`, `GPU=INTEL ./build/ray_tracer_bvh`.
 

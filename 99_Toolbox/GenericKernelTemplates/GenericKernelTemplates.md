@@ -3,7 +3,7 @@
 **Symptom**: You have `blur_float.cl`, `blur_uchar.cl`, `blur_half.cl` — identical logic, different types. Adding a feature means updating three files.
 
 ## Prerequisites
-See [main README](../../README.md) for base requirements (OpenCL 1.2+, CMake 3.18+).
+Prerequisites: OpenCL 1.2+, CMake 3.18+, `clinfo` installed. See [main README](../../README.md) for base requirements.
 
 ## Contents
 ```
@@ -18,6 +18,14 @@ kernels/
 ```bash
 cd 99_Toolbox/GenericKernelTemplates
 cmake -B build && cmake --build build
+
+# Step 1 — single-type baseline
+./build/01_basic_mad --width 1920 --height 1080
+
+# Step 2 — macro-generic (uchar / float variants from one source)
+./build/02_generic_mad --width 1920 --height 1080
+
+# Step 3 — runtime autotuning across all types
 ./build/03_autotune --width 1920 --height 1080 --autotune
 ```
 

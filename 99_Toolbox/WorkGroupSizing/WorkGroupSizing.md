@@ -3,7 +3,7 @@
 **Symptom**: GPU utilization < 60% in profiler. Kernel time improves significantly when you change `local_work_size` experimentally.
 
 ## Prerequisites
-See [main README](../../README.md) for base requirements (OpenCL 1.2+, CMake 3.18+).
+Prerequisites: OpenCL 1.2+, CMake 3.18+, `clinfo` installed. See [main README](../../README.md) for base requirements.
 
 ## Build & Run
 ```bash
@@ -38,7 +38,7 @@ Increasing `local_work_size` beyond the register/LDS limits reduces the number o
 
 ## Mini-Challenge
 
-Run the sweep with `--kernel blur_r5` (a kernel with higher LDS usage). Compare the sweet spot against the `mad` kernel. Explain why the optimal `local_work_size` shifts.
+Run the sweep with `--kernel mad` but vary `--width` and `--height` to change the total work-item count. Observe how the optimal `local_work_size` shifts as the workload grows. Explain why occupancy improves at larger dimensions.
 
 ## Troubleshooting
 

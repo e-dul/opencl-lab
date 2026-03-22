@@ -47,27 +47,53 @@ Environment setup, Docker, CMake, and the first "Smoke Test" verifying drivers.
 ### [Module 1: Host API](01_Host_API/)
 Learning to control the GPU from C++.
 *   [HostAPI.md](01_Host_API/HostAPI.md) - Setup instructions.
-*   [00_Theory_Heterogeneous_Architecture](01_Host_API/00_Theory_Heterogeneous_Architecture.md) - Minimal theory
 *   [01_Visual_Kernel](01_Host_API/01_Visual_Kernel/) - First graphical kernel (image brightening).
 *   [02_Visual_Kernel_Events](01_Host_API/02_Visual_Kernel_Events/) - Introduction to profiling (Events).
-*   [03_Buffers_Layout](01_Host_API/03_Buffers_Layout/) - Memory management and data layout.
+*   [03_Buffer_Flags](01_Host_API/03_Buffer_Flags/) - Memory management and data layout.
 
 ### [Module 2: Projects (Specialization Paths)](02_Projects/)
 The core part of the course. Choose one path:
 *   **Path A: Multimedia & AI** ([02_Projects/A_Multimedia](02_Projects/A_Multimedia/))
-    *   OpenCV Interop, YUV Processing, AI Smart Webcam.
+    *   [A1_OpenCV_Interop](02_Projects/A_Multimedia/A1_OpenCV_Interop/) - Zero-copy buffer sharing with OpenCV.
+    *   [A2_YUV_Pipeline](02_Projects/A_Multimedia/A2_YUV_Pipeline/) - YUV color space processing on GPU.
+    *   [A2b_YUYV_Extension](02_Projects/A_Multimedia/A2b_YUYV_Extension/) - YUYV webcam format handling.
+    *   [A3_1_OpenCV_DNN](02_Projects/A_Multimedia/A3_1_OpenCV_DNN/) - Neural network inference with OpenCV DNN.
+    *   [A3_2_OpenVINO_GPU](02_Projects/A_Multimedia/A3_2_OpenVINO_GPU/) - Accelerated inference with OpenVINO.
+    *   [A4_Smart_Webcam](02_Projects/A_Multimedia/A4_Smart_Webcam/) - Real-time webcam processing pipeline.
+    *   [A5_Privacy_Mode](02_Projects/A_Multimedia/A5_Privacy_Mode/) - Face detection and GPU blurring.
 *   **Path B: Graphics & HPC** ([02_Projects/B_Graphics_HPC](02_Projects/B_Graphics_HPC/))
-    *   Ray Tracing, BVH, Device Enqueue, CLBlast.
+    *   [B1_CLBlast_MatMul](02_Projects/B_Graphics_HPC/B1_CLBlast_MatMul/) - GPU matrix multiplication via CLBlast.
+    *   [B2_Ray_Tracer_Basic](02_Projects/B_Graphics_HPC/B2_Ray_Tracer_Basic/) - Basic ray tracer running on GPU.
+    *   [B3_Ray_Tracer_BVH](02_Projects/B_Graphics_HPC/B3_Ray_Tracer_BVH/) - Ray tracer with BVH acceleration structure.
+    *   [B3_Ray_Tracer_BVH_Dynamic](02_Projects/B_Graphics_HPC/B3_Ray_Tracer_BVH_Dynamic/) - BVH for dynamic/animated scenes.
+    *   [B4_Device_Enqueue](02_Projects/B_Graphics_HPC/B4_Device_Enqueue/) - GPU-driven kernel dispatch (OpenCL 2.0).
 *   **Path C: Robotics & ROS 2** ([02_Projects/C_Robotics_ROS2](02_Projects/C_Robotics_ROS2/))
-    *   Node Acceleration, Costmap Inflation, Perception Node.
+    *   [C1_Node_Acceleration](02_Projects/C_Robotics_ROS2/C1_Node_Acceleration/) - ROS 2 node with OpenCL acceleration.
+    *   [C2_Costmap_Inflation](02_Projects/C_Robotics_ROS2/C2_Costmap_Inflation/) - GPU costmap inflation for Nav2.
+    *   [C3_Perception_Node](02_Projects/C_Robotics_ROS2/C3_Perception_Node/) - Point cloud processing perception node.
 
 ### [Toolbox: Optimization](99_Toolbox/)
 A collection of "on-demand" optimization techniques. Projects link here when they need more performance.
-*   Memory Coalescing, Thread Divergence, Local Memory Tiling, Debugging (Oclgrind).
 
-### [Addons: Bonus Content](Addons/)
+*   [Coalesced_Access](99_Toolbox/Coalesced_Access/) - Global memory access pattern optimization.
+*   [Thread_Divergence](99_Toolbox/Thread_Divergence/) - Reducing warp/wavefront divergence.
+*   [Local_Memory_Tile](99_Toolbox/Local_Memory_Tile/) - Tiled algorithms using local (shared) memory.
+*   [Bank_Conflict_Test](99_Toolbox/Bank_Conflict_Test/) - Detecting and resolving local memory bank conflicts.
+*   [Register_Pressure](99_Toolbox/Register_Pressure/) - Managing register usage and occupancy.
+*   [Zero_Copy_Demo](99_Toolbox/Zero_Copy_Demo/) - Pinned memory zero-copy host↔device transfers.
+*   [Debugging_Oclgrind](99_Toolbox/Debugging_Oclgrind/) - Kernel debugging and race detection with Oclgrind.
+
+### [Addons: Bonus Content](04_Addons/)
+
 Advanced topics and case studies.
-*   vkFFT, OpenCL vs CUDA, Deployment, SoftISP Debayering.
+
+*   [4_1_vkFFT_Audio](04_Addons/4_1_vkFFT_Audio/) - GPU FFT for audio processing via vkFFT.
+*   [4_2_OpenCL_vs_CUDA](04_Addons/4_2_OpenCL_vs_CUDA/) - Performance and portability comparison.
+*   [4_3_Deployment](04_Addons/4_3_Deployment/) - Packaging and shipping OpenCL applications.
+*   [4_4_SVM_Theory](04_Addons/4_4_SVM_Theory/) - Shared Virtual Memory concepts and usage.
+*   [4_5_Voxel_Mapping](04_Addons/4_5_Voxel_Mapping/) - 3D voxel mapping on GPU.
+*   [4_6_FFmpeg_Pipeline](04_Addons/4_6_FFmpeg_Pipeline/) - Zero-copy FFmpeg + OpenCL video pipeline.
+*   [4_7_SoftISP](04_Addons/4_7_SoftISP/) - Software ISP debayering pipeline.
 
 ---
 
@@ -102,7 +128,7 @@ cmake --build build
 
 This repository is optimized for collaboration with AI assistants.
 *   **Workspace:** [workflow/](workflow/) contains protocols, memory, and active tasks.
-*   **Guidelines:** [CLAUDE.md](.CLAUDE.md) defines coding style and communication.
+*   **Guidelines:** [CLAUDE.md](CLAUDE.md) defines coding style and communication.
 *   **Strategy:** [workflow/design/](workflow/design/) is the "Source of Truth". do not modify these files without explicit instruction.
 
 ---
@@ -125,4 +151,5 @@ This repository is optimized for collaboration with AI assistants.
 - **[Feature] GPU-built BVH (LBVH via Morton codes)**: After B3's CPU SAH-BVH, add a challenge variant that constructs the BVH entirely on the GPU using Morton-code sorting + radix sort → parallel hierarchy build. Enables per-frame rebuild for dynamic scenes without CPU round-trip. Natural follow-on to B3 Challenge (Phase 4).
 - **[Feature] `global_work_offset` — tiled processing benchmark**: Natural fit is explicit work partitioning over a static grid, not face-detection ROI (which forces an artificial host read-back). Candidate exercise: process a 4K image in 4 quadrants (2×2 tiles), each launched with `global_work_offset = {tile_x, tile_y}` / `global_work_size = {W/2, H/2}`. Compare against single dispatch with explicit offset arithmetic inside the kernel body.
 - Consider removing C1 node acceleration - marginal value
-- Consider ROS2 related examples to integrate with ROS world better
+- Consider ROS2 related examples to integrate with ROS world better(launch files,)
+- Add documentation for utility functions

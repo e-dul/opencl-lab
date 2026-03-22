@@ -3,7 +3,7 @@
 **Symptom**: Upload stage takes > 5 ms for a 1080p frame. Profiler shows `enqueueWriteBuffer` as the bottleneck.
 
 ## Prerequisites
-See [main README](../../README.md) for base requirements (OpenCL 1.2+, CMake 3.18+).
+Prerequisites: OpenCL 1.2+, CMake 3.18+, `clinfo` installed. See [main README](../../README.md) for base requirements.
 
 ## Build & Run
 ```bash

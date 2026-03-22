@@ -5,7 +5,7 @@
 **Performance gate**: >= 1.65x speedup with 2x GPUs on the same workload.
 
 ## Prerequisites
-See [main README](../../README.md) for base requirements (OpenCL 1.2+, CMake 3.18+).
+Prerequisites: OpenCL 1.2+, CMake 3.18+, `clinfo` installed. See [main README](../../README.md) for base requirements.
 
 **Additional**: Two OpenCL-capable GPU devices on the same system.
 
@@ -13,16 +13,21 @@ See [main README](../../README.md) for base requirements (OpenCL 1.2+, CMake 3.1
 ```bash
 cd 99_Toolbox/MultiGPU_Strategy
 cmake -B build && cmake --build build
+```
+
+Run with `--gpus 1` first to establish the single-GPU baseline, then with `--gpus 2`:
+
+```bash
+./build/multigpu_strategy --width 3840 --height 2160 --gpus 1
 ./build/multigpu_strategy --width 3840 --height 2160 --gpus 2
 ```
 
 ## Verify
-```
+
+```text
 [GPU 0 only ] 4K process time: 24.1 ms
 [GPU 0 + 1  ] 4K process time: 13.8 ms   Speedup: 1.75x  ← must be >= 1.65x
 ```
-
-Run with `--gpus 1` first to establish the single-GPU baseline, then with `--gpus 2`.
 
 ## Concept
 

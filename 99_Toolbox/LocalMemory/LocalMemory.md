@@ -3,7 +3,7 @@
 **Symptom**: Kernel repeatedly reads the same global memory addresses across different work-items (e.g., convolution, inflation radius, debayering). Memory-bound, not compute-bound.
 
 ## Prerequisites
-See [main README](../../README.md) for base requirements (OpenCL 1.2+, CMake 3.18+).
+Prerequisites: OpenCL 1.2+, CMake 3.18+, `clinfo` installed. See [main README](../../README.md) for base requirements.
 
 ## Build & Run
 ```bash

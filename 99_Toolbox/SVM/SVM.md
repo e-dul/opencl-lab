@@ -2,14 +2,16 @@
 
 **Symptom**: You are calling `enqueueMapBuffer` / `enqueueUnmapMemObject` on every frame and the map/unmap overhead appears in profiling. Platform is OpenCL 2.0+ on UMA hardware.
 
-> Requires OpenCL 2.0+. Check: `clinfo | grep "Device OpenCL C"`. Not supported on Nvidia OpenCL.
+> Requires OpenCL 2.0+. Check: `clinfo | grep "Device OpenCL C"`. Look for `Device OpenCL C Version  OpenCL C 2.0`; below 2.0 means SVM is unavailable. Not supported on Nvidia OpenCL.
 
 ## Prerequisites
-See [main README](../../README.md) for base requirements (OpenCL 1.2+, CMake 3.18+).
+Prerequisites: OpenCL 1.2+, CMake 3.18+, `clinfo` installed. See [main README](../../README.md) for base requirements.
+
+> **Note**: This tool deliberately targets OpenCL 2.0. It bypasses `common.cmake` and sets `CL_HPP_TARGET_OPENCL_VERSION 200` in its `CMakeLists.txt` to unlock 2.0-only SVM APIs (`clSVMAlloc`, `clEnqueueSVMMap`). All other tools in this toolbox use the 1.2 baseline.
 
 **Additional**:
 - OpenCL 2.0+ capable device (AMD APU, Intel integrated GPU, ARM Mali)
-- Verify: `clinfo | grep "Device OpenCL C"` — must show version 2.0 or higher
+- Verify: `clinfo | grep "Device OpenCL C"` — must show `OpenCL C 2.0` or higher
 
 ## Build & Run
 ```bash

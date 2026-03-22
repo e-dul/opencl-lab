@@ -3,7 +3,7 @@
 **Symptom**: Wrong output / silent crash / kernel gives different results on CPU vs GPU.
 
 ## Prerequisites
-See [main README](../../README.md) for base requirements (OpenCL 1.2+, CMake 3.18+).
+Prerequisites: OpenCL 1.2+, CMake 3.18+, `clinfo` installed. See [main README](../../README.md) for base requirements.
 
 **Additional**:
 - Oclgrind: `sudo apt install oclgrind`
@@ -23,7 +23,7 @@ oclgrind --data-races --uniform-writes ./build/debug_demo --test race_condition
 ## Verify
 ```
 [Oclgrind] ERROR: Invalid write of size 4
-           at kernel mad_kernel (mad_kernel.cl:12)
+           at kernel debug_kernel (debug_kernel.cl:12)
            Work-item: (64, 0, 0)
            Address: 0x7f... (4 bytes past end of allocation)
 ```

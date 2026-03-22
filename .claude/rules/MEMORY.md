@@ -14,7 +14,7 @@
 - [x] Module 5: Path B — Graphics & HPC (100% — 6/6)
 - [x] Module 6: Path C — Robotics & ROS2 (100% — 6/6)
 - [x] Module 7: Optimization Toolbox (100% — 13/13)
-- [ ] Module 8: Add-ons (0/8 — 0%)
+- [x] Module 8: Add-ons (8/8 — 100%)
 
 ## Style Guide (Coding Conventions)
 - Naming: `snake_case` for variables, `PascalCase` for classes.
@@ -63,4 +63,9 @@
 
 
 ## Session Notes
-[TODO: Add notes after each session]
+
+### 2026-03-22 — UX Audit Session (Task 051)
+- Ran `/test-ux` across all 7 modules: 00_Setup, 01_Host_API, A_Multimedia, B_Graphics_HPC, C_Robotics_ROS2, 99_Toolbox, 04_Addons.
+- Found ~100 issues (19 HIGH, ~50 MED, ~30 LOW). Human triaged; all [x] items applied across 30 files.
+- Task 051 archived. `workflow/tasks/ux_audit_report.md` also archived.
+- No source files (.cpp, .cl, CMakeLists.txt) were modified.

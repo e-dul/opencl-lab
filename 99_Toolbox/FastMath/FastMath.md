@@ -3,7 +3,7 @@
 **Symptom**: Kernel calls `sqrt`, `rsqrt`, `sin`, or `cos` in a tight loop (ray traversal, physics, signal processing). Kernel is compute-bound and standard math functions are visible in the profiler hotspot.
 
 ## Prerequisites
-See [main README](../../README.md) for base requirements (OpenCL 1.2+, CMake 3.18+).
+Prerequisites: OpenCL 1.2+, CMake 3.18+, `clinfo` installed. See [main README](../../README.md) for base requirements.
 
 ## Build & Run
 ```bash
@@ -30,7 +30,7 @@ OpenCL exposes three precision tiers for transcendental math functions:
 | Prefix | ULP error guarantee | Typical speed | Use when |
 |:-------|:--------------------|:-------------|:---------|
 | (none) `sqrt(x)` | ≤ 3 ULP (IEEE 754) | 1× | Correctness required: physics, finance, medical |
-| `half_sqrt(x)` | ≥ 11-bit mantissa | ~2× | Visual output, signal processing |
+| `half_sqrt(x)` | ≥ 11-bit mantissa | ~2× | Visual output, signal processing (if `cl_khr_fp16` supported) |
 | `native_sqrt(x)` | Hardware-defined, no guarantee | 4–10× | Ray tracing, particle systems, games |
 
 **`-cl-fast-relaxed-math`**: a `clBuildProgram` flag that enables the compiler to:

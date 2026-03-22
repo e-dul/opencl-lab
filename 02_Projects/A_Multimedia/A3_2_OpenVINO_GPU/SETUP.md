@@ -60,7 +60,7 @@ clinfo | grep -E "Platform Name|Device Name"
 ```cpp
 #include <openvino/openvino.hpp>
 #include <openvino/runtime/intel_gpu/ocl/ocl.hpp>
-#define CL_HPP_TARGET_OPENCL_VERSION 300
+#define CL_HPP_TARGET_OPENCL_VERSION 120
 #include <CL/opencl.hpp>
 #include <iostream>
 

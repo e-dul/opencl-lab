@@ -3,6 +3,10 @@
 **Target OS:** Ubuntu 24.04 LTS (Noble Numbat)
 **Hardware Focus:** Intel Integrated Graphics (Default), NVIDIA/AMD (Optional)
 
+> **How OpenCL driver stacks work:** OpenCL uses a three-layer model — an ICD Loader (`libOpenCL`), one or more vendor ICDs (the GPU driver plugin), and the device (GPU/CPU). When you install `intel-opencl-icd` or `nvidia-opencl-icd`, you are installing the vendor ICD. The `ocl-icd-libopencl1` package provides the ICD Loader that dispatches API calls to the right ICD at runtime.
+
+After completing setup, validate your installation by following [01_Smoke_Test/SmokeTest.md](01_Smoke_Test/SmokeTest.md).
+
 ---
 
 ## 1. Intel Integrated Graphics (Quick Start)
@@ -54,9 +58,9 @@ Number of platforms                               1
 
 ## 2. Docker Setup (Optional but Recommended)
 
-Using Docker isolates your environment and ensures everything works regardless of your host system version.
+> **Docker support is coming soon.** A `Dockerfile` with full GPU passthrough will be added in a future update.
 
-# TODO: Dockerfile
+The commands below verify GPU passthrough works in a temporary container. **This container is temporary — it only verifies GPU passthrough. Development itself happens on the host or in a persistent container image.**
 
 ### Step 1: Install Docker
 
@@ -70,7 +74,7 @@ sudo usermod -aG docker $USER
 # Log out and log back in
 ```
 
-### Step 2: Run a Container with GPU Access
+### Step 2: Verify GPU Passthrough
 
 For Intel GPUs, simply pass the `/dev/dri` device to the container.
 
@@ -78,7 +82,7 @@ For Intel GPUs, simply pass the `/dev/dri` device to the container.
 docker run --rm -it   --device /dev/dri   --group-add video   --group-add render   ubuntu:24.04   bash -c "apt update && apt install -y intel-opencl-icd clinfo && clinfo"
 ```
 
-If `clinfo` inside the container sees the GPU, your setup is correct.
+If `clinfo` inside the container sees the GPU, passthrough is working.
 
 ---
 
@@ -89,7 +93,8 @@ Requires proprietary NVIDIA drivers and the NVIDIA Container Toolkit for Docker.
 
 1.  **Drivers:**
     ```bash
-    sudo apt install nvidia-driver-550
+    ubuntu-drivers devices        # see recommended driver
+    sudo ubuntu-drivers autoinstall
     sudo reboot
     ```
 2.  **OpenCL:** The NVIDIA driver package includes the ICD. Verify with `clinfo`.
@@ -104,7 +109,9 @@ For Ubuntu 24.04, use the ROCm stack (version 6.x+ is recommended).
 2.  **ICD:** Install the `rocm-opencl-runtime` package.
 3.  **Groups:** Add your user to the `render` and `video` groups.
 
-#### this worked
+#### AMD — Mesa OpenCL (Quick Start)
+
+The Mesa OpenCL ICD provides a quick way to get OpenCL running on AMD hardware without the full ROCm stack. Install it with:
 
 ```bash
 sudo apt update
@@ -126,3 +133,10 @@ Verification:
 cmake --version  # Expected >= 3.18
 g++ --version    # Expected C++17 support
 ```
+
+Verify that the OpenCL C++ headers were installed correctly:
+
+```bash
+ls /usr/include/CL/
+```
+You should see `cl.hpp`, `opencl.hpp`, and related headers listed. If the directory is empty or missing, `opencl-headers` was not installed correctly. If CMake < 3.18, install a newer version via `pip install cmake` or the [Kitware APT repository](https://apt.kitware.com/).

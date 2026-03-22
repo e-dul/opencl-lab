@@ -5,7 +5,7 @@
 > **Hardware note**: true transfer/compute overlap is driver-dependent. Many consumer GPUs (NVIDIA CUDA, AMD rusticl) serialize commands on a single device even with OOO queues or dual queues. The code is correct — whether overlap is observable depends on your driver exposing separate DMA and compute engines.
 
 ## Prerequisites
-See [main README](../../README.md) for base requirements (OpenCL 1.2+, CMake 3.18+).
+Prerequisites: OpenCL 1.2+, CMake 3.18+, `clinfo` installed. See [main README](../../README.md) for base requirements.
 
 ## Contents
 ```
@@ -15,6 +15,9 @@ See [main README](../../README.md) for base requirements (OpenCL 1.2+, CMake 3.1
 ```
 
 ## Build & Run
+
+Run all commands from `99_Toolbox/AsyncMultiThread/`.
+
 ```bash
 cd 99_Toolbox/AsyncMultiThread
 cmake -B build && cmake --build build
@@ -65,6 +68,7 @@ compute_queue.enqueueNDRangeKernel(kernel, cl::NullRange, global, local,
 dma_queue.enqueueReadBuffer(buf_b, CL_FALSE, 0, size, result, {kernel_done}, nullptr);
 dma_queue.flush();
 compute_queue.flush();  // submit both without waiting — CPU is free
+// NOTE: flush() submits without blocking; finish() blocks until all commands complete.
 ```
 
 **Step 3 — Multi-thread** (per-thread queues, shared context):

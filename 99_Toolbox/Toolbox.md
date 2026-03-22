@@ -13,7 +13,7 @@ A library of isolated GPU optimization techniques. Do not read this front-to-bac
 
 Each tool is a standalone project with a measurable before/after. The workflow:
 
-1. Profile your Module 2 project (`cl::Event` timing on each stage)
+1. Profile your Track project (`02_Projects/`) (`cl::Event` timing on each stage)
 2. Identify the bottleneck (upload? kernel? download?)
 3. Find the matching tool below
 4. Run the tool's demo — see the technique in isolation
@@ -38,4 +38,4 @@ Each tool is a standalone project with a measurable before/after. The workflow:
 
 ## What's Next
 
-Return to your Module 2 project with the technique applied. If you have exhausted all bottlenecks in your track, continue to [Module 4 Add-ons](../04_Addons/README.md).
+Return to your track project with the technique applied. If you have exhausted all bottlenecks in your track, continue to [Module 4 Add-ons](../04_Addons/Addons.md).

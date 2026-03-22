@@ -3,7 +3,7 @@
 **Symptom**: Kernel produces incorrect histogram counts, wrong reduction totals, or non-deterministic output — always silently. No crash, just wrong numbers when multiple work-items write to the same memory location concurrently.
 
 ## Prerequisites
-See [main README](../../README.md) for base requirements (OpenCL 1.2+, CMake 3.18+).
+Prerequisites: OpenCL 1.2+, CMake 3.18+, `clinfo` installed. See [main README](../../README.md) for base requirements.
 
 ## Build & Run
 ```bash
@@ -96,6 +96,17 @@ Change the histogram kernel to track the **maximum** value seen per bin (not the
 
 - **Histogram sums don't match element count**: Forgot `barrier(CLK_LOCAL_MEM_FENCE)` before the merge phase — some work-items begin reading `local_hist` before others finish writing.
 - **`atomic_add` on float**: OpenCL 1.2 atomics operate on `int`/`uint` only. To accumulate floats atomically, implement a CAS loop: read, compute `old + val`, `cmpxchg`, retry on failure.
+
+```c
+float old_val, new_val;
+do {
+    old_val = *(__global float*)addr;
+    new_val = old_val + delta;
+} while (atom_cmpxchg((__global int*)addr,
+                      *(int*)&old_val,
+                      *(int*)&new_val) != *(int*)&old_val);
+```
+
 - **Correct on CPU, wrong on GPU**: CPU OpenCL drivers often serialise work-items; the race only surfaces on real GPU hardware. Always test on the target device.
 
 ## Used In

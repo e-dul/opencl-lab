@@ -12,19 +12,17 @@ See [main README](../../README.md) for base requirements (OpenCL 1.2+, CMake 3.1
 ```bash
 cd 04_Addons/4_4_SVM_Theory
 cmake -B build && cmake --build build
-./build/svm_deep_dive --size 64     # 64 MB buffer
-# GPU=INTEL ./build/svm_deep_dive   # iGPU: near-zero transfer time
+./build/svm_deep_dive --width 8192 --height 8192     # ~256 MB buffer (8192×8192 floats)
+# GPU=INTEL ./build/svm_deep_dive --width 8192 --height 8192   # iGPU: near-zero transfer time
 ```
 
 ## Verify
 ```
 Architecture detected: NUMA (discrete GPU, PCIe 4.0 x16)
 PCIe bandwidth (measured):  24.1 GB/s upload, 23.8 GB/s download
-[COPY_HOST_PTR ] 64 MB upload:  2.7 ms   (11.8 GB/s — pageable overhead)
-[ALLOC_HOST_PTR] 64 MB upload:  1.4 ms   (22.9 GB/s — pinned, near peak)
-[USE_HOST_PTR  ] 64 MB access:  4.1 ms   (iGPU: 0.0 ms — physically shared)
-SVM coarse:                     0.3 ms   (map + sync, no copy)
-SVM fine-grained:               N/A      (not supported on this device)
+[regular_buffer] 256 MB upload:  10.6 ms  (pageable overhead)
+[coarse_svm    ] 256 MB access:   1.2 ms  (map + sync, no copy)
+[fine_svm      ]                  N/A     (not supported on this device)
 ```
 
 ## Concept: Why UMA Changes Everything
@@ -65,7 +63,7 @@ Run `svm_deep_dive` on a laptop (iGPU) and a desktop (discrete GPU). Record the 
 ## Troubleshooting
 
 - **SVM coarse returns `CL_INVALID_OPERATION`**: device reports OpenCL 2.0 but SVM support is incomplete. Check `clGetDeviceInfo(CL_DEVICE_SVM_CAPABILITIES)` — must be non-zero.
-- **Measured PCIe bandwidth far below spec**: run the benchmark with a larger buffer (`--size 256`). Small transfers don't saturate the bus due to command overhead.
+- **Measured PCIe bandwidth far below spec**: run the benchmark with a larger buffer (`--width 16384 --height 16384`). Small transfers don't saturate the bus due to command overhead.
 
 ---
 

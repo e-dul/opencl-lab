@@ -3,7 +3,7 @@
 **Symptom**: Kernel runs slower than expected. Memory bandwidth utilization (from Nsight / VTune) is < 50% of peak.
 
 ## Prerequisites
-See [main README](../../README.md) for base requirements (OpenCL 1.2+, CMake 3.18+).
+Prerequisites: OpenCL 1.2+, CMake 3.18+, `clinfo` installed. See [main README](../../README.md) for base requirements.
 
 ## Build & Run
 ```bash
@@ -16,10 +16,16 @@ cmake -B build && cmake --build build
 
 Run the demo first, then read the explanation. The gap you observe depends on your GPU:
 
+**Step 1 — baseline (fits L2 on most GPUs):**
+
 ```bash
 # Default (1920×1080) — may show a small gap if your L2 cache is large
 ./build/coalesced_access
+```
 
+**Step 2 — exceed L2 cache (shows real DRAM penalty):**
+
+```bash
 # 8192×8192 (256 MiB) — exceeds L2 on most GPUs; shows the real penalty
 ./build/coalesced_access --width 8192 --height 8192
 ```

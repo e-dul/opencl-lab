@@ -103,7 +103,7 @@ cl_mem y_img = clCreateFromVA_surf(
 clEnqueueAcquireVA_APIMediaSurfacesINTEL(queue, 1, &y_img, 0, NULL, NULL);
 
 // Run your filter kernel — same kernel as A4_Smart_Webcam, unchanged
-kernel.setArg(0, cl::Image2D(y_img, true));
+kernel.setArg(0, cl::Image2D(y_img, true));  // NOTE: pseudocode — cl::Image2D does not have this constructor in cl.hpp 1.2
 queue.enqueueNDRangeKernel(kernel, ...);
 
 clEnqueueReleaseVA_APIMediaSurfacesINTEL(queue, 1, &y_img, 0, NULL, NULL);
@@ -114,6 +114,10 @@ The filter kernel from `A4_Smart_Webcam` runs unchanged — only the buffer sour
 ## Mini-Challenge
 
 Add a second effect (`--effect sepia`) using the [GenericKernelTemplates](../../99_Toolbox/GenericKernelTemplates/GenericKernelTemplates.md) pattern: both `blur` and `sepia` should share one `.cl` source file, built with `-D EFFECT_BLUR` and `-D EFFECT_SEPIA` respectively. No duplicate kernel code.
+
+## Build & Run Notes
+
+> **On NVIDIA:** the binary falls back to a GPU-assisted software path if the VA interop extension (`cl_intel_va_api_media_sharing`) is absent. NV12 planes are uploaded to OpenCL, colour-converted on the GPU, and encoded via libx264.
 
 ## Troubleshooting
 

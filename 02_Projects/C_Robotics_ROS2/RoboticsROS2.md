@@ -7,9 +7,11 @@ See [main README](../../README.md) for base requirements (OpenCL, CMake, Docker 
 
 **Additional:**
 - ROS 2 Jazzy: see [SETUP.md](SETUP.md) for APT repo, sourcing, and RMW configuration. Required for C1, C2, and C3.
-- Assets in repository root: `assets/warehouse.pgm` (512×512+ occupancy grid, required for C2). `assets/lidar_sample.bag` (optional — synthetic publisher covers the no-bag case for C3).
+- Assets in repository root: `assets/warehouse.pgm` (512×512+ occupancy grid, required for C2). `assets/lidar_sample.bag` — **optional** for C3; the synthetic publisher (`./build/point_cloud_publisher`) is the easy path and requires no bag file.
 
 > **Assumption**: You know ROS 2 basics — nodes, pub/sub, topics, `rclcpp`. This track focuses exclusively on GPU acceleration inside that model.
+
+> **C1 uses `rclcpp_lifecycle::LifecycleNode`**, a step beyond basic pub/sub. New to lifecycle nodes? See the [ROS 2 Jazzy Lifecycle Tutorial](https://docs.ros.org/en/jazzy/Tutorials/Intermediate/Managed-Nodes.html) first. If you've already read a lifecycle tutorial, the [Managing-A-ROS-2-Node-Lifecycle](https://docs.ros.org/en/jazzy/Tutorials/Intermediate/Managing-A-ROS-2-Node-Lifecycle.html) walkthrough also covers the state machine in depth.
 
 ## Contents
 ```
@@ -29,7 +31,7 @@ C3_Perception_Node/     Flagship: Lidar filtering + feature extraction, < 5 ms e
 ```bash
 source /opt/ros/jazzy/setup.bash
 cd C1_Node_Acceleration
-cmake -B build
+cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ./build/accel_node
 # GPU selection: GPU=NVIDIA ./build/accel_node
@@ -112,17 +114,24 @@ At 200 Hz (5 ms budget), that one line consumes 40% of your entire latency budge
 ### Mini-challenge
 Run the node with `buffer_size:=524288`, `buffer_size:=1048576`, and `buffer_size:=4194304`. Record the per-callback dispatch times reported by `cl::Event` profiling for each size. At what buffer size does dispatch latency become non-trivial relative to the 0.5 ms gate? Tabulate the results.
 
+> **Note**: The node self-manages its lifecycle — configure, activate, run N iterations, then clean up automatically. No manual `ros2 lifecycle set` commands are needed. Dispatch time is already printed per-callback; no extra instrumentation is needed.
+
 ---
 
 ## C2_Costmap_Inflation — Distance Transform on GPU
 
 **Goal**: Implement a 2D costmap inflation kernel — the algorithm that pads obstacles with a cost gradient so a robot's path planner steers clear of walls — and verify it runs fast enough to keep up with a 10 Hz map update rate.
 
+A distance transform assigns to each free cell the Euclidean distance to the nearest obstacle cell. The inflation kernel computes this per-cell distance and maps it to a cost value.
+
 ### Build & run
+
+Run from `C2_Costmap_Inflation/`:
+
 ```bash
 source /opt/ros/jazzy/setup.bash
 cd C2_Costmap_Inflation
-cmake -B build
+cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ./build/costmap_node --ros-args -p map_path:=../../../assets/warehouse.pgm
 # Full parameter override:
@@ -181,7 +190,9 @@ __kernel void inflate(__global const uchar* obstacles,
 **Memory access pattern**: the inner loop reads `obstacles` at offsets scattered across a `2×radius` window. Run the kernel, look at the GPU memory bandwidth utilization — then ask why a neighborhood read pattern from global memory might be inefficient.
 
 ### Mini-challenge
-Write a second version of the kernel that loads a tile of the obstacle map into `__local` memory before the inner loop. Profile naive vs tiled — at what tile size does the local-memory version peak? Does the crossover radius (below which local memory does not help) match your expectation? See [Toolbox: Local Memory](../../99_Toolbox/LocalMemory/LocalMemory.md) if you need the tiling pattern.
+Write a second version of the kernel that loads a tile of the obstacle map into `__local` memory before the inner loop. Profile naive vs tiled — at what tile size does the local-memory version peak? Does the crossover radius (below which local memory does not help) match your expectation?
+
+> **Local memory primer**: `__local` declares per-workgroup shared memory — e.g., `__local float tile[16]`. All work-items in the group can read and write it. Use `barrier(CLK_LOCAL_MEM_FENCE)` to synchronize threads within the group before reading shared data filled by other work-items. See [Toolbox: Local Memory](../../99_Toolbox/LocalMemory/LocalMemory.md) for the full tiling pattern.
 
 ---
 
@@ -190,10 +201,14 @@ Write a second version of the kernel that loads a tile of the obstacle map into 
 **Goal**: Build a ROS 2 node that receives a Lidar point cloud, filters it on GPU (ground removal + intensity threshold), extracts per-cluster features, and publishes the result — end-to-end latency < 5 ms for 100k points.
 
 ### Build & run
+
+> Both terminals must source `/opt/ros/jazzy/setup.bash` and export `RMW_IMPLEMENTATION=rmw_fastrtps_cpp` before running.
+
 ```bash
 source /opt/ros/jazzy/setup.bash
+export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
 cd C3_Perception_Node
-cmake -B build
+cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 
 # Terminal 1 — run the perception node (parameters via declare_parameter, GPU via env var)
@@ -205,7 +220,7 @@ GPU=NVIDIA ./build/perception_node --ros-args \
 # Terminal 2 — publish synthetic data (CLI11 flags, standalone tool binary)
 ./build/point_cloud_publisher --topic /points --hz 200 --points 100000
 
-# Or replay a recorded bag:
+# Or replay a recorded bag (optional — synthetic publisher above is the easy path):
 ros2 bag play ../../../assets/lidar_sample.bag
 ```
 
@@ -224,7 +239,7 @@ Synthetic publisher flags (CLI11, standalone binary `point_cloud_publisher`):
 
 ### Verify
 - Node publishes `/filtered_points` and `/cluster_features` topics
-- `ros2 topic hz /filtered_points` reports approximately 200 Hz
+- Terminal 3 (can be run after both nodes are running): `ros2 topic hz /filtered_points` — reports approximately 200 Hz
 - Console prints per-message stage breakdown:
   ```
   [RECV ] PointCloud2 deserialized:  0.400 ms
@@ -249,6 +264,8 @@ Synthetic publisher flags (CLI11, standalone binary `point_cloud_publisher`):
 A `sensor_msgs/PointCloud2` message with 100k points (XYZ + intensity, float32) is 1.6 MB. The standard ROS 2 subscriber deserializes this from shared memory into a `PointCloud2` struct, which you then copy to a `cl::Buffer`. That is two copies before the GPU sees a single point.
 
 **Loaned Messages** (ROS 2 Jazzy with compatible RMW) eliminate the first copy. The middleware loans you a pre-allocated message buffer directly in the publisher's shared memory region. If the publisher and subscriber are in the same process — or use a zero-copy transport like Iceoryx — no serialization occurs at all. The underlying GPU-side principle is the same as [Toolbox: Zero-Copy](../../99_Toolbox/ZeroCopy/ZeroCopy.md) — pinned or shared memory avoids the pageable-copy overhead on every transfer.
+
+Iceoryx pre-allocates a fixed shared-memory pool at startup. When you release a `unique_ptr<Message>`, the slot returns to the pool — no heap allocation per message. See the [Iceoryx documentation](https://iceoryx.io/latest/) for pool configuration and publisher/subscriber setup.
 
 ```cpp
 // Standard (two copies: shm -> ROS msg -> cl::Buffer)
@@ -315,14 +332,20 @@ for (int i = 0; i < 2; ++i) {
 2. Checks for contention: if the GPU has not yet fired the swap (index unchanged from previous callback), logs `WARN: double-buffer contention — falling back to blocking wait` and calls `CL_CHECK(queue_.finish())`.
 3. Issues all enqueue calls (`enqueueWriteBuffer`, `enqueueNDRangeKernel` ×3, `enqueueReadBuffer`) as non-blocking (`CL_FALSE`).
 4. Sets a `cl::Event` callback on the final `enqueueReadBuffer`. When `CL_COMPLETE` fires (in the OpenCL driver thread), the callback calls `active_buf_.store(1 - current)`. Only `std::atomic` operations are safe in an OpenCL event callback — no ROS 2 API calls, no logging, no heap allocation.
+
+   > **Thread-safety**: OpenCL fires event callbacks from an internal driver thread — not the ROS 2 executor thread. Only thread-safe primitives like `std::atomic` are safe to use in those callbacks. Calling `rclcpp` logging, publishers, or any heap allocator from an event callback is undefined behaviour.
+
 5. Returns immediately — the subscriber thread is free before the GPU finishes.
 
 ### Build & run
 
+> Both terminals must source `/opt/ros/jazzy/setup.bash` and export `RMW_IMPLEMENTATION=rmw_fastrtps_cpp`.
+
 ```bash
 source /opt/ros/jazzy/setup.bash
+export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
 cd C3_Perception_Node
-cmake -B build
+cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 
 # Terminal 1 — perception node with double-buffer enabled
@@ -349,6 +372,8 @@ GPU=NVIDIA ./build/perception_node --ros-args \
 ```
 
 Zero `WARN: double-buffer contention` entries over 10 seconds at 200 Hz, 100k points is the pass condition.
+
+> **Note**: The 5 ms latency gate may not be achievable on all hardware. Check the Performance Gate table for hardware-specific expectations (gates marked † apply a hardware waiver for CPU-fallback and integrated GPU devices).
 
 **MANUAL — RViz verification:** Open RViz, add a PointCloud2 display on `/filtered_points`. With the publisher running at `--hz 200 --points 100000` and the node launched with `ground_z:=0.1 min_intensity:=50`, the display must show only the three valid clusters — no ground or low-intensity points — with no visible frame drops or stuttering over 10 seconds.
 

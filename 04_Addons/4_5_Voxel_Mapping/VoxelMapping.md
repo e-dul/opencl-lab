@@ -5,8 +5,8 @@
 ## Prerequisites
 See [main README](../../README.md) for base requirements (OpenCL 1.2+, CMake 3.18+).
 
-- **Required**: [B3_Ray_Tracer_BVH](../../02_Projects/B_Graphics_HPC/GraphicsHPC.md#b3_ray_tracer_bvh--flagship-project) completed
-- **Required**: [C3_Perception_Node](../../02_Projects/C_Robotics_ROS2/RoboticsROS2.md#c3_perception_node--flagship-project) completed
+- **Required**: [B3_Ray_Tracer_BVH](../../02_Projects/B_Graphics_HPC/GraphicsHPC.md#b3-bvh-ray-tracer) completed
+- **Required**: [C3_Perception_Node](../../02_Projects/C_Robotics_ROS2/RoboticsROS2.md#c3-perception-node) completed
 - ROS 2 Jazzy: `source /opt/ros/jazzy/setup.bash`
 
 ## Build & Run
@@ -18,6 +18,8 @@ cmake -B build && cmake --build build
 ```
 
 **Live (synthetic publisher in terminal 1, voxel_mapping in terminal 2):**
+
+> Two processes communicate over ROS 2 DDS — run in separate terminals that have each sourced ROS 2 (`source /opt/ros/jazzy/setup.bash`).
 
 ```bash
 # Terminal 1 — static scene (DDA sanity check):

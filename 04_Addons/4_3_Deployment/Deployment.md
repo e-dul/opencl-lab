@@ -19,8 +19,9 @@ cmake -B build && cmake --build build
 [ICD Loader] Found 2 platforms: NVIDIA, Intel
 [Runtime   ] Selected: NVIDIA GeForce RTX 3080
 [Self-check] Kernel compiled and executed successfully
-[Package   ] AppImage bundle: deployment_demo-x86_64.AppImage
 ```
+
+> **Note:** AppImage packaging is a separate step — run `bash appimage.sh` after building.
 
 ## Concept: The ICD Loader
 
@@ -40,11 +41,9 @@ Your app needs:
 ## Packaging by Target
 
 **Linux AppImage**:
-```bash
-# Bundle libOpenCL.so inside the AppImage
-linuxdeploy --appdir AppDir --library /usr/lib/x86_64-linux-gnu/libOpenCL.so.1
-appimagetool AppDir deployment_demo-x86_64.AppImage
-```
+
+Run `bash appimage.sh` — tools are downloaded automatically if not in PATH.
+
 ICD files come from the user's driver — you cannot bundle them.
 
 **Docker**:

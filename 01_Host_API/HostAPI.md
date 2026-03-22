@@ -56,6 +56,28 @@ That's it. The entire OpenCL programming model fits in this diagram. The rest is
 
 ---
 
+### Why C++ Wrapper (cl.hpp)?
+
+The raw C API requires manual `clRelease*` calls for every object — easy to forget and silent to leak. The C++ wrapper uses RAII so destructors handle cleanup automatically.
+
+**Raw C API** (painful):
+
+```c
+cl_context ctx = clCreateContext(props, 1, &device, NULL, NULL, &err);
+// ...50 lines later, did you remember to:
+clReleaseContext(ctx);  // Easy to forget = memory leak
+```
+
+**C++ Wrapper** (RAII magic):
+
+```cpp
+cl::Context ctx(device);  // Destructor cleans up automatically
+```
+
+We use `cl.hpp` throughout this course for cleaner, safer code.
+
+---
+
 ## 01_Visual_Kernel — Visual "Hello World"
 **Goal**: Get immediate visual feedback that your GPU code works.
 
@@ -71,6 +93,8 @@ cmake --build build
 
 ### Verify
 Output image exists and shows brightness/contrast adjustment (visually compare with input).
+
+> **Note**: Pass `--kernel vec3` to run a vectorized variant that processes three color channels in a single `float3` operation instead of separate per-channel passes.
 
 ### Mini-challenge
 
@@ -92,20 +116,25 @@ cmake --build build
 ### Verify
 Console prints timing breakdown:
 - Upload to GPU: X ms
-- Kernel execution: Y ms  
+- Kernel execution: Y ms
 - Download from GPU: Z ms
 - Total: T ms
 
+Two files are written: `gradient_input.bmp` (before) and `output.bmp` (after). Open both side-by-side to confirm the filter was applied.
+
 ### Mini-challenge
 
-- Run with different image sizes (256×256 vs 1920×1080 vs 4096×4096). When does GPU start winning over CPU?
+- Run with different image sizes (256×256 vs 1920×1080 vs 4096×4096). At what image size does kernel-only time exceed the upload time?
   - Tip: on multi-GPU systems, results vary by device — use `GPU=NVIDIA` / `GPU=AMD` / `GPU=INTEL` to pin the target.
 - Modify the kernel to invert colors (`255 - pixel`) and verify the output changes. Which profiling stage changes? (Hint: only kernel time.)
-  
+
 ### Generating test images
+
+Requires `sudo apt install ffmpeg`. Then run:
 
 ```bash
 ffmpeg -y -f lavfi -i "color=c=gray:s=4096x4096" -vframes 1 -f image2 -vcodec bmp test_4k.bmp
+./build/visual_kernel_events -p -i test_4k.bmp
 ```
 
 ---
@@ -125,30 +154,14 @@ cmake --build build
 Program runs without errors and prints comparative timing for different buffer strategies.
 
 ### Mini-challenge
-Profile `CL_MEM_USE_HOST_PTR` vs `CL_MEM_COPY_HOST_PTR` for your test image. Which is faster? Explain in 2–3 sentences why.
+Run `./build/buffers_layout_demo` and read the printed timing table. Which buffer strategy shows the lowest total time? Why does the winner win on your hardware? (Consider: does your GPU share memory with the CPU, or is it discrete?)
+
 - Tip: on multi-GPU systems, results vary by device — use `GPU=NVIDIA` / `GPU=AMD` / `GPU=INTEL` to pin the target.
-- Go deeper: [Toolbox: Zero-Copy](../99_Toolbox/ZeroCopy/ZeroCopy.md) — the hardware model behind these flags and when each wins.
+- Optional deep-dive: [Toolbox: Zero-Copy](../99_Toolbox/ZeroCopy/ZeroCopy.md) — the hardware model behind these flags and when each wins.
+
 ---
 
 ## Core Concepts
-
-### Why C++ Wrapper (cl.hpp)?
-
-**Raw C API** (painful):
-```c
-cl_context ctx = clCreateContext(props, 1, &device, NULL, NULL, &err);
-// ...50 lines later, did you remember to:
-clReleaseContext(ctx);  // Easy to forget = memory leak
-```
-
-**C++ Wrapper** (RAII magic):
-```cpp
-cl::Context ctx(device);  // Destructor cleans up automatically
-```
-
-We use `cl.hpp` throughout this course for cleaner, safer code.
-
----
 
 ### Host-Side Control Flow
 
@@ -194,7 +207,7 @@ This isn't failure—it's the point of the feedback loop. Measurement tells you 
 
 - **"No OpenCL platforms found"**:
   - Docker users: Did you run with `--gpus all`?
-  - Native setup: Check `clinfo` output (see Module 0 troubleshooting)
+  - Native setup: Check `clinfo` output (see [Module 0 troubleshooting](../00_Setup/Setup.md))
 
 - **Segmentation fault on buffer readback**:
   - Verify buffer size matches: `width * height * channels * sizeof(uchar)`
@@ -214,8 +227,7 @@ This isn't failure—it's the point of the feedback loop. Measurement tells you 
 
 This module is complete when:
 
-- Kernel launch overhead (empty kernel): < 1 ms
-- Event profiling captures all 3 stages: Upload, Kernel, Download
+- Event profiling output for `02_Visual_Kernel_Events -p` must show three non-zero timings (Upload, Kernel, Download)
 - `01_Visual_Kernel` produces a valid `output.bmp` showing brightness/contrast adjustment
 
 ---
@@ -223,7 +235,8 @@ This module is complete when:
 ## What's Next
 
 Module 2 applies these host-side skills to real integration problems. Choose your track:
-- **[Track A: Multimedia](../02_Projects/A_Multimedia/Multimedia.md)** — Video AI, OpenCV interop, smart webcam project
+
+- **[Track A: Multimedia](../02_Projects/A_Multimedia/README.md)** — Video AI, OpenCV interop, smart webcam project
 - **[Track B: Graphics/HPC](../02_Projects/B_Graphics_HPC/GraphicsHPC.md)** — Ray tracing, CLBlast, advanced rendering
 - **[Track C: Robotics](../02_Projects/C_Robotics_ROS2/RoboticsROS2.md)** — ROS 2 node acceleration, perception pipelines
 
