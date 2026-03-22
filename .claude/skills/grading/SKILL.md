@@ -8,7 +8,8 @@ allowed-tools: Read, Glob
 ## Instructions
 0. **Big picture**: Read `workflow/design/00-executive-summary.md` to understand vision, philosophy and structure
 1. **Analyze Content**: Read the module's `*README*.md` and scan the relevant `.cpp`, `.h`, `.cl`, and `CMakeLists.txt` files.
-2. **Apply Rubric**: Grade the module on a scale of 1 to 10 for each of the following criteria. 1 is terrible, 10 is perfect.
+2. When directory does't have dedicated `.md` check parent directory.
+3. **Apply Rubric**: Grade the module on a scale of 1 to 10 for each of the following criteria. 1 is terrible, 10 is perfect.
 
 ## Grading Criteria
 - **Theory to Application Ratio**: Does the module strike the right balance? (e.g., Is theory introduced "Just-in-Time" to solve a real application problem, or is it a dry theory dump?)
@@ -30,7 +31,7 @@ Output exactly in this Markdown table format:
 
 ### Justification
 
-For each criterion, write the Score and a 1-2 sentence Justification:
+For each criterion, write the Score and a 1-2 sentence short Justification:
 
 - Theory/App (8) — BT.601 math and T-API ordering are placed just-in-time, but Key Concepts section lacks forward references to exact code locations.
 - Uniqueness (9) — NV12/YUYV decoding, RemoteTenso

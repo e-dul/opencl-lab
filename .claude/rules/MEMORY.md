@@ -60,7 +60,7 @@
 - ALWAYS show a clear diff before applying any change
 - Use str_replace with explicit before/after blocks
 - Wait for approval before writing to disk
-
+- **Agent output passthrough:** When a subagent (e.g., @evaluator) uses a Strict Output Template, reproduce its output verbatim — do not reformat or summarize. Applies to `/grade-module` and any skill with a defined template.
 
 ## Session Notes
 
