@@ -35,7 +35,8 @@ Each tool is a standalone project with a measurable before/after. The workflow:
 | [Multi-GPU](MultiGPU_Strategy/MultiGPUStrategy.md) | Single GPU throughput ceiling reached | `MultiGPU_Strategy/` |
 | [Fast Math](FastMath/FastMath.md) | `sqrt`/`rsqrt`/`sin` calls dominating compute-bound kernel | `FastMath/` |
 | [Sync & Atomics](SyncAtomics/SyncAtomics.md) | Incorrect results with concurrent writes (histograms, counters, reductions) | `SyncAtomics/` |
+| [Global Work Offset](GlobalWorkOffset/GlobalWorkOffset.md) | Full-frame dispatch wastes threads when only a small ROI needs work | `GlobalWorkOffset/` |
 
 ## What's Next
 
-Return to your track project with the technique applied. If you have exhausted all bottlenecks in your track, continue to [Module 4 Add-ons](../04_Addons/Addons.md).
+Return to your track project with the technique applied. If you have exhausted all bottlenecks in your track, continue to [Module 6 Bonus](../06_Bonus/Bonus.md).
