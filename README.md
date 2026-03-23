@@ -17,9 +17,11 @@ You are encouraged to treat the provided code as one possible solution and then 
 2.  **[Course Structure](#course-structure)**
     *   [Module 0: Fundamentals](#module-0-fundamentals)
     *   [Module 1: Host API](#module-1-host-api)
-    *   [Module 2: Projects (Specialization Paths)](#module-2-projects-specialization-paths)
+    *   [Module 2: Multimedia & AI](#module-2-multimedia--ai)
+    *   [Module 3: Graphics & HPC](#module-3-graphics--hpc)
+    *   [Module 4: Robotics & ROS 2](#module-4-robotics--ros-2)
     *   [Toolbox: Optimization](#toolbox-optimization)
-    *   [Addons: Bonus Content](#addons-bonus-content)
+    *   [Bonus Content](#bonus-content)
 3.  **[Quick Start](#quick-start)**
 4.  **[For AI Agent (Claude Code)](#for-ai-agent-claude-code)**
 5.  **[More Information](#more-information)**
@@ -44,56 +46,69 @@ Environment setup, Docker, CMake, and the first "Smoke Test" verifying drivers.
 *   [Setup.md](00_Setup/Setup.md) - Setup instructions.
 *   [01_Smoke_Test](00_Setup/01_Smoke_Test/) - Simple `vector_add` program.
 
-### [Module 1: Host API](01_Host_API/)
+### [Module 1: Host API](01_Host_API/HostAPI.md)
 Learning to control the GPU from C++.
-*   [HostAPI.md](01_Host_API/HostAPI.md) - Setup instructions.
+
 *   [01_Visual_Kernel](01_Host_API/01_Visual_Kernel/) - First graphical kernel (image brightening).
 *   [02_Visual_Kernel_Events](01_Host_API/02_Visual_Kernel_Events/) - Introduction to profiling (Events).
 *   [03_Buffer_Flags](01_Host_API/03_Buffer_Flags/) - Memory management and data layout.
 
-### [Module 2: Projects (Specialization Paths)](02_Projects/)
-The core part of the course. Choose one path:
-*   **Path A: Multimedia & AI** ([02_Projects/A_Multimedia](02_Projects/A_Multimedia/))
-    *   [A1_OpenCV_Interop](02_Projects/A_Multimedia/A1_OpenCV_Interop/) - Zero-copy buffer sharing with OpenCV.
-    *   [A2_YUV_Pipeline](02_Projects/A_Multimedia/A2_YUV_Pipeline/) - YUV color space processing on GPU.
-    *   [A2b_YUYV_Extension](02_Projects/A_Multimedia/A2b_YUYV_Extension/) - YUYV webcam format handling.
-    *   [A3_1_OpenCV_DNN](02_Projects/A_Multimedia/A3_1_OpenCV_DNN/) - Neural network inference with OpenCV DNN.
-    *   [A3_2_OpenVINO_GPU](02_Projects/A_Multimedia/A3_2_OpenVINO_GPU/) - Accelerated inference with OpenVINO.
-    *   [A4_Smart_Webcam](02_Projects/A_Multimedia/A4_Smart_Webcam/) - Real-time webcam processing pipeline.
-    *   [A5_Privacy_Mode](02_Projects/A_Multimedia/A5_Privacy_Mode/) - Face detection and GPU blurring.
-*   **Path B: Graphics & HPC** ([02_Projects/B_Graphics_HPC](02_Projects/B_Graphics_HPC/))
-    *   [B1_CLBlast_MatMul](02_Projects/B_Graphics_HPC/B1_CLBlast_MatMul/) - GPU matrix multiplication via CLBlast.
-    *   [B2_Ray_Tracer_Basic](02_Projects/B_Graphics_HPC/B2_Ray_Tracer_Basic/) - Basic ray tracer running on GPU.
-    *   [B3_Ray_Tracer_BVH](02_Projects/B_Graphics_HPC/B3_Ray_Tracer_BVH/) - Ray tracer with BVH acceleration structure.
-    *   [B3_Ray_Tracer_BVH_Dynamic](02_Projects/B_Graphics_HPC/B3_Ray_Tracer_BVH_Dynamic/) - BVH for dynamic/animated scenes.
-    *   [B4_Device_Enqueue](02_Projects/B_Graphics_HPC/B4_Device_Enqueue/) - GPU-driven kernel dispatch (OpenCL 2.0).
-*   **Path C: Robotics & ROS 2** ([02_Projects/C_Robotics_ROS2](02_Projects/C_Robotics_ROS2/))
-    *   [C1_Node_Acceleration](02_Projects/C_Robotics_ROS2/C1_Node_Acceleration/) - ROS 2 node with OpenCL acceleration.
-    *   [C2_Costmap_Inflation](02_Projects/C_Robotics_ROS2/C2_Costmap_Inflation/) - GPU costmap inflation for Nav2.
-    *   [C3_Perception_Node](02_Projects/C_Robotics_ROS2/C3_Perception_Node/) - Point cloud processing perception node.
+### [Module 2: Multimedia & AI](02_Multimedia/Multimedia.md)
 
-### [Toolbox: Optimization](99_Toolbox/)
+OpenCV interop, YUV pipelines, neural network inference, and a real-time smart webcam.
+
+*   [A1_OpenCV_Interop](02_Multimedia/A1_OpenCV_Interop/) - Zero-copy buffer sharing with OpenCV.
+*   [A2_YUV_Pipeline](02_Multimedia/A2_YUV_Pipeline/) - YUV color space processing on GPU.
+*   [A2b_YUYV_Extension](02_Multimedia/A2b_YUYV_Extension/) - YUYV webcam format handling.
+*   [A3_1_OpenCV_DNN](02_Multimedia/A3_1_OpenCV_DNN/) - Neural network inference with OpenCV DNN.
+*   [A3_2_OpenVINO_GPU](02_Multimedia/A3_2_OpenVINO_GPU/) - Accelerated inference with OpenVINO.
+*   [A4_Smart_Webcam](02_Multimedia/A4_Smart_Webcam/) - Real-time webcam processing pipeline.
+*   [A5_Privacy_Mode](02_Multimedia/A5_Privacy_Mode/) - Face detection and GPU blurring.
+*   [FFmpeg_Pipeline](02_Multimedia/FFmpeg_Pipeline/) - Zero-copy FFmpeg + OpenCL video pipeline.
+*   [SoftISP](02_Multimedia/SoftISP/) - Software ISP 4K Bayer debayering.
+
+### [Module 3: Graphics & HPC](03_GraphicsHPC/GraphicsHPC.md)
+
+Ray tracing with progressive BVH acceleration structures.
+
+*   [B2_Ray_Tracer_Basic](03_GraphicsHPC/B2_Ray_Tracer_Basic/) - Basic ray tracer running on GPU.
+*   [B3_Ray_Tracer_BVH](03_GraphicsHPC/B3_Ray_Tracer_BVH/) - Ray tracer with BVH acceleration structure.
+*   [B3_Ray_Tracer_BVH_Dynamic](03_GraphicsHPC/B3_Ray_Tracer_BVH_Dynamic/) - BVH for dynamic/animated scenes.
+
+### [Module 4: Robotics & ROS 2](04_Robotics/RoboticsROS2.md)
+
+GPU acceleration inside a ROS 2 perception pipeline.
+
+*   [C1_Node_Acceleration](04_Robotics/C1_Node_Acceleration/) - ROS 2 node with OpenCL acceleration.
+*   [C2_Costmap_Inflation](04_Robotics/C2_Costmap_Inflation/) - GPU costmap inflation for Nav2.
+*   [C3_Perception_Node](04_Robotics/C3_Perception_Node/) - Point cloud processing perception node.
+
+### [Toolbox: Optimization](05_Toolbox/Toolbox.md)
+
 A collection of "on-demand" optimization techniques. Projects link here when they need more performance.
 
-*   [Coalesced_Access](99_Toolbox/Coalesced_Access/) - Global memory access pattern optimization.
-*   [Thread_Divergence](99_Toolbox/Thread_Divergence/) - Reducing warp/wavefront divergence.
-*   [Local_Memory_Tile](99_Toolbox/Local_Memory_Tile/) - Tiled algorithms using local (shared) memory.
-*   [Bank_Conflict_Test](99_Toolbox/Bank_Conflict_Test/) - Detecting and resolving local memory bank conflicts.
-*   [Register_Pressure](99_Toolbox/Register_Pressure/) - Managing register usage and occupancy.
-*   [Zero_Copy_Demo](99_Toolbox/Zero_Copy_Demo/) - Pinned memory zero-copy host↔device transfers.
-*   [Debugging_Oclgrind](99_Toolbox/Debugging_Oclgrind/) - Kernel debugging and race detection with Oclgrind.
+*   [CoalescedAccess](05_Toolbox/CoalescedAccess/) - Global memory access pattern optimization.
+*   [ThreadDivergence](05_Toolbox/ThreadDivergence/) - Reducing warp/wavefront divergence.
+*   [LocalMemory](05_Toolbox/LocalMemory/) - Tiled algorithms using local (shared) memory.
+*   [ZeroCopy](05_Toolbox/ZeroCopy/) - Pinned memory zero-copy host↔device transfers.
+*   [Debugging](05_Toolbox/Debugging/) - Kernel debugging and race detection with Oclgrind.
+*   [AsyncMultiThread](05_Toolbox/AsyncMultiThread/) - Async pipelines and multi-threading patterns.
+*   [SyncAtomics](05_Toolbox/SyncAtomics/) - Atomic operations and synchronization.
+*   [FastMath](05_Toolbox/FastMath/) - Fast math flags and accuracy tradeoffs.
+*   [WorkGroupSizing](05_Toolbox/WorkGroupSizing/) - Occupancy and work-group sizing.
+*   [MultiGPU_Strategy](05_Toolbox/MultiGPU_Strategy/) - Multi-GPU distribution strategies.
+*   [SVM](05_Toolbox/SVM/) - Shared Virtual Memory deep dive.
+*   [OpenCL_vs_CUDA](05_Toolbox/OpenCL_vs_CUDA/) - Performance and portability comparison.
+*   [Deployment](05_Toolbox/Deployment/) - Packaging and shipping OpenCL applications.
 
-### [Addons: Bonus Content](04_Addons/)
+### [Bonus Content](06_Bonus/)
 
-Advanced topics and case studies.
+Advanced modules that extend the core tracks.
 
-*   [4_1_vkFFT_Audio](04_Addons/4_1_vkFFT_Audio/) - GPU FFT for audio processing via vkFFT.
-*   [4_2_OpenCL_vs_CUDA](04_Addons/4_2_OpenCL_vs_CUDA/) - Performance and portability comparison.
-*   [4_3_Deployment](04_Addons/4_3_Deployment/) - Packaging and shipping OpenCL applications.
-*   [4_4_SVM_Theory](04_Addons/4_4_SVM_Theory/) - Shared Virtual Memory concepts and usage.
-*   [4_5_Voxel_Mapping](04_Addons/4_5_Voxel_Mapping/) - 3D voxel mapping on GPU.
-*   [4_6_FFmpeg_Pipeline](04_Addons/4_6_FFmpeg_Pipeline/) - Zero-copy FFmpeg + OpenCL video pipeline.
-*   [4_7_SoftISP](04_Addons/4_7_SoftISP/) - Software ISP debayering pipeline.
+*   [CLBlast_MatMul](06_Bonus/CLBlast_MatMul/) - GPU matrix multiplication via CLBlast.
+*   [Device_Enqueue](06_Bonus/Device_Enqueue/) - GPU-driven kernel dispatch (OpenCL 2.0).
+*   [vkFFT_Audio](06_Bonus/vkFFT_Audio/) - GPU FFT for audio processing via vkFFT.
+*   [Voxel_Mapping](06_Bonus/Voxel_Mapping/) - 3D voxel mapping on GPU.
 
 ---
 

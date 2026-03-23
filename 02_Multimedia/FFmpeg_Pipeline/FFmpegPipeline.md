@@ -1,11 +1,11 @@
-# 4.6 — FFmpeg Pipeline: Offline Video Processing
+# A.5 — FFmpeg Pipeline: Hardware Decode to OpenCL
 
 **When to use**: you want to apply the blur/filter kernel from Track A to a video file — hardware decode directly into GPU memory, no CPU copies.
 
 ## Prerequisites
 See [main README](../../README.md) for base requirements (OpenCL 1.2+, CMake 3.18+).
 
-- **Required**: [Track A](../../02_Projects/A_Multimedia/Multimedia.md) completed
+- **Required**: [Path A: Multimedia & AI](../Multimedia.md) completed
 
 ### System packages (Ubuntu 24.04)
 
@@ -56,11 +56,11 @@ ffmpeg -f lavfi -i testsrc=duration=3:size=1920x1080:rate=25 \
 
 ## Build & Run
 ```bash
-cd 04_Addons/4_6_FFmpeg_Pipeline
+cd FFmpeg_Pipeline
 cmake -B build && cmake --build build
-./build/ffmpeg_opencl_transcoder --input ../../../assets/sample.mp4 \
+./build/ffmpeg_opencl_transcoder --input assets/sample.mp4 \
     --output filtered.mp4 --effect blur
-# GPU=NVIDIA ./build/ffmpeg_opencl_transcoder --input ../../../assets/sample.mp4 \
+# GPU=NVIDIA ./build/ffmpeg_opencl_transcoder --input assets/sample.mp4 \
 #     --output filtered.mp4 --effect blur
 ```
 
@@ -127,4 +127,4 @@ Add a second effect (`--effect sepia`) using the [GenericKernelTemplates](../../
 
 ---
 
-[Back to Add-ons](../Addons.md)
+[Path A: Multimedia & AI](../Multimedia.md)

@@ -18,7 +18,7 @@ Reorganize the Applied OpenCL Lab repository from a linear, module-numbered layo
 
 - [x] Phase 1: Folder Restructuring — Rename and split top-level directories to match the v2.0 layout.
 - [x] Phase 2: Content Migration — Move recipes between tracks as specified; update internal CMake target names and include paths.
-- [ ] Phase 3: README Unification — Split fat single-file READMEs (Multimedia, GraphicsHPC, Robotics, Host API) into the two-level index + sub-module doc structure.
+- [x] Phase 3: README Unification — Split fat single-file READMEs (Multimedia, GraphicsHPC, Robotics, Host API) into the two-level index + sub-module doc structure.
 - [x] Phase 4: CMake POST_BUILD Assets Symlink — Add `create_symlink` command to every module's `CMakeLists.txt`.
 - [ ] Phase 5: New Toolbox Entry — Add `global_work_offset` & Tiled Benchmark recipe under `05_Toolbox/`.
 - [~] Phase 6: Protocol Rename — Rename existing task and design files to the `T<id>_*.md` / `D<id>_*.md` format; update MEMORY.md references. CANCELLED - v1 files doesn't need update.

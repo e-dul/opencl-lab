@@ -1,4 +1,4 @@
-# 4.7 — SoftISP: Real-Time 4K Bayer Debayering
+# A.6 — SoftISP: Real-Time 4K Bayer Debayering
 
 **When to use**: you're reading raw frames from an industrial or embedded camera (no hardware ISP) and need to convert them to RGB fast enough for real-time processing.
 
@@ -9,11 +9,11 @@ See [main README](../../README.md) for base requirements (OpenCL 1.2+, CMake 3.1
 
 ## Build & Run
 ```bash
-cd 04_Addons/4_7_SoftISP
+cd SoftISP
 cmake -B build && cmake --build build
-./build/softISP_demo --input ../../../assets/raw_bayer_4k.raw \
+./build/softISP_demo --input assets/raw_bayer_4k.raw \
     --width 3840 --height 2160
-# GPU=NVIDIA ./build/softISP_demo --input ../../../assets/raw_bayer_4k.raw \
+# GPU=NVIDIA ./build/softISP_demo --input assets/raw_bayer_4k.raw \
 #     --width 3840 --height 2160
 ```
 
@@ -79,4 +79,4 @@ Profile V1 and V2 at 1280×720, 1920×1080, and 3840×2160 using `clGetEventProf
 
 ---
 
-[Back to Add-ons](../Addons.md)
+[Path A: Multimedia & AI](../Multimedia.md)
