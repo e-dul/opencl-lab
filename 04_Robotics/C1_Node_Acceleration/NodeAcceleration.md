@@ -93,6 +93,25 @@ void on_message(const std_msgs::msg::Float32MultiArray::SharedPtr msg) {
 
 At 200 Hz (5 ms budget), that one line consumes 40% of your entire latency budget per message.
 
+### Why Intra-Process?
+
+Both `AccelNode` and `SyntheticPublisher` are added to the same `SingleThreadedExecutor`
+with `use_intra_process_comms(true)`. When both nodes opt in, ROS 2 routes the
+`Float32MultiArray` as a `shared_ptr` directly to the subscriber callback — no DDS
+serialization, no copy. This makes the benchmark representative of a real pipeline: the
+measured dispatch time is pure kernel overhead, not transport overhead.
+
+If either node opts out, the full DDS serialization path activates silently. Both must
+opt in for the optimization to take effect.
+
+### The Passthrough Kernel
+
+The `passthrough` kernel copies `src` → `dst` element-by-element. It is intentionally
+non-trivial: an empty or no-op kernel body risks being elided by the driver optimizer,
+producing artificially low dispatch times that do not reflect real dispatch overhead.
+A minimal memory-bound copy forces the driver to actually schedule and dispatch a GPU
+workgroup, giving a reliable baseline for subsequent modules that add real compute.
+
 ## Mini-Challenge
 
 Run the node with `buffer_size:=524288`, `buffer_size:=1048576`, and `buffer_size:=4194304`. Record the per-callback dispatch times from `cl::Event` profiling for each size. At what buffer size does dispatch latency become non-trivial relative to the 0.5 ms gate? Tabulate your results.

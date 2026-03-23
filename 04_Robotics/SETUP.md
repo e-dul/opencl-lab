@@ -73,7 +73,7 @@ ros2 run demo_nodes_cpp listener
 
 ## Notes
 
-- **C1, C2, and C3** all require a sourced ROS 2 workspace before `cmake -B build`. C2 uses `rclcpp_lifecycle::LifecycleNode` and therefore depends on the ROS 2 packages found via `find_package(rclcpp_lifecycle REQUIRED)`.
+- **C1, C2, and C3** all require a sourced ROS 2 workspace before `cmake -B build`. C1 and C2 use `rclcpp_lifecycle::LifecycleNode` and therefore depend on `find_package(rclcpp_lifecycle REQUIRED)`.
 - RMW fallback is explicit and logged — never a silent failure or crash.
 
 ---
