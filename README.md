@@ -170,3 +170,4 @@ This repository is optimized for collaboration with AI assistants.
 - Work on setup with docker
 - Explore AMD specific SDK features
 - link kernels instead of copy?
+- Add scripts readme

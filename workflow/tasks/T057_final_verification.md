@@ -60,6 +60,23 @@ Verify that every structural guarantee of the D09 pivot is satisfied: all module
 
 ---
 
+### E — README.md Quick Start Verification
+
+**Problem:** The root `README.md` Quick Start section may reference outdated paths or commands that no longer match the v2.0 structure.
+
+**Decision:** Verify every command in the Quick Start section executes correctly against the current repo layout.
+
+**Action:**
+
+1. Read `README.md` Quick Start section.
+2. Verify each listed path/command is valid:
+   - Top-level `cmake -B build && cmake --build build -j$(nproc)` runs from repo root.
+   - `./build/00_Setup/01_Smoke_Test/smoke_test` binary path matches the actual build output path.
+   - Standalone example path (`01_Host_API/01_Visual_Kernel`) exists and builds.
+3. If any path or command is stale, update it in `README.md`.
+
+---
+
 ### D — MEMORY.md Progress Counter Update
 **Problem:** MEMORY.md still shows `Overall: 39/47 tasks → 82%` and module entries that predate the v2.0 restructure. `scripts/progress.sh` also contains hardcoded paths/module names from the old structure and must be updated before its output is meaningful.
 
@@ -92,8 +109,15 @@ Standard items from `00_master_specs.md §8` apply where relevant (standalone bu
 - [ ] MANUAL: Spot-check three sub-module docs (one from `02_Multimedia/`, one from `05_Toolbox/`, one from `06_Bonus/`) to confirm back-links render correctly and point to the right file.
 
 ### D — MEMORY.md
+
+- [ ] `scripts/progress.sh` paths/counts updated to match v2.0 structure.
 - [ ] `MEMORY.md` `## Progress Tracking` section matches the output of `bash scripts/progress.sh`.
 - [ ] Phase 7 checkboxes in `workflow/design/D09_cookbook_v2_pivot.md` are ticked for all criteria confirmed complete.
+
+### E — README.md Quick Start
+
+- [ ] All commands and paths in the Quick Start section are valid against the current repo layout.
+- [ ] MANUAL: Execute the Quick Start commands end-to-end on a clean build to confirm they succeed.
 
 ---
 
