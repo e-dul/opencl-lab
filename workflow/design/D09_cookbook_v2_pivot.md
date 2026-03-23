@@ -22,7 +22,7 @@ Reorganize the Applied OpenCL Lab repository from a linear, module-numbered layo
 - [x] Phase 4: CMake POST_BUILD Assets Symlink — Add `create_symlink` command to every module's `CMakeLists.txt`.
 - [x] Phase 5: New Toolbox Entry — Add `global_work_offset` & Tiled Benchmark recipe under `05_Toolbox/`.
 - [~] Phase 6: Protocol Rename — Rename existing task and design files to the `T<id>_*.md` / `D<id>_*.md` format; update MEMORY.md references. CANCELLED - v1 files doesn't need update.
-- [ ] Phase 7: Final Verification — Verify all modules build from their standalone directory; verify docs cross-links; update progress.sh script; update progress counters in MEMORY.md.
+- [x] Phase 7: Final Verification — Verify all modules build from their standalone directory; verify docs cross-links; update progress.sh script; update progress counters in MEMORY.md.
 
 ---
 
@@ -179,21 +179,22 @@ No depth-relative `../../../assets/` paths remain after Phase 4.
 - **Linux-only scope**: Any recipe relying on ROS 2, V4L2, or `/dev/video*` has no cross-platform mitigation in scope.
 - **`get_global_id()` absolute semantics with `global_work_offset`** (T056 finding): `get_global_id()` always returns the work-item index within the NDRange starting at 0, regardless of the offset set in `enqueueNDRangeKernel`. The offset only controls *which work-items are launched* (dispatch window). The kernel must add the offset manually (via `get_global_offset()` or host-passed `offset_x`/`offset_y` args) to compute the correct linear buffer address. This is a common misconception and is now documented in `GlobalWorkOffset.md`.
 - **ROI tile `local_work_size` alignment requirement** (T056 finding): When using `global_work_offset`, the `global_work_size` must still be a multiple of `local_work_size`. If the ROI tile dimensions are not multiples of the chosen local size, the host must round up `global_work_size` to the next multiple. The kernel guard (`if (gid < count)`) handles the surplus threads. Failure to round up results in `CL_INVALID_WORK_GROUP_SIZE` at runtime.
+- **`02_Multimedia/A3_2_OpenVINO_GPU` and `02_Multimedia/A4_Smart_Webcam` require OpenVINO SDK** (T057 finding): These two modules fail to build when the OpenVINO SDK is not installed. This is an expected optional dependency. No mitigation is in scope; confirmed via build sweep in T057.
 - **T053 spec count discrepancy**: Task DoD stated "16 files" but items A–D sum to 7+3+3+2=15. The changed-files table confirms 15 files were fixed. The "16" in the DoD checkbox text was a typo in the task spec; no file was missed.
 
 ---
 
 ## Verification Criteria (replaces Performance Gate for structural work)
 
-- [ ] Top-level directory names match the target layout exactly.
-- [ ] All content moves completed with no orphaned files in old locations.
-- [ ] `cmake -B build && cmake --build build` passes with zero errors and zero warnings for every module from its standalone directory.
-- [ ] No depth-relative `../../../assets/` paths remain in any README or doc file.
-- [ ] Every module's binary dir contains an `assets/` symlink after build.
-- [ ] All Module index docs are ≤60 lines; all sub-module docs include a back-link to the Module index.
+- [x] Top-level directory names match the target layout exactly.
+- [x] All content moves completed with no orphaned files in old locations.
+- [x] `cmake -B build && cmake --build build` passes with zero errors and zero warnings for every module from its standalone directory. (Exception: A3_2_OpenVINO_GPU and A4_Smart_Webcam require OpenVINO SDK — see Known Issues.)
+- [x] No depth-relative `../../../assets/` paths remain in any README or doc file.
+- [x] Every module's binary dir contains an `assets/` symlink after build.
+- [x] All Module index docs are ≤60 lines; all sub-module docs include a back-link to the Module index.
 - [x] `05_Toolbox/GlobalWorkOffset/` recipe builds and outputs a structured timing table.
-- [ ] `workflow/tasks/` contains no files using the old naming convention (without `T<id>_` prefix).
-- [ ] MEMORY.md progress counters updated to reflect v2.0 structure.
+- [~] `workflow/tasks/` contains no files using the old naming convention (without `T<id>_` prefix).
+- [x] MEMORY.md progress counters updated to reflect v2.0 structure.
 
 ---
 

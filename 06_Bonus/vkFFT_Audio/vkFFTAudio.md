@@ -9,10 +9,10 @@ See [main README](../../README.md) for base requirements (OpenCL 1.2+, CMake 3.1
 
 ## Build & Run
 ```bash
-cd 04_Addons/4_1_vkFFT_Audio
+cd 06_Bonus/vkFFT_Audio
 cmake -B build && cmake --build build
-./build/vkfft_audio --input ../../../assets/sample.wav
-# GPU=NVIDIA ./build/vkfft_audio --input ../../../assets/sample.wav
+./build/vkfft_audio --input assets/sample.wav
+# GPU=NVIDIA ./build/vkfft_audio --input assets/sample.wav
 ```
 
 ## Verify
@@ -56,4 +56,4 @@ Process a 10-second `.wav` file in real time using a sliding window. At what win
 
 ---
 
-[Back to Add-ons](../Addons.md)
+[Back to Bonus.md](../Bonus.md)

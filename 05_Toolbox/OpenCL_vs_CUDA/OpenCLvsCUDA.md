@@ -53,4 +53,4 @@ Read `code_comparison/vector_add.cu` and `vector_add.cl`. Identify three structu
 
 ---
 
-[Back to Add-ons](../Addons.md)
+[Back to Toolbox.md](../Toolbox.md)

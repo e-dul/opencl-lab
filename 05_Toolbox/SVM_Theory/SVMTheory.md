@@ -67,4 +67,4 @@ Run `svm_deep_dive` on a laptop (iGPU) and a desktop (discrete GPU). Record the 
 
 ---
 
-[Back to Add-ons](../Addons.md)
+[Back to Toolbox.md](../Toolbox.md)

@@ -189,3 +189,7 @@ Blur kernel (cl::Event): XX.XXX ms
 
 Intel iGPU only. On systems without an Intel GPU the binary prints a descriptive
 message and exits with code 0 — this is expected behaviour, not a crash.
+
+---
+
+[Back to Multimedia.md](../Multimedia.md)

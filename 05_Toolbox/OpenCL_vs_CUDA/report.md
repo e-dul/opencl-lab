@@ -179,4 +179,4 @@ Take `code_comparison/vector_add.cl` and `code_comparison/vector_add.cu`, which 
 
 ---
 
-[Back to Add-ons](../Addons.md)
+[Back to Toolbox.md](../Toolbox.md)

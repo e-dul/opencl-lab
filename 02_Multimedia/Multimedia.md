@@ -7,7 +7,7 @@ Process real video with a GPU pipeline that ships in production. You start with 
 - Base requirements: see [main README](../README.md) (OpenCL, CMake 3.18+).
 - OpenCV 4.5+: `sudo apt install libopencv-dev` — verify: `pkg-config --modversion opencv4`
 - A3_2 / A4 only: Intel iGPU required. See [A3_2 SETUP](A3_2_OpenVINO_GPU/SETUP.md).
-- Assets: `assets/face.png`, `assets/selfie_segmentation.onnx` — included in the repository. See [assets/assets.md](../assets/assets.md).
+- Assets: `assets/face.png`, `assets/selfie_segmentation.onnx` — included in the repository. See `assets/assets.md` at the repository root.
 
 ## Contents
 

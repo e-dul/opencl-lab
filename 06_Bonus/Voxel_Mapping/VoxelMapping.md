@@ -13,7 +13,7 @@ See [main README](../../README.md) for base requirements (OpenCL 1.2+, CMake 3.1
 
 ```bash
 source /opt/ros/jazzy/setup.bash
-cd 04_Addons/4_5_Voxel_Mapping
+cd 06_Bonus/Voxel_Mapping
 cmake -B build && cmake --build build
 ```
 
@@ -131,4 +131,4 @@ If a voxel flips between OCCUPIED and FREE more than N times per second, classif
 
 ---
 
-[Back to Add-ons](../Addons.md)
+[Back to Bonus.md](../Bonus.md)

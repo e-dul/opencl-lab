@@ -9,7 +9,7 @@ See [main README](../../README.md) for base requirements (OpenCL 1.2+, CMake 3.1
 
 ## Build & Run
 ```bash
-cd 04_Addons/4_3_Deployment
+cd 05_Toolbox/Deployment
 cmake -B build && cmake --build build
 ./build/deployment_demo     # tests runtime dependency resolution
 ```
@@ -87,4 +87,4 @@ RUN apt-get install -y pocl-opencl-icd ocl-icd-libopencl1
 
 ---
 
-[Back to Add-ons](../Addons.md)
+[Back to Toolbox.md](../Toolbox.md)
