@@ -6,7 +6,7 @@ allowed-tools: Read, Glob
 # Course Grading Skill
 
 ## Instructions
-0. **Big picture**: Read `workflow/design/00-executive-summary.md` to understand vision, philosophy and structure
+0. **Big picture**: Read `workflow/design/00-executive-summary.md` to understand vision, philosophy and structure. Then read `.claude/rules/00_master_specs.md` to understand design decisions and known limitations.
 1. **Analyze Content**: Read the module's `*README*.md` and scan the relevant `.cpp`, `.h`, `.cl`, and `CMakeLists.txt` files.
 2. When directory does't have dedicated `.md` check parent directory.
 3. **Apply Rubric**: Grade the module on a scale of 1 to 10 for each of the following criteria. 1 is terrible, 10 is perfect.
