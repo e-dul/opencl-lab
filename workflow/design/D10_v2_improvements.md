@@ -15,7 +15,7 @@ Eliminate naming inconsistencies, structural debt, and documentation gaps introd
 
 ## Roadmap / Status
 
-- [ ] Phase 1: Master Spec Updates — Consolidate all `00_master_specs.md` changes derived from this backlog before executing dependent phases.
+- [x] Phase 1: Master Spec Updates — Consolidate all `00_master_specs.md` changes derived from this backlog before executing dependent phases.
 - [ ] Phase 2: Unified CMake Target & Executable Names — Standardize all `add_executable` target names and `project()` strings across ~30 modules.
 - [ ] Phase 3: Unified Submodule Naming Convention — Rename ~36 submodule directories to two-digit numeric prefix + `Title_Snake_Case`.
 - [ ] Phase 4: Kernel Symlink (replace copy) — Replace `cmake -E copy_directory` POST_BUILD with `cmake -E create_symlink` across ~40 CMakeLists.txt files.
