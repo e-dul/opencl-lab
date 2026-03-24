@@ -54,7 +54,7 @@ The winning strategy depends on the physical memory topology:
 
 This is why the winner changes with `GPU=NVIDIA` vs `GPU=INTEL` — you are literally changing the memory topology.
 
-For the hardware model behind these flags see [Toolbox: Zero-Copy](../../05_Toolbox/ZeroCopy/ZeroCopy.md).
+For the hardware model behind these flags see [Toolbox: Zero-Copy](../../05_Toolbox/15_Zero_Copy/ZeroCopy.md).
 
 ## Mini-Challenge
 

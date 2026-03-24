@@ -174,12 +174,12 @@ No depth-relative `../../../assets/` paths remain after Phase 4.
 ## Known Issues / Risks
 
 - **CMake `CMAKE_SOURCE_DIR` in standalone builds** (RESOLVED — Phase 4): `CMAKE_CURRENT_SOURCE_DIR`/../../assets` is used as the absolute symlink target in `symlink_assets()`. No `-DASSETS_DIR` flag is required.
-- **`04_Robotics/C1_Node_Acceleration` requires `ROS_DISTRO`**: This module skips configure/build when `ROS_DISTRO` is not set in the environment. Pre-existing condition; unrelated to the assets symlink work. No mitigation in scope.
+- **`04_Robotics/01_Node_Acceleration` requires `ROS_DISTRO`**: This module skips configure/build when `ROS_DISTRO` is not set in the environment. Pre-existing condition; unrelated to the assets symlink work. No mitigation in scope.
 - **Duplication as a side effect**: Independent runnable recipes may duplicate context-init boilerplate. This is accepted per the Non-goals and Duplication Policy above.
 - **Linux-only scope**: Any recipe relying on ROS 2, V4L2, or `/dev/video*` has no cross-platform mitigation in scope.
 - **`get_global_id()` absolute semantics with `global_work_offset`** (T056 finding): `get_global_id()` always returns the work-item index within the NDRange starting at 0, regardless of the offset set in `enqueueNDRangeKernel`. The offset only controls *which work-items are launched* (dispatch window). The kernel must add the offset manually (via `get_global_offset()` or host-passed `offset_x`/`offset_y` args) to compute the correct linear buffer address. This is a common misconception and is now documented in `GlobalWorkOffset.md`.
 - **ROI tile `local_work_size` alignment requirement** (T056 finding): When using `global_work_offset`, the `global_work_size` must still be a multiple of `local_work_size`. If the ROI tile dimensions are not multiples of the chosen local size, the host must round up `global_work_size` to the next multiple. The kernel guard (`if (gid < count)`) handles the surplus threads. Failure to round up results in `CL_INVALID_WORK_GROUP_SIZE` at runtime.
-- **`02_Multimedia/A3_2_OpenVINO_GPU` and `02_Multimedia/A4_Smart_Webcam` require OpenVINO SDK** (T057 finding): These two modules fail to build when the OpenVINO SDK is not installed. This is an expected optional dependency. No mitigation is in scope; confirmed via build sweep in T057.
+- **`02_Multimedia/05_OpenVINO_GPU` and `02_Multimedia/06_Smart_Webcam` require OpenVINO SDK** (T057 finding): These two modules fail to build when the OpenVINO SDK is not installed. This is an expected optional dependency. No mitigation is in scope; confirmed via build sweep in T057.
 - **T053 spec count discrepancy**: Task DoD stated "16 files" but items A–D sum to 7+3+3+2=15. The changed-files table confirms 15 files were fixed. The "16" in the DoD checkbox text was a typo in the task spec; no file was missed.
 
 ---
@@ -188,7 +188,7 @@ No depth-relative `../../../assets/` paths remain after Phase 4.
 
 - [x] Top-level directory names match the target layout exactly.
 - [x] All content moves completed with no orphaned files in old locations.
-- [x] `cmake -B build && cmake --build build` passes with zero errors and zero warnings for every module from its standalone directory. (Exception: A3_2_OpenVINO_GPU and A4_Smart_Webcam require OpenVINO SDK — see Known Issues.)
+- [x] `cmake -B build && cmake --build build` passes with zero errors and zero warnings for every module from its standalone directory. (Exception: 05_OpenVINO_GPU and 06_Smart_Webcam require OpenVINO SDK — see Known Issues.)
 - [x] No depth-relative `../../../assets/` paths remain in any README or doc file.
 - [x] Every module's binary dir contains an `assets/` symlink after build.
 - [x] All Module index docs are ≤60 lines; all sub-module docs include a back-link to the Module index.

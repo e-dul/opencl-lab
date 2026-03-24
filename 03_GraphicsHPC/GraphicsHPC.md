@@ -5,8 +5,8 @@ Build a ray tracer from scratch and make it fast enough to render complex triang
 ## Prerequisites
 
 - Base requirements: see [main README](../README.md) (OpenCL, CMake 3.18+).
-- OpenGL + GLFW (live window in B2/B3): `sudo apt install libglfw3-dev libgl-dev` — optional; headless `--output render.bmp` works without it.
-- tinyobjloader (B3/B3 Dynamic): fetched automatically by CMake at configure time. Offline: `-DCMAKE_PREFIX_PATH=/path/to/install`.
+- OpenGL + GLFW (live window in 01/02): `sudo apt install libglfw3-dev libgl-dev` — optional; headless `--output render.bmp` works without it.
+- tinyobjloader (02/03 Dynamic): fetched automatically by CMake at configure time. Offline: `-DCMAKE_PREFIX_PATH=/path/to/install`.
 - Assets: `assets/bunny.obj` (Stanford Bunny, ~70k triangles), `assets/cornell_box.obj`.
 - CLBlast and Device Enqueue have moved to [06_Bonus/](../06_Bonus/Bonus.md).
 
@@ -14,17 +14,17 @@ Build a ray tracer from scratch and make it fast enough to render complex triang
 
 | Sub-module | Goal | Doc |
 | :--------- | :--- | :-- |
-| B2 — Ray Tracer Basic | Minimal ray tracer + OpenGL interop (no CPU copies) | [RayTracerBasic.md](B2_Ray_Tracer_Basic/RayTracerBasic.md) |
-| B3 — Ray Tracer BVH | Flagship: stackless BVH for 100k-triangle scenes at 60 FPS | [RayTracerBVH.md](B3_Ray_Tracer_BVH/RayTracerBVH.md) |
-| B3 Dynamic | BVH rebuild vs refit vs static on a moving scene | [RayTracerBVHDynamic.md](B3_Ray_Tracer_BVH_Dynamic/RayTracerBVHDynamic.md) |
+| 01 — Ray Tracer Basic | Minimal ray tracer + OpenGL interop (no CPU copies) | [RayTracerBasic.md](01_Ray_Tracer_Basic/RayTracerBasic.md) |
+| 02 — Ray Tracer BVH | Flagship: stackless BVH for 100k-triangle scenes at 60 FPS | [RayTracerBVH.md](02_Ray_Tracer_BVH/RayTracerBVH.md) |
+| 03 — Ray Tracer BVH Dynamic | BVH rebuild vs refit vs static on a moving scene | [RayTracerBVHDynamic.md](03_Ray_Tracer_BVH_Dynamic/RayTracerBVHDynamic.md) |
 
 ## Performance Gates
 
 | Sub-module | Metric | Target |
 | :--------- | :----- | :----- |
-| B3 Ray Tracer BVH | Render time (`cl::Event`) | ≥ 60 FPS @ bunny.obj (~70k triangles), 1920×1080 |
-| B3 Dynamic — refit | BVH build time | Measurably less than rebuild (~1 ms vs ~16 ms) |
-| B3 Dynamic | `--max-depth 1` render time | Measurably higher than `--max-depth 0` (~85 ms vs ~0.6 ms) |
+| 02 Ray Tracer BVH | Render time (`cl::Event`) | ≥ 60 FPS @ bunny.obj (~70k triangles), 1920×1080 |
+| 03 Dynamic — refit | BVH build time | Measurably less than rebuild (~1 ms vs ~16 ms) |
+| 03 Dynamic | `--max-depth 1` render time | Measurably higher than `--max-depth 0` (~85 ms vs ~0.6 ms) |
 
 **Measure with `cl::Event` profiling.** Requires `CL_QUEUE_PROFILING_ENABLE` at queue creation — without it, timestamps return zero.
 

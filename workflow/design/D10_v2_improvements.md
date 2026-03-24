@@ -17,7 +17,7 @@ Eliminate naming inconsistencies, structural debt, and documentation gaps introd
 
 - [x] Phase 1: Master Spec Updates — Consolidate all `00_master_specs.md` changes derived from this backlog before executing dependent phases.
 - [x] Phase 2: Unified CMake Target & Executable Names — Standardize all `add_executable` target names and `project()` strings across ~30 modules.
-- [ ] Phase 3: Unified Submodule Naming Convention — Rename ~36 submodule directories to two-digit numeric prefix + `Title_Snake_Case`.
+- [x] Phase 3: Unified Submodule Naming Convention — Rename ~36 submodule directories to two-digit numeric prefix + `Title_Snake_Case`.
 - [ ] Phase 4: Kernel Symlink (replace copy) — Replace `cmake -E copy_directory` POST_BUILD with `cmake -E create_symlink` across ~40 CMakeLists.txt files.
 - [ ] Phase 5: Add Missing Bonus READMEs — Author student-facing READMEs for `06_Bonus/CLBlast_MatMul/` and `06_Bonus/Device_Enqueue/`.
 - [ ] Phase 6: Mark submodules with HW/OpenCL version dependencies — Add dependency callouts to submodule READMEs and inline tags to index READMEs.
@@ -95,6 +95,7 @@ Phases in this backlog must not break the Standard Definition of Done (§8) for 
 - **Phase 4 symlink portability:** `cmake -E create_symlink` requires the build directory to be on the same filesystem as the source. Cross-filesystem or container builds may fail. Task must document this constraint.
 - **Phase 5 reference material on `main` branch:** Archived tasks `028_graphics_b1_clblast_matmul.md` and `033_graphics_b4_device_enqueue.md` exist only on `main`; the coder must check out or `git show` those files.
 - **Phase 7 C1/C2 no action needed:** C1 and C2 have no hand-rolled parser — only C3 requires a code change.
+- **Stale CMakeLists.txt comments (post-Phase 3):** After the T060 rename sweep, `CMakeLists.txt` files inside `02_Multimedia/01_OpenCV_Interop`, `02_Multimedia/03_YUYV_Extension`, and `02_Multimedia/07_Privacy_Mode` may still reference old directory names in comments. Out of scope for Phase 3 (no `.cpp`/`CMakeLists.txt` modifications permitted). Candidate cleanup for Phase 4 or a dedicated comment-scrub task.
 
 ## Performance Gate
 

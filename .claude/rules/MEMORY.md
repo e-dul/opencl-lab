@@ -13,11 +13,11 @@
 v2.0 Directory Layout (all modules implemented and buildable):
 - [x] Module 0: Setup (`00_Setup/`) — 1 sub-module
 - [x] Module 1: Host API (`01_Host_API/`) — 3 sub-modules
-- [x] Module 2: Multimedia & AI (`02_Multimedia/`) — 9 sub-modules
-- [x] Module 3: Graphics & HPC (`03_GraphicsHPC/`) — 3 sub-modules
-- [x] Module 4: Robotics & ROS 2 (`04_Robotics/`) — 3 sub-modules
-- [x] Module 5: Toolbox (`05_Toolbox/`) — 17 sub-modules
-- [x] Module 6: Bonus (`06_Bonus/`) — 4 sub-modules
+- [x] Module 2: Multimedia & AI (`02_Multimedia/`) — 9 sub-modules (`01_OpenCV_Interop` … `09_SoftISP`)
+- [x] Module 3: Graphics & HPC (`03_GraphicsHPC/`) — 3 sub-modules (`01_Ray_Tracer_Basic` … `03_Ray_Tracer_BVH_Dynamic`)
+- [x] Module 4: Robotics & ROS 2 (`04_Robotics/`) — 3 sub-modules (`01_Node_Acceleration` … `03_Perception_Node`)
+- [x] Module 5: Toolbox (`05_Toolbox/`) — 17 sub-modules (`01_Local_Memory` … `16_Async_Multi_Thread`)
+- [x] Module 6: Bonus (`06_Bonus/`) — 4 sub-modules (`01_CLBlast_MatMul` … `04_Voxel_Mapping`)
 
 D09 Cookbook v2.0 Pivot phases (tracked by `scripts/progress.sh`):
 - [x] Phase 1: Folder Restructuring
@@ -62,8 +62,8 @@ D09 Cookbook v2.0 Pivot phases (tracked by `scripts/progress.sh`):
 
 
 ## Known Issues
-- **A3_2_OpenVINO_GPU** (): CMake configure fails — OpenVINO SDK not installed on this machine. Expected optional dependency.
-- **A4_Smart_Webcam** (): CMake configure fails — OpenVINO SDK not installed. Expected optional dependency.
+- **02_Multimedia/05_OpenVINO_GPU** (): CMake configure fails — OpenVINO SDK not installed on this machine. Expected optional dependency.
+- **02_Multimedia/06_Smart_Webcam** (): CMake configure fails — OpenVINO SDK not installed. Expected optional dependency.
 - T057:  hyperlink in  retained — it is a correct relative markdown link to the assets README, not a runtime path.
 
 ## Discipline
@@ -84,8 +84,13 @@ D09 Cookbook v2.0 Pivot phases (tracked by `scripts/progress.sh`):
 - No source files (.cpp, .cl, CMakeLists.txt) were modified.
 
 ### 2026-03-23 — Final Verification Session (Task T057)
-- Ran standalone build sweep across all 40+ modules; confirmed all pass except A3_2_OpenVINO_GPU and A4_Smart_Webcam (OpenVINO SDK not installed — expected).
-- Fixed depth-relative asset path in `06_Bonus/vkFFT_Audio/vkFFTAudio.md` (was three levels deep, now `assets/sample.wav`).
+- Ran standalone build sweep across all 40+ modules; confirmed all pass except 05_OpenVINO_GPU and 06_Smart_Webcam (OpenVINO SDK not installed — expected).
+- Fixed depth-relative asset path in `06_Bonus/03_VkFFT_Audio/vkFFTAudio.md` (was three levels deep, now `assets/sample.wav`).
 - Fixed stale `cd` path and back-link target in `vkFFTAudio.md` (now points to `../Bonus.md`).
 - Added back-link to `00_Setup/01_Smoke_Test/SmokeTest.md`.
 - Updated MEMORY.md progress counters to match v2.0 structure and `scripts/progress.sh` output.
+
+### 2026-03-24 — Submodule Directory Rename Session (Task T060)
+- Renamed all 36 submodule directories across 02_Multimedia through 06_Bonus to `NN_Title_Snake_Case` convention.
+- Updated all 5 module index READMEs and all affected submodule READMEs (cd commands, cross-links).
+- Updated MEMORY.md Known Issues to use new canonical paths.

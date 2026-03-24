@@ -7,7 +7,7 @@ A library of isolated GPU optimization techniques. Do not read this front-to-bac
 - See [main README](../README.md) for base requirements (OpenCL 1.2+, CMake 3.18+).
 - Debugging tool: `sudo apt install oclgrind` (optional at build time; required at runtime).
 - SVM tool: OpenCL 2.0+ device (AMD APU, Intel iGPU, ARM Mali) — falls back gracefully on 1.2.
-- MultiGPU_Strategy: two OpenCL-capable GPUs on the same system — optional; single-GPU baseline always runs.
+- 08_Multi_GPU_Strategy: two OpenCL-capable GPUs on the same system — optional; single-GPU baseline always runs.
 
 ## How to Use This Toolbox
 
@@ -23,19 +23,19 @@ Each tool is a standalone project with a measurable before/after. The workflow:
 
 | Tool | Symptom | Folder |
 |:-----|:--------|:-------|
-| [Zero-Copy](ZeroCopy/ZeroCopy.md) | Upload time dominates frame budget | `ZeroCopy/` |
-| [Coalesced Access](CoalescedAccess/CoalescedAccess.md) | Kernel slow despite simple logic | `CoalescedAccess/` |
-| [SVM](SVM/SVM.md) | Repeated map/unmap overhead on UMA | `SVM/` |
-| [Work-Group Sizing](WorkGroupSizing/WorkGroupSizing.md) | GPU underutilized, low occupancy | `WorkGroupSizing/` |
-| [Thread Divergence](ThreadDivergence/ThreadDivergence.md) | Kernel slower than expected with conditionals | `ThreadDivergence/` |
-| [Local Memory](LocalMemory/LocalMemory.md) | Kernel re-reads same global data repeatedly | `LocalMemory/` |
-| [Debugging](Debugging/Debugging.md) | Crash / wrong output / silent slowdown | `Debugging/` |
-| [Kernel Templates](GenericKernelTemplates/GenericKernelTemplates.md) | Duplicate `.cl` files for each data type | `GenericKernelTemplates/` |
-| [Async Pipelines](AsyncMultiThread/AsyncMultiThread.md) | CPU blocks on GPU between stages | `AsyncMultiThread/` |
-| [Multi-GPU](MultiGPU_Strategy/MultiGPUStrategy.md) | Single GPU throughput ceiling reached | `MultiGPU_Strategy/` |
-| [Fast Math](FastMath/FastMath.md) | `sqrt`/`rsqrt`/`sin` calls dominating compute-bound kernel | `FastMath/` |
-| [Sync & Atomics](SyncAtomics/SyncAtomics.md) | Incorrect results with concurrent writes (histograms, counters, reductions) | `SyncAtomics/` |
-| [Global Work Offset](GlobalWorkOffset/GlobalWorkOffset.md) | Full-frame dispatch wastes threads when only a small ROI needs work | `GlobalWorkOffset/` |
+| [Zero-Copy](15_Zero_Copy/ZeroCopy.md) | Upload time dominates frame budget | `15_Zero_Copy/` |
+| [Coalesced Access](02_Coalesced_Access/CoalescedAccess.md) | Kernel slow despite simple logic | `02_Coalesced_Access/` |
+| [SVM](10_SVM/SVM.md) | Repeated map/unmap overhead on UMA | `10_SVM/` |
+| [Work-Group Sizing](14_Work_Group_Sizing/WorkGroupSizing.md) | GPU underutilized, low occupancy | `14_Work_Group_Sizing/` |
+| [Thread Divergence](13_Thread_Divergence/ThreadDivergence.md) | Kernel slower than expected with conditionals | `13_Thread_Divergence/` |
+| [Local Memory](01_Local_Memory/LocalMemory.md) | Kernel re-reads same global data repeatedly | `01_Local_Memory/` |
+| [Debugging](03_Debugging/Debugging.md) | Crash / wrong output / silent slowdown | `03_Debugging/` |
+| [Kernel Templates](06_Generic_Kernel_Templates/GenericKernelTemplates.md) | Duplicate `.cl` files for each data type | `06_Generic_Kernel_Templates/` |
+| [Async Pipelines](16_Async_Multi_Thread/AsyncMultiThread.md) | CPU blocks on GPU between stages | `16_Async_Multi_Thread/` |
+| [Multi-GPU](08_Multi_GPU_Strategy/MultiGPUStrategy.md) | Single GPU throughput ceiling reached | `08_Multi_GPU_Strategy/` |
+| [Fast Math](05_Fast_Math/FastMath.md) | `sqrt`/`rsqrt`/`sin` calls dominating compute-bound kernel | `05_Fast_Math/` |
+| [Sync & Atomics](12_Sync_Atomics/SyncAtomics.md) | Incorrect results with concurrent writes (histograms, counters, reductions) | `12_Sync_Atomics/` |
+| [Global Work Offset](07_Global_Work_Offset/GlobalWorkOffset.md) | Full-frame dispatch wastes threads when only a small ROI needs work | `07_Global_Work_Offset/` |
 
 ## What's Next
 
