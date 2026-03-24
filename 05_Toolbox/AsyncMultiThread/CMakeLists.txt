@@ -11,7 +11,7 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/../../common/common.cmake)
 # std::thread support
 find_package(Threads REQUIRED)
 
-add_executable(async_demo
+add_executable(async_multi_thread
     main_dispatch.cpp
     01_BasicSync/main.cpp
     02_AsyncSingle/main.cpp
@@ -19,16 +19,16 @@ add_executable(async_demo
 )
 
 # Wires OpenCL::OpenCL, common headers (common/ + vendor/), CLI11::CLI11
-opencl_lab_target(async_demo)
+opencl_lab_target(async_multi_thread)
 
-target_link_libraries(async_demo PRIVATE Threads::Threads)
+target_link_libraries(async_multi_thread PRIVATE Threads::Threads)
 
 # Copies kernels/ next to the binary after build
-copy_kernels(async_demo)
-symlink_assets(async_demo)
+copy_kernels(async_multi_thread)
+symlink_assets(async_multi_thread)
 
 # Expose common/ and vendor/ for all translation units in this target
-target_include_directories(async_demo PRIVATE
+target_include_directories(async_multi_thread PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../../common
     ${CMAKE_CURRENT_SOURCE_DIR}/../../vendor
 )

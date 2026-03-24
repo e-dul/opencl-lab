@@ -18,29 +18,29 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(CLI11)
 
-add_executable(svm_demo main.cpp)
+add_executable(svm main.cpp)
 
-target_compile_options(svm_demo PRIVATE -Wall -Wextra)
+target_compile_options(svm PRIVATE -Wall -Wextra)
 
-target_link_libraries(svm_demo PRIVATE OpenCL::OpenCL CLI11::CLI11)
+target_link_libraries(svm PRIVATE OpenCL::OpenCL CLI11::CLI11)
 
 # vendor/ holds cl.hpp / opencl.hpp if the system does not provide them.
-target_include_directories(svm_demo PRIVATE
+target_include_directories(svm PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../../vendor
 )
 
 # Copy kernels/ next to the binary post-build so the executable can load them
 # via a relative path regardless of the working directory at runtime.
-add_custom_command(TARGET svm_demo POST_BUILD
+add_custom_command(TARGET svm POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
             ${CMAKE_CURRENT_SOURCE_DIR}/kernels
-            $<TARGET_FILE_DIR:svm_demo>/kernels
-    COMMENT "Copying kernels for svm_demo"
+            $<TARGET_FILE_DIR:svm>/kernels
+    COMMENT "Copying kernels for svm"
 )
 # POST_BUILD: symlink repo-root assets/ into binary dir so --input paths work.
-add_custom_command(TARGET svm_demo POST_BUILD
+add_custom_command(TARGET svm POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E create_symlink
             "${CMAKE_CURRENT_SOURCE_DIR}/../../assets"
-            "$<TARGET_FILE_DIR:svm_demo>/assets"
-    COMMENT "Symlinking assets for svm_demo"
+            "$<TARGET_FILE_DIR:svm>/assets"
+    COMMENT "Symlinking assets for svm"
 )

@@ -17,7 +17,7 @@ source /opt/intel/openvino/setupvars.sh   # once per shell session
 cd A3_2_OpenVINO_GPU
 cmake -B build
 cmake --build build
-./build/openvino_gpu_demo --input assets/face.png --model assets/selfie_segmentation.onnx
+./build/openvino_gpu --input assets/face.png --model assets/selfie_segmentation.onnx
 ```
 
 ## Verify

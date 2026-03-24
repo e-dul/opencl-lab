@@ -21,10 +21,10 @@ Run all commands from `99_Toolbox/AsyncMultiThread/`.
 ```bash
 cd 99_Toolbox/AsyncMultiThread
 cmake -B build && cmake --build build
-./build/async_demo --mode basic_sync    # baseline
-./build/async_demo --mode async_single  # dual-queue pipeline
-./build/async_demo --mode multi_thread  # per-thread queues
-./build/async_demo --mode all           # all three + speedup ratios
+./build/async_multi_thread --mode basic_sync    # baseline
+./build/async_multi_thread --mode async_single  # dual-queue pipeline
+./build/async_multi_thread --mode multi_thread  # per-thread queues
+./build/async_multi_thread --mode all           # all three + speedup ratios
 ```
 
 `--iters N` (default: 8192) scales FMA compute load per work item. Increase it to make the kernel dominate; decrease it (`--iters 256`) to make transfer dominate.
@@ -78,7 +78,7 @@ compute_queue.flush();  // submit both without waiting — CPU is free
 
 ## Mini-Challenge
 
-Modify `async_demo` to pipeline three frames: while frame N is on the kernel, upload frame N+1 and download frame N-1 simultaneously. Measure the per-frame throughput improvement vs `basic_sync`.
+Modify `async_multi_thread` to pipeline three frames: while frame N is on the kernel, upload frame N+1 and download frame N-1 simultaneously. Measure the per-frame throughput improvement vs `basic_sync`.
 
 ## Troubleshooting
 

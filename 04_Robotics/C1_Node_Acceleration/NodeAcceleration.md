@@ -14,10 +14,10 @@ cd C1_Node_Acceleration
 source /opt/ros/jazzy/setup.bash
 cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build
-./build/accel_node
-# GPU selection: GPU=NVIDIA ./build/accel_node
+./build/node_acceleration
+# GPU selection: GPU=NVIDIA ./build/node_acceleration
 # Override parameters at launch:
-# ./build/accel_node --ros-args -p iterations:=20 -p buffer_size:=2097152
+# ./build/node_acceleration --ros-args -p iterations:=20 -p buffer_size:=2097152
 ```
 
 Parameters (set via `declare_parameter`, overridable at launch):
@@ -54,7 +54,7 @@ Context init appears once. Dispatch times are flat across all callbacks. The nod
 ```cpp
 class AccelNode : public rclcpp_lifecycle::LifecycleNode {
 public:
-    AccelNode() : LifecycleNode("accel_node") {
+    AccelNode() : LifecycleNode("node_acceleration") {
         declare_parameter("iterations", 10);
         declare_parameter("buffer_size", 1048576);
     }
@@ -119,7 +119,7 @@ Run the node with `buffer_size:=524288`, `buffer_size:=1048576`, and `buffer_siz
 ## Troubleshooting
 
 - **`source /opt/ros/jazzy/setup.bash` must run before CMake**: without it, `find_package(rclcpp REQUIRED)` fails.
-- **Wrong GPU**: `GPU=NVIDIA ./build/accel_node`, `GPU=AMD ./build/accel_node`.
+- **Wrong GPU**: `GPU=NVIDIA ./build/node_acceleration`, `GPU=AMD ./build/node_acceleration`.
 
 ---
 

@@ -14,9 +14,9 @@ cd C2_Costmap_Inflation
 source /opt/ros/jazzy/setup.bash
 cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build
-./build/costmap_node --ros-args -p map_path:=assets/warehouse.pgm
+./build/costmap_inflation --ros-args -p map_path:=assets/warehouse.pgm
 # Full parameter override:
-# GPU=NVIDIA ./build/costmap_node --ros-args \
+# GPU=NVIDIA ./build/costmap_inflation --ros-args \
 #     -p map_path:=assets/warehouse.pgm \
 #     -p inflation_radius:=0.5 \
 #     -p resolution:=0.05 \
@@ -91,7 +91,7 @@ Write a second kernel that loads a tile of the obstacle map into `__local` memor
 ## Troubleshooting
 
 - **`source /opt/ros/jazzy/setup.bash` must run before CMake**: without it, `find_package(rclcpp REQUIRED)` fails.
-- **Wrong GPU**: `GPU=NVIDIA ./build/costmap_node`, `GPU=AMD ./build/costmap_node`.
+- **Wrong GPU**: `GPU=NVIDIA ./build/costmap_inflation`, `GPU=AMD ./build/costmap_inflation`.
 
 ---
 

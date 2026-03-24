@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.18)
-project(c1_node_acceleration)
+project(NodeAcceleration)
 
 # ── C++17, strict mode (no GNU extensions) ───────────────────────────────────
 set(CMAKE_CXX_STANDARD 17)
@@ -22,19 +22,19 @@ find_package(std_msgs REQUIRED)
 find_package(lifecycle_msgs REQUIRED)
 
 # ── Binary ───────────────────────────────────────────────────────────────────
-# WHY renamed to accel_node: matches the binary name in the design doc and DoD.
+# WHY renamed to node_acceleration: matches the naming convention (no abbreviated prefix).
 # synthetic_publisher.cpp is compiled as a separate TU (design spec §Directory).
-add_executable(accel_node main.cpp synthetic_publisher.cpp)
+add_executable(node_acceleration main.cpp synthetic_publisher.cpp)
 
 # ── Include directories ───────────────────────────────────────────────────────
-target_include_directories(accel_node PRIVATE
+target_include_directories(node_acceleration PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../../common
     ${CMAKE_CURRENT_SOURCE_DIR}/../../vendor
     ${CMAKE_CURRENT_SOURCE_DIR}   # synthetic_publisher.hpp lives here
 )
 
 # ── ament+OpenCL+CLI11 linking ────────────────────────────────────────────────
-opencl_lab_ros2_target(accel_node rclcpp rclcpp_lifecycle std_msgs lifecycle_msgs)
+opencl_lab_ros2_target(node_acceleration rclcpp rclcpp_lifecycle std_msgs lifecycle_msgs)
 
-copy_kernels(accel_node)
-symlink_assets(accel_node)
+copy_kernels(node_acceleration)
+symlink_assets(node_acceleration)

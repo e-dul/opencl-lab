@@ -16,8 +16,8 @@ cd 99_Toolbox/Debugging
 cmake -B build && cmake --build build
 
 # Run kernel under Oclgrind (memory safety checker)
-oclgrind ./build/debug_demo --test out_of_bounds
-oclgrind --data-races --uniform-writes ./build/debug_demo --test race_condition
+oclgrind ./build/debugging --test out_of_bounds
+oclgrind --data-races --uniform-writes ./build/debugging --test race_condition
 ```
 
 ## Verify
@@ -81,7 +81,7 @@ Look for:
 
 ## Mini-Challenge
 
-Add a deliberate off-by-one error to `debug_demo` (read `input[id + 1]` without bounds check). Run under Oclgrind and confirm it reports the exact work-item and address. Then fix the bug and confirm the report is clean.
+Add a deliberate off-by-one error to `debugging` (read `input[id + 1]` without bounds check). Run under Oclgrind and confirm it reports the exact work-item and address. Then fix the bug and confirm the report is clean.
 
 ## Troubleshooting
 

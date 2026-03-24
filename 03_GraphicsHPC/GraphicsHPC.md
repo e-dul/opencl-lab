@@ -33,7 +33,7 @@ Build a ray tracer from scratch and make it fast enough to render complex triang
 - **OpenGL interop on Optimus/hybrid GPU**: force GLFW onto NVIDIA GPU with PRIME render offload:
 
   ```bash
-  __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia GPU=NVIDIA ./build/b2_ray_tracer --live
+  __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia GPU=NVIDIA ./build/ray_tracer --live
   ```
 
 - **BVH renders black patches**: miss-link pointers are wrong — verify parent-child-sibling linkage.

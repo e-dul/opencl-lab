@@ -13,12 +13,12 @@
 cd B2_Ray_Tracer_Basic
 cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build
-./build/b2_ray_tracer --width 1280 --height 720
+./build/ray_tracer --width 1280 --height 720
 # Live window (requires libglfw3-dev):
-./build/b2_ray_tracer --live
+./build/ray_tracer --live
 # Headless (no display):
-./build/b2_ray_tracer --output render.bmp
-# GPU=NVIDIA ./build/b2_ray_tracer --width 1920 --height 1080
+./build/ray_tracer --output render.bmp
+# GPU=NVIDIA ./build/ray_tracer --width 1920 --height 1080
 ```
 
 ## Verify
@@ -60,7 +60,7 @@ Add a second light source in the kernel. Profile with `cl::Event` before and aft
 - **`cl_khr_gl_sharing` not listed**: run `clinfo | grep gl_sharing`. Not available on all CPU-fallback runtimes (PoCL).
 - **Optimus/hybrid GPU — interop init fails**: GLFW creates a GL context on the iGPU; the NVIDIA OpenCL driver can only share with a GL context it owns. Force the NVIDIA GPU:
   ```bash
-  __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia GPU=NVIDIA ./build/b2_ray_tracer --live
+  __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia GPU=NVIDIA ./build/ray_tracer --live
   ```
 
 ---

@@ -11,9 +11,9 @@ See [main README](../../README.md) for base requirements (OpenCL 1.2+, CMake 3.1
 ```bash
 cd SoftISP
 cmake -B build && cmake --build build
-./build/softISP_demo --input assets/raw_bayer_4k.raw \
+./build/soft_isp --input assets/raw_bayer_4k.raw \
     --width 3840 --height 2160
-# GPU=NVIDIA ./build/softISP_demo --input assets/raw_bayer_4k.raw \
+# GPU=NVIDIA ./build/soft_isp --input assets/raw_bayer_4k.raw \
 #     --width 3840 --height 2160
 ```
 

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.18)
-project(B3_Ray_Tracer_BVH_Dynamic CXX)
+project(RayTracerBVHDynamic CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -12,15 +12,15 @@ add_definitions(-DCL_HPP_ENABLE_EXCEPTIONS -DCL_HPP_TARGET_OPENCL_VERSION=120)
 # common.cmake provides OpenCL, CLI11, stb, and opencl_lab_target() / copy_kernels().
 include(${CMAKE_CURRENT_SOURCE_DIR}/../../common/common.cmake)
 
-add_executable(b3_ray_tracer_dynamic main.cpp)
+add_executable(ray_tracer_bvh_dynamic main.cpp)
 
-opencl_lab_target(b3_ray_tracer_dynamic)
+opencl_lab_target(ray_tracer_bvh_dynamic)
 
 # ── tinyobjloader ─────────────────────────────────────────────────────────────
-opencl_lab_fetch_tinyobjloader(b3_ray_tracer_dynamic)
+opencl_lab_fetch_tinyobjloader(ray_tracer_bvh_dynamic)
 
 # Headless-only: no GL interop needed for benchmark mode
-target_compile_definitions(b3_ray_tracer_dynamic PRIVATE NO_GL_INTEROP)
+target_compile_definitions(ray_tracer_bvh_dynamic PRIVATE NO_GL_INTEROP)
 
-copy_kernels(b3_ray_tracer_dynamic)
-symlink_assets(b3_ray_tracer_dynamic)
+copy_kernels(ray_tracer_bvh_dynamic)
+symlink_assets(ray_tracer_bvh_dynamic)

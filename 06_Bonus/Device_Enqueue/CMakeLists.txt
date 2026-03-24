@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.18)
-project(b4_device_enqueue CXX)
+project(DeviceEnqueue CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -25,15 +25,15 @@ endif()
 # Module is 2 levels deep: 06_Bonus/Device_Enqueue/
 include(${CMAKE_CURRENT_SOURCE_DIR}/../../common/common.cmake)
 
-add_executable(b4_device_enqueue main.cpp)
+add_executable(device_enqueue main.cpp)
 
-opencl_lab_target(b4_device_enqueue)
+opencl_lab_target(device_enqueue)
 
 # ── tinyobjloader ─────────────────────────────────────────────────────────────
-opencl_lab_fetch_tinyobjloader(b4_device_enqueue)
+opencl_lab_fetch_tinyobjloader(device_enqueue)
 
 # ── Optional GL interop ───────────────────────────────────────────────────────
-opencl_lab_optional_gl_interop(b4_device_enqueue)
+opencl_lab_optional_gl_interop(device_enqueue)
 
-copy_kernels(b4_device_enqueue)
-symlink_assets(b4_device_enqueue)
+copy_kernels(device_enqueue)
+symlink_assets(device_enqueue)

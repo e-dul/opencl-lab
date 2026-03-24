@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.18)
-project(vkfft_audio CXX)
+project(VkFFTAudio CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -16,7 +16,7 @@ FetchContent_Declare(vkfft
 FetchContent_MakeAvailable(vkfft)
 
 # ── CLI11 + OpenCL + stb via common.cmake ─────────────────────────────────────
-# common.cmake is 2 levels up: 04_Addons/4_1_vkFFT_Audio → root
+# common.cmake is 2 levels up: 06_Bonus/vkFFT_Audio → root
 include(${CMAKE_CURRENT_SOURCE_DIR}/../../common/common.cmake)
 
 # ── Optional FFTW3 for CPU reference timing ───────────────────────────────────

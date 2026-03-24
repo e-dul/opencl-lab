@@ -12,8 +12,8 @@ See [main README](../../README.md) for base requirements (OpenCL 1.2+, CMake 3.1
 ```bash
 cd 04_Addons/4_4_SVM_Theory
 cmake -B build && cmake --build build
-./build/svm_deep_dive --width 8192 --height 8192     # ~256 MB buffer (8192×8192 floats)
-# GPU=INTEL ./build/svm_deep_dive --width 8192 --height 8192   # iGPU: near-zero transfer time
+./build/svm_theory --width 8192 --height 8192     # ~256 MB buffer (8192×8192 floats)
+# GPU=INTEL ./build/svm_theory --width 8192 --height 8192   # iGPU: near-zero transfer time
 ```
 
 ## Verify
@@ -58,7 +58,7 @@ SVM fine-grained requires a unified cache hierarchy — the CPU and GPU L2/L3 ca
 
 ## Mini-Challenge
 
-Run `svm_deep_dive` on a laptop (iGPU) and a desktop (discrete GPU). Record the `USE_HOST_PTR` time on both. Explain in one paragraph why the iGPU result is ~0 ms, citing the physical memory layout shown above.
+Run `svm_theory` on a laptop (iGPU) and a desktop (discrete GPU). Record the `USE_HOST_PTR` time on both. Explain in one paragraph why the iGPU result is ~0 ms, citing the physical memory layout shown above.
 
 ## Troubleshooting
 

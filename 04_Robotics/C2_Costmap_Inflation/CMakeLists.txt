@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.18)
-project(c2_costmap_inflation)
+project(CostmapInflation)
 
 # ── C++17, strict mode (no GNU extensions) ───────────────────────────────────
 set(CMAKE_CXX_STANDARD 17)
@@ -21,17 +21,17 @@ find_package(nav_msgs REQUIRED)
 find_package(lifecycle_msgs REQUIRED)
 
 # ── Binary ────────────────────────────────────────────────────────────────────
-add_executable(costmap_node main.cpp map_publisher.cpp)
+add_executable(costmap_inflation main.cpp map_publisher.cpp)
 
 # ── Include directories ───────────────────────────────────────────────────────
-target_include_directories(costmap_node PRIVATE
+target_include_directories(costmap_inflation PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/../../common
   ${CMAKE_CURRENT_SOURCE_DIR}/../../vendor
   ${stb_SOURCE_DIR}
 )
 
 # ── ament+OpenCL+CLI11 linking ────────────────────────────────────────────────
-opencl_lab_ros2_target(costmap_node rclcpp rclcpp_lifecycle nav_msgs lifecycle_msgs)
+opencl_lab_ros2_target(costmap_inflation rclcpp rclcpp_lifecycle nav_msgs lifecycle_msgs)
 
-copy_kernels(costmap_node)
-symlink_assets(costmap_node)
+copy_kernels(costmap_inflation)
+symlink_assets(costmap_inflation)

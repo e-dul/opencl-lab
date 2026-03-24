@@ -9,11 +9,11 @@ No additional requirements beyond the module index prerequisites.
 ## Build & Run
 
 ```bash
-cd A1_OpenCV_Interop
+cd opencv_interop
 cmake -B build
 cmake --build build
-./build/opencv_interop_demo --input assets/sample.bmp
-# GPU=NVIDIA ./build/opencv_interop_demo --input assets/sample.bmp
+./build/opencv_interop --input assets/sample.bmp
+# GPU=NVIDIA ./build/opencv_interop --input assets/sample.bmp
 ```
 
 ## Verify

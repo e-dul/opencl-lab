@@ -16,7 +16,7 @@ Eliminate naming inconsistencies, structural debt, and documentation gaps introd
 ## Roadmap / Status
 
 - [x] Phase 1: Master Spec Updates — Consolidate all `00_master_specs.md` changes derived from this backlog before executing dependent phases.
-- [ ] Phase 2: Unified CMake Target & Executable Names — Standardize all `add_executable` target names and `project()` strings across ~30 modules.
+- [x] Phase 2: Unified CMake Target & Executable Names — Standardize all `add_executable` target names and `project()` strings across ~30 modules.
 - [ ] Phase 3: Unified Submodule Naming Convention — Rename ~36 submodule directories to two-digit numeric prefix + `Title_Snake_Case`.
 - [ ] Phase 4: Kernel Symlink (replace copy) — Replace `cmake -E copy_directory` POST_BUILD with `cmake -E create_symlink` across ~40 CMakeLists.txt files.
 - [ ] Phase 5: Add Missing Bonus READMEs — Author student-facing READMEs for `06_Bonus/CLBlast_MatMul/` and `06_Bonus/Device_Enqueue/`.
@@ -46,7 +46,7 @@ Phases in this backlog must not break the Standard Definition of Done (§8) for 
 
 - **Directory Naming (Phase 3):** Governs submodule folder names on disk. ~36 `git mv` operations across `02_Multimedia/`, `03_GraphicsHPC/`, `04_Robotics/`, `05_Toolbox/`, `06_Bonus/`. Cascades to all markdown links (index READMEs, submodule READMEs, `cd` commands, back-links, `workflow/design/*.md`, `.claude/rules/MEMORY.md`).
 
-- **Build System (Phase 4):** Governs the POST_BUILD kernel-copy step in every `CMakeLists.txt`. Replaces file copy with directory symlink per updated §1 spec.
+- **Build System (Phase 4):** Governs the POST_BUILD kernel-copy step in every `CMakeLists.txt`. Replaces file copy with directory symlink per updated §1 spec. Find kernels copy_directory usage and replace with common.cmake method.
 
 - **Documentation — Bonus READMEs (Phase 5):** Two student-facing markdown files authored via `/create-readme` (@educator). Reference material lives on `main` branch in archived tasks and the old `GraphicsHPC.md`.
 

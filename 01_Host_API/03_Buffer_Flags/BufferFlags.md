@@ -12,10 +12,10 @@
 cd 03_Buffer_Flags
 cmake -B build
 cmake --build build
-./build/buffers_layout_demo
-# GPU=NVIDIA ./build/buffers_layout_demo
-# GPU=AMD    ./build/buffers_layout_demo
-# GPU=INTEL  ./build/buffers_layout_demo
+./build/buffer_flags
+# GPU=NVIDIA ./build/buffer_flags
+# GPU=AMD    ./build/buffer_flags
+# GPU=INTEL  ./build/buffer_flags
 ```
 
 No additional flags required. The demo runs all three strategies automatically and prints a comparison table.
@@ -61,9 +61,9 @@ For the hardware model behind these flags see [Toolbox: Zero-Copy](../../05_Tool
 Run the demo three times, pinning each vendor:
 
 ```bash
-GPU=NVIDIA ./build/buffers_layout_demo
-GPU=AMD    ./build/buffers_layout_demo
-GPU=INTEL  ./build/buffers_layout_demo
+GPU=NVIDIA ./build/buffer_flags
+GPU=AMD    ./build/buffer_flags
+GPU=INTEL  ./build/buffer_flags
 ```
 
 Which strategy wins on each architecture? Write a one-sentence explanation of why, in terms of physical memory topology. Check your reasoning against the Zero-Copy toolbox entry.

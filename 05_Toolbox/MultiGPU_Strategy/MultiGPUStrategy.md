@@ -18,8 +18,8 @@ cmake -B build && cmake --build build
 Run with `--gpus 1` first to establish the single-GPU baseline, then with `--gpus 2`:
 
 ```bash
-./build/multigpu_strategy --width 3840 --height 2160 --gpus 1
-./build/multigpu_strategy --width 3840 --height 2160 --gpus 2
+./build/multi_gpu_strategy --width 3840 --height 2160 --gpus 1
+./build/multi_gpu_strategy --width 3840 --height 2160 --gpus 2
 ```
 
 ## Verify

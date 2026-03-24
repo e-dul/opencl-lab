@@ -9,7 +9,7 @@ Prerequisites: OpenCL 1.2+, CMake 3.18+, `clinfo` installed. See [main README](.
 ```bash
 cd 99_Toolbox/WorkGroupSizing
 cmake -B build && cmake --build build
-./build/workgroup_sizing --kernel mad --width 1920 --height 1080
+./build/work_group_sizing --kernel mad --width 1920 --height 1080
 ```
 
 ## Verify

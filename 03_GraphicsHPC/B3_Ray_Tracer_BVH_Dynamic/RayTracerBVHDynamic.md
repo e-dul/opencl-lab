@@ -17,13 +17,13 @@ cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 
 # Full SAH rebuild every frame
-./build/b3_ray_tracer_dynamic --strategy rebuild --scene assets/bunny.obj --frames 60 --output render_rebuild.bmp
+./build/ray_tracer_bvh_dynamic --strategy rebuild --scene assets/bunny.obj --frames 60 --output render_rebuild.bmp
 
 # Bottom-up AABB refit (topology unchanged)
-./build/b3_ray_tracer_dynamic --strategy refit --scene assets/bunny.obj --frames 60 --output render_refit.bmp
+./build/ray_tracer_bvh_dynamic --strategy refit --scene assets/bunny.obj --frames 60 --output render_refit.bmp
 
 # Stale BVH — geometry moves, BVH does not (intentional artifacts)
-./build/b3_ray_tracer_dynamic --strategy static --scene assets/bunny.obj --frames 60 --output render_static.bmp
+./build/ray_tracer_bvh_dynamic --strategy static --scene assets/bunny.obj --frames 60 --output render_static.bmp
 ```
 
 ## Verify
@@ -57,10 +57,10 @@ Use `--max-depth` to observe the BVH benefit directly:
 
 ```bash
 # Unlimited depth: ~40k nodes, fast traversal
-./build/b3_ray_tracer_dynamic --strategy rebuild --max-depth 0 --frames 10 --scene assets/bunny.obj
+./build/ray_tracer_bvh_dynamic --strategy rebuild --max-depth 0 --frames 10 --scene assets/bunny.obj
 
 # Depth 1: 3 nodes, ~35k triangles per leaf — near brute-force
-./build/b3_ray_tracer_dynamic --strategy rebuild --max-depth 1 --frames 10 --scene assets/bunny.obj
+./build/ray_tracer_bvh_dynamic --strategy rebuild --max-depth 1 --frames 10 --scene assets/bunny.obj
 ```
 
 Render time jumps from ~0.6 ms (unlimited) to ~85 ms (depth 1). The BVH acceleration benefit is directly observable with one flag change.

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.18)
-project(B2_Ray_Tracer_Basic CXX)
+project(RayTracerBasic CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -12,12 +12,12 @@ add_definitions(-DCL_HPP_ENABLE_EXCEPTIONS -DCL_HPP_TARGET_OPENCL_VERSION=120)
 # common.cmake already calls find_package(OpenCL REQUIRED) and FetchContent for CLI11.
 include(${CMAKE_CURRENT_SOURCE_DIR}/../../common/common.cmake)
 
-add_executable(b2_ray_tracer main.cpp)
+add_executable(ray_tracer main.cpp)
 
-opencl_lab_target(b2_ray_tracer)
+opencl_lab_target(ray_tracer)
 
 # ── Optional GL interop ───────────────────────────────────────────────────────
-opencl_lab_optional_gl_interop(b2_ray_tracer)
+opencl_lab_optional_gl_interop(ray_tracer)
 
-copy_kernels(b2_ray_tracer)
-symlink_assets(b2_ray_tracer)
+copy_kernels(ray_tracer)
+symlink_assets(ray_tracer)

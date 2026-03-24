@@ -17,7 +17,7 @@ Prerequisites: OpenCL 1.2+, CMake 3.18+, `clinfo` installed. See [main README](.
 ```bash
 cd 99_Toolbox/SVM
 cmake -B build && cmake --build build
-./build/svm_demo --size 4096
+./build/svm --size 4096
 ```
 
 ## Verify

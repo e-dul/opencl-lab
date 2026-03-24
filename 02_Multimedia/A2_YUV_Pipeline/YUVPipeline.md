@@ -9,10 +9,10 @@ No additional requirements beyond the module index prerequisites.
 ## Build & Run
 
 ```bash
-cd A2_YUV_Pipeline
+cd yuv_pipeline
 cmake -B build
 cmake --build build
-./build/yuv_pipeline_demo --input assets/sample_nv12.yuv --width 1920 --height 1080
+./build/yuv_pipeline --input assets/sample_nv12.yuv --width 1920 --height 1080
 ```
 
 ## Verify
@@ -49,7 +49,7 @@ Your kernel receives a flat byte buffer. Stride (pitch) can be wider than width 
 
 ## Mini-Challenge: YUYV Port
 
-Webcams often output YUYV instead of NV12. The format is packed — no separate UV plane. Write a `yuyv_to_rgba` kernel using the same BT.601 coefficients. Then split it into two passes and compare timing using `cl::Event`. See inline comments in `A2_YUV_Pipeline/` for index arithmetic.
+Webcams often output YUYV instead of NV12. The format is packed — no separate UV plane. Write a `yuyv_to_rgba` kernel using the same BT.601 coefficients. Then split it into two passes and compare timing using `cl::Event`. See inline comments in `yuv_pipeline/` for index arithmetic.
 
 ---
 

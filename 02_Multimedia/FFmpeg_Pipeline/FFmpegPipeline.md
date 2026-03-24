@@ -58,9 +58,9 @@ ffmpeg -f lavfi -i testsrc=duration=3:size=1920x1080:rate=25 \
 ```bash
 cd FFmpeg_Pipeline
 cmake -B build && cmake --build build
-./build/ffmpeg_opencl_transcoder --input assets/sample.mp4 \
+./build/ffmpeg_pipeline --input assets/sample.mp4 \
     --output filtered.mp4 --effect blur
-# GPU=NVIDIA ./build/ffmpeg_opencl_transcoder --input assets/sample.mp4 \
+# GPU=NVIDIA ./build/ffmpeg_pipeline --input assets/sample.mp4 \
 #     --output filtered.mp4 --effect blur
 ```
 

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.18)
-project(A2b_YUYV_Extension CXX)
+project(YUYVExtension CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -10,11 +10,11 @@ add_definitions(-DCL_HPP_ENABLE_EXCEPTIONS -DCL_HPP_TARGET_OPENCL_VERSION=120)
 # Module is 2 levels deep: 02_Multimedia/A2b_YUYV_Extension/
 include(${CMAKE_CURRENT_SOURCE_DIR}/../../common/common.cmake)
 
-add_executable(A2b_YUYV_Extension main.cpp)
-opencl_lab_target(A2b_YUYV_Extension)
+add_executable(yuyv_extension main.cpp)
+opencl_lab_target(yuyv_extension)
 
-target_link_libraries(A2b_YUYV_Extension PRIVATE ${OpenCV_LIBS})
-target_include_directories(A2b_YUYV_Extension PRIVATE ${OpenCV_INCLUDE_DIRS})
+target_link_libraries(yuyv_extension PRIVATE ${OpenCV_LIBS})
+target_include_directories(yuyv_extension PRIVATE ${OpenCV_INCLUDE_DIRS})
 
-copy_kernels(A2b_YUYV_Extension)
-symlink_assets(A2b_YUYV_Extension)
+copy_kernels(yuyv_extension)
+symlink_assets(yuyv_extension)

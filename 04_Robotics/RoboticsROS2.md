@@ -41,7 +41,7 @@ Accelerate a real ROS 2 perception pipeline without breaking the node contract. 
 - **`source /opt/ros/jazzy/setup.bash` must run before CMake**: without it, `find_package(rclcpp REQUIRED)` fails.
 - **Loaned messages not available**: requires `rmw_fastrtps_cpp`. Set `export RMW_IMPLEMENTATION=rmw_fastrtps_cpp`.
 - **`ros2 topic hz` shows half the expected rate**: node is blocking on `clFinish()` inside callback. Use non-blocking enqueue + event callback.
-- **Wrong GPU**: `GPU=NVIDIA ./build/accel_node`, `GPU=AMD ./build/costmap_node`.
+- **Wrong GPU**: `GPU=NVIDIA ./build/node_acceleration`, `GPU=AMD ./build/costmap_inflation`.
 
 ## What's Next
 

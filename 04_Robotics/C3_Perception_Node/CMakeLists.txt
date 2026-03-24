@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.18)
-project(c3_perception_node)
+project(PerceptionNode)
 
 # ── C++17, strict mode (no GNU extensions) ───────────────────────────────────
 set(CMAKE_CXX_STANDARD 17)

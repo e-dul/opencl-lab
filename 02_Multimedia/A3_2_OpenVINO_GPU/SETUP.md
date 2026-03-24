@@ -153,16 +153,16 @@ cmake -B build && cmake --build build
 
 ```bash
 # Intel iGPU required — GPU env var selects the OpenCL platform
-GPU=INTEL ./build/a3_2_openvino_gpu --input assets/sample_1080p.bmp
+GPU=INTEL ./build/openvino_gpu --input assets/sample_1080p.bmp
 
 # Custom model or threshold
-GPU=INTEL ./build/a3_2_openvino_gpu \
+GPU=INTEL ./build/openvino_gpu \
     --input assets/sample_1080p.bmp \
     --model assets/selfie_segmentation.onnx \
     --threshold 0.5
 
 # Help
-./build/a3_2_openvino_gpu --help
+./build/openvino_gpu --help
 ```
 
 ### Expected output

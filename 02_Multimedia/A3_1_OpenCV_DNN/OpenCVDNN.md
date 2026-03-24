@@ -13,7 +13,7 @@
 cd A3_1_OpenCV_DNN
 cmake -B build
 cmake --build build
-./build/opencvdnn_demo --input assets/face.png --model assets/selfie_segmentation.onnx
+./build/opencv_dnn --input assets/face.png --model assets/selfie_segmentation.onnx
 ```
 
 ## Verify

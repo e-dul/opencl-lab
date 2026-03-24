@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.18)
-project(B1_CLBlast_MatMul CXX)
+project(CLBlastMatMul CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -25,11 +25,11 @@ set(CLBLAST_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(CLBLAST_BUILD_SAMPLES OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(clblast)
 
-add_executable(b1_clblast_matmul main.cpp)
+add_executable(clblast_matmul main.cpp)
 
-opencl_lab_target(b1_clblast_matmul)
+opencl_lab_target(clblast_matmul)
 
-target_link_libraries(b1_clblast_matmul PRIVATE clblast)
+target_link_libraries(clblast_matmul PRIVATE clblast)
 
-copy_kernels(b1_clblast_matmul)
-symlink_assets(b1_clblast_matmul)
+copy_kernels(clblast_matmul)
+symlink_assets(clblast_matmul)

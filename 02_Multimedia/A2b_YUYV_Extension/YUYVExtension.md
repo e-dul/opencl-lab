@@ -9,10 +9,10 @@
 ## Build & Run
 
 ```bash
-cd A2b_YUYV_Extension
+cd yuyv_extension
 cmake -B build
 cmake --build build
-./build/yuyv_demo --input assets/sample_yuyv.yuv --width 1920 --height 1080
+./build/yuyv_extension --input assets/sample_yuyv.yuv --width 1920 --height 1080
 ```
 
 ## Verify

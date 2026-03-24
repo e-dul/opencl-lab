@@ -11,7 +11,7 @@ See [main README](../../README.md) for base requirements (OpenCL 1.2+, CMake 3.1
 ```bash
 cd 05_Toolbox/Deployment
 cmake -B build && cmake --build build
-./build/deployment_demo     # tests runtime dependency resolution
+./build/deployment     # tests runtime dependency resolution
 ```
 
 ## Verify
@@ -64,7 +64,7 @@ Mount `/dev/dri` for AMD/Intel passthrough: `docker run --device /dev/dri ...`
 
 ## Mini-Challenge
 
-Build a Docker image that runs `deployment_demo` using PoCL (CPU fallback) — no GPU required. This is useful for CI pipelines that test OpenCL logic without GPU access:
+Build a Docker image that runs `deployment` using PoCL (CPU fallback) — no GPU required. This is useful for CI pipelines that test OpenCL logic without GPU access:
 ```dockerfile
 FROM ubuntu:24.04
 RUN apt-get install -y pocl-opencl-icd ocl-icd-libopencl1
@@ -79,8 +79,8 @@ RUN apt-get install -y pocl-opencl-icd ocl-icd-libopencl1
     -v /etc/OpenCL/vendors:/etc/OpenCL/vendors:ro \
     -e GPU=AMD \
     -v $(pwd)/assets:/assets -v $(pwd)/docker_out:/output \
-    deployment_demo_test \
-    ./deployment_demo --input /assets/sample.bmp --output /output/output.bmp
+    deployment_test \
+    ./deployment --input /assets/sample.bmp --output /output/output.bmp
   ```
   The `-v /etc/OpenCL/vendors:ro` mount makes the host GPU ICD visible inside the container. `--device /dev/dri` grants access to the DRI render node. For NVIDIA use `--gpus all` instead of `--device /dev/dri`.
 - **AppImage works on your machine, fails on target**: the target may have a different glibc version. Build the AppImage on the oldest supported Ubuntu LTS.

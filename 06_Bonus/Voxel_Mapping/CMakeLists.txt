@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.18)
-project(voxel_mapping_addon CXX)
+project(VoxelMapping CXX)
 
 # ── C++17, strict mode (no GNU extensions) ───────────────────────────────────
 set(CMAKE_CXX_STANDARD 17)
@@ -50,4 +50,4 @@ target_include_directories(voxel_point_cloud_publisher PRIVATE
 # this binary does not call CL API but linking OpenCL is harmless (lazy load).
 opencl_lab_ros2_target(voxel_point_cloud_publisher rclcpp sensor_msgs)
 
-message(STATUS "voxel_mapping configured. Source ROS 2 before building.")
+message(STATUS "VoxelMapping configured. Source ROS 2 before building.")
