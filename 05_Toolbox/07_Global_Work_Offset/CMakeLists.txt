@@ -14,5 +14,5 @@ opencl_lab_target(global_work_offset)
 
 # Copy kernels/ next to the binary so the executable can locate them via a
 # relative path regardless of where cmake --build is invoked.
-copy_kernels(global_work_offset)
+symlink_kernels(global_work_offset)
 symlink_assets(global_work_offset)

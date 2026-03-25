@@ -16,5 +16,5 @@ opencl_lab_target(yuyv_extension)
 target_link_libraries(yuyv_extension PRIVATE ${OpenCV_LIBS})
 target_include_directories(yuyv_extension PRIVATE ${OpenCV_INCLUDE_DIRS})
 
-copy_kernels(yuyv_extension)
+symlink_kernels(yuyv_extension)
 symlink_assets(yuyv_extension)

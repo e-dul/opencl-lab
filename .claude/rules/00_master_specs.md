@@ -104,7 +104,14 @@
 - Scope inner objects (`cl::ImageGL`, `cl::CommandQueue`, kernels, buffers) in an explicit `{}` block that ends before GL teardown.
 - Explicitly reset the shared `cl::Context` itself — `cl_ctx = cl::Context();` — after the inner scope, before `glfwTerminate`. A `cl::Context` declared outside the inner scope is not destroyed by the inner scope's exit and will crash in `clReleaseContext` after the GL context is gone.
 
-### 7.7 Other
+### 7.7 Bulk Renames
+- After renaming any function, macro, or CMake helper across multiple files, grep for the old name with context to catch stale comments — call-site renames leave comments untouched.
+  ```
+  grep -rC2 "old_name" --include="CMakeLists.txt"   # -C2 shows 2 lines of context around each match
+  ```
+- Also grep natural-language variants (e.g. renaming `copy_kernels` → also search `copy kernels` to catch prose comments).
+
+### 7.8 Other
 - Throw exceptions instead of using `std::exit`
 - Remove unused headers
 - Always wrap enqueueUnmapMemObject and getInfo (two-arg overload) in CL_CHECK — they are silent cl_int returners, not covered by CL_HPP_ENABLE_EXCEPTIONS.

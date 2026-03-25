@@ -19,5 +19,5 @@ opencl_lab_target(ray_tracer)
 # ── Optional GL interop ───────────────────────────────────────────────────────
 opencl_lab_optional_gl_interop(ray_tracer)
 
-copy_kernels(ray_tracer)
+symlink_kernels(ray_tracer)
 symlink_assets(ray_tracer)

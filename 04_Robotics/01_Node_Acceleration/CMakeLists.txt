@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 # common.cmake brings: find_package(OpenCL REQUIRED), CLI11 via FetchContent,
-# opencl_lab_target(), copy_kernels() helpers, and common/vendor include dirs.
+# opencl_lab_target(), symlink_kernels() helpers, and common/vendor include dirs.
 # Module is 2 levels deep: 04_Robotics/C1_Node_Acceleration/
 include(${CMAKE_CURRENT_SOURCE_DIR}/../../common/common.cmake)
 
@@ -36,5 +36,5 @@ target_include_directories(node_acceleration PRIVATE
 # ── ament+OpenCL+CLI11 linking ────────────────────────────────────────────────
 opencl_lab_ros2_target(node_acceleration rclcpp rclcpp_lifecycle std_msgs lifecycle_msgs)
 
-copy_kernels(node_acceleration)
+symlink_kernels(node_acceleration)
 symlink_assets(node_acceleration)

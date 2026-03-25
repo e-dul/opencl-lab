@@ -18,7 +18,7 @@ Eliminate naming inconsistencies, structural debt, and documentation gaps introd
 - [x] Phase 1: Master Spec Updates — Consolidate all `00_master_specs.md` changes derived from this backlog before executing dependent phases.
 - [x] Phase 2: Unified CMake Target & Executable Names — Standardize all `add_executable` target names and `project()` strings across ~30 modules.
 - [x] Phase 3: Unified Submodule Naming Convention — Rename ~36 submodule directories to two-digit numeric prefix + `Title_Snake_Case`.
-- [ ] Phase 4: Kernel Symlink (replace copy) — Replace `cmake -E copy_directory` POST_BUILD with `cmake -E create_symlink` across ~40 CMakeLists.txt files.
+- [x] Phase 4: Kernel Symlink (replace copy) — Rename `copy_kernels()` → `symlink_kernels()` in `common/common.cmake` (consistent with existing `symlink_assets()`), update all 41 call sites across 35 CMakeLists files, and replace the 4 remaining inline `copy_directory` blocks with `create_symlink`. Zero kernel copies must remain.
 - [ ] Phase 5: Add Missing Bonus READMEs — Author student-facing READMEs for `06_Bonus/CLBlast_MatMul/` and `06_Bonus/Device_Enqueue/`.
 - [ ] Phase 6: Mark submodules with HW/OpenCL version dependencies — Add dependency callouts to submodule READMEs and inline tags to index READMEs.
 - [ ] Phase 7: Unify ROS2 parameters handling — Remove hand-rolled `--help` loop from `C3_Perception_Node`; add `ros2 param` usage hints to all three ROS 2 module READMEs; formally exempt ROS 2 modules from CLI11 DoD gate in master specs.
@@ -46,7 +46,7 @@ Phases in this backlog must not break the Standard Definition of Done (§8) for 
 
 - **Directory Naming (Phase 3):** Governs submodule folder names on disk. ~36 `git mv` operations across `02_Multimedia/`, `03_GraphicsHPC/`, `04_Robotics/`, `05_Toolbox/`, `06_Bonus/`. Cascades to all markdown links (index READMEs, submodule READMEs, `cd` commands, back-links, `workflow/design/*.md`, `.claude/rules/MEMORY.md`).
 
-- **Build System (Phase 4):** Governs the POST_BUILD kernel-copy step in every `CMakeLists.txt`. Replaces file copy with directory symlink per updated §1 spec. Find kernels copy_directory usage and replace with common.cmake method.
+- **Build System (Phase 4):** Governs the POST_BUILD kernel-copy step in every `CMakeLists.txt`. Renames `copy_kernels()` → `symlink_kernels()` in `common/common.cmake` for consistency with the `symlink_assets()` sibling, then updates all 41 call sites. The 4 remaining inline `copy_directory` blocks (`06_Generic_Kernel_Templates` ×3, `10_SVM` ×1) are patched in-place. A post-patch grep must confirm zero `copy_kernels` or kernel-related `copy_directory` occurrences remain.
 
 - **Documentation — Bonus READMEs (Phase 5):** Two student-facing markdown files authored via `/create-readme` (@educator). Reference material lives on `main` branch in archived tasks and the old `GraphicsHPC.md`.
 
@@ -79,8 +79,8 @@ Phases in this backlog must not break the Standard Definition of Done (§8) for 
 5. **Acronyms: ALLCAPS for well-known technical terms; preserve proper names**
    - **Why:** `SVM`, `BVH`, `YUV`, `ISP`, `DNN` are standard initialisms; `OpenCV`, `OpenVINO`, `CLBlast`, `VkFFT` are product/library names that must match their upstream spelling.
 
-6. **Kernel symlink over copy**
-   - **Why:** Single source of truth — editing a `.cl` file in source is immediately reflected in the build directory. The copy approach risks confusion when the wrong copy is edited and then silently overwritten on the next build.
+6. **`symlink_kernels()` replaces `copy_kernels()` — rename + symlink**
+   - **Why:** `copy_kernels` is inconsistent with the existing `symlink_assets` sibling; naming it `symlink_kernels` makes the intent self-documenting and the API uniform. Replacing `copy_directory` with `create_symlink` ensures edits to `.cl` source files are immediately reflected in the build directory without a rebuild — the copy approach silently overwrites edits on the next build.
 
 7. **Dependency tags: two-level approach (authoritative callout in submodule README, lightweight inline tag in index)**
    - **Why:** Avoids duplicating setup instructions. The submodule README is the canonical place; index files carry only a terse label for discoverability.

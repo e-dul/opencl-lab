@@ -24,6 +24,6 @@ opencl_lab_target(privacy_mode)
 
 target_link_libraries(privacy_mode PRIVATE ${OpenCV_LIBS})
 
-# POST_BUILD: copy kernels/ next to the binary so runtime load_kernel_source() works.
-copy_kernels(privacy_mode)
+# POST_BUILD: symlink kernels/ next to the binary so runtime load_kernel_source() works.
+symlink_kernels(privacy_mode)
 symlink_assets(privacy_mode)

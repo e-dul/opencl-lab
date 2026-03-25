@@ -14,7 +14,7 @@ add_executable(multi_gpu_strategy main.cpp)
 opencl_lab_target(multi_gpu_strategy)
 
 # Copies kernels/ next to the binary after build
-copy_kernels(multi_gpu_strategy)
+symlink_kernels(multi_gpu_strategy)
 symlink_assets(multi_gpu_strategy)
 
 # Expose common/ and vendor/ for all translation units in this target

@@ -33,7 +33,7 @@ target_include_directories(voxel_mapping PRIVATE
 opencl_lab_ros2_target(voxel_mapping rclcpp sensor_msgs)
 
 # Kernels copied to binary dir so load_kernel_source() can find them at runtime.
-copy_kernels(voxel_mapping)
+symlink_kernels(voxel_mapping)
 symlink_assets(voxel_mapping)
 
 # ─────────────────────────────────────────────────────────────────────────────

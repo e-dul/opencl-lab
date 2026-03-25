@@ -8,7 +8,7 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/../../common/common.cmake)
 
 add_executable(buffer_flags src/main.cpp)
 opencl_lab_target(buffer_flags)
-copy_kernels(buffer_flags)
+symlink_kernels(buffer_flags)
 symlink_assets(buffer_flags)
 
 message(STATUS "BufferFlags configured. Build then run: ./build/buffer_flags")

@@ -29,13 +29,14 @@ target_include_directories(svm PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../../vendor
 )
 
-# Copy kernels/ next to the binary post-build so the executable can load them
+# Symlink kernels/ next to the binary post-build so the executable can load them
 # via a relative path regardless of the working directory at runtime.
+# WHY create_symlink: edits to .cl files are visible immediately without a rebuild.
 add_custom_command(TARGET svm POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    COMMAND ${CMAKE_COMMAND} -E create_symlink
             ${CMAKE_CURRENT_SOURCE_DIR}/kernels
             $<TARGET_FILE_DIR:svm>/kernels
-    COMMENT "Copying kernels for svm"
+    COMMENT "Symlinking kernels for svm"
 )
 # POST_BUILD: symlink repo-root assets/ into binary dir so --input paths work.
 add_custom_command(TARGET svm POST_BUILD

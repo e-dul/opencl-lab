@@ -16,5 +16,5 @@ opencl_lab_target(yuv_pipeline)
 target_link_libraries(yuv_pipeline PRIVATE ${OpenCV_LIBS})
 target_include_directories(yuv_pipeline PRIVATE ${OpenCV_INCLUDE_DIRS})
 
-copy_kernels(yuv_pipeline)
+symlink_kernels(yuv_pipeline)
 symlink_assets(yuv_pipeline)

@@ -31,5 +31,5 @@ opencl_lab_target(clblast_matmul)
 
 target_link_libraries(clblast_matmul PRIVATE clblast)
 
-copy_kernels(clblast_matmul)
+symlink_kernels(clblast_matmul)
 symlink_assets(clblast_matmul)

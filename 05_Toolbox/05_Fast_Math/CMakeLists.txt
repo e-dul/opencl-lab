@@ -14,7 +14,7 @@ add_executable(fast_math main.cpp)
 opencl_lab_target(fast_math)
 
 # Copies kernels/ next to the binary after build
-copy_kernels(fast_math)
+symlink_kernels(fast_math)
 symlink_assets(fast_math)
 
 # Expose common/ and vendor/ for opencl_utils.hpp, ocl_wrapper.hpp

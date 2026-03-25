@@ -34,7 +34,7 @@ target_include_directories(perception_node PRIVATE
 # ── ament+OpenCL+CLI11 linking ────────────────────────────────────────────────
 opencl_lab_ros2_target(perception_node rclcpp rclcpp_lifecycle sensor_msgs lifecycle_msgs)
 
-copy_kernels(perception_node)
+symlink_kernels(perception_node)
 symlink_assets(perception_node)
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -52,4 +52,4 @@ target_include_directories(point_cloud_publisher PRIVATE
 # the shared library is loaded lazily and no CL symbols are referenced.
 opencl_lab_ros2_target(point_cloud_publisher rclcpp sensor_msgs)
 
-copy_kernels(point_cloud_publisher)
+symlink_kernels(point_cloud_publisher)

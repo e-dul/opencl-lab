@@ -6,15 +6,15 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 # common.cmake provides: find_package(OpenCL), FetchContent for stb + CLI11,
-# opencl_lab_target(), copy_kernels() helpers.
+# opencl_lab_target(), symlink_kernels() helpers.
 # Depth note: this module is 2 levels deep (05_Toolbox/Deployment/).
 include(${CMAKE_CURRENT_SOURCE_DIR}/../../common/common.cmake)
 
 add_executable(deployment src/main.cpp)
 opencl_lab_target(deployment)
 
-# POST_BUILD: copy kernels/ next to the binary so load_kernel_source() finds them.
-copy_kernels(deployment)
+# POST_BUILD: symlink kernels/ next to the binary so load_kernel_source() finds them.
+symlink_kernels(deployment)
 symlink_assets(deployment)
 
 # ── Install rules ─────────────────────────────────────────────────────────────

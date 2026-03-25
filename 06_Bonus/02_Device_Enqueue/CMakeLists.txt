@@ -35,5 +35,5 @@ opencl_lab_fetch_tinyobjloader(device_enqueue)
 # ── Optional GL interop ───────────────────────────────────────────────────────
 opencl_lab_optional_gl_interop(device_enqueue)
 
-copy_kernels(device_enqueue)
+symlink_kernels(device_enqueue)
 symlink_assets(device_enqueue)

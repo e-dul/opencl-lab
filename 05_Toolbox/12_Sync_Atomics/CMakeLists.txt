@@ -14,7 +14,7 @@ add_executable(sync_atomics main.cpp)
 opencl_lab_target(sync_atomics)
 
 # Copies kernels/ next to the binary after build
-copy_kernels(sync_atomics)
+symlink_kernels(sync_atomics)
 symlink_assets(sync_atomics)
 
 # Expose common/ and vendor/ for opencl_utils.hpp, ocl_wrapper.hpp

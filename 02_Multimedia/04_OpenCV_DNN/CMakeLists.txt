@@ -16,5 +16,5 @@ opencl_lab_target(opencv_dnn)
 target_link_libraries(opencv_dnn PRIVATE ${OpenCV_LIBS})
 target_include_directories(opencv_dnn PRIVATE ${OpenCV_INCLUDE_DIRS})
 
-copy_kernels(opencv_dnn)
+symlink_kernels(opencv_dnn)
 symlink_assets(opencv_dnn)

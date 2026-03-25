@@ -9,7 +9,7 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/../../common/common.cmake)
 
 add_executable(soft_isp main.cpp)
 opencl_lab_target(soft_isp)
-copy_kernels(soft_isp)
+symlink_kernels(soft_isp)
 symlink_assets(soft_isp)
 
 # Warn if asset missing — not a build error

@@ -13,5 +13,5 @@ add_executable(thread_divergence main.cpp)
 # Wire include dirs (stb, common, vendor) and link libs (OpenCL, CLI11, common).
 opencl_lab_target(thread_divergence)
 
-copy_kernels(thread_divergence)
+symlink_kernels(thread_divergence)
 symlink_assets(thread_divergence)

@@ -41,7 +41,7 @@ target_link_libraries(ffmpeg_pipeline PRIVATE
 target_compile_options(ffmpeg_pipeline PRIVATE ${FFMPEG_CFLAGS_OTHER})
 
 # Copy kernels/ next to binary so get_binary_dir() / "kernels" resolves at runtime.
-copy_kernels(ffmpeg_pipeline)
+symlink_kernels(ffmpeg_pipeline)
 symlink_assets(ffmpeg_pipeline)
 
 # Warn if the default sample asset is absent — build still succeeds.

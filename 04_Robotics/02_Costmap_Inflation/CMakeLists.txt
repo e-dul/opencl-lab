@@ -33,5 +33,5 @@ target_include_directories(costmap_inflation PRIVATE
 # ── ament+OpenCL+CLI11 linking ────────────────────────────────────────────────
 opencl_lab_ros2_target(costmap_inflation rclcpp rclcpp_lifecycle nav_msgs lifecycle_msgs)
 
-copy_kernels(costmap_inflation)
+symlink_kernels(costmap_inflation)
 symlink_assets(costmap_inflation)

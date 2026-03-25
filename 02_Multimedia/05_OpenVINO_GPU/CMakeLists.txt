@@ -21,6 +21,6 @@ opencl_lab_target(openvino_gpu)
 
 target_link_libraries(openvino_gpu PRIVATE openvino::runtime)
 
-# POST_BUILD: copy kernels/ next to the binary so runtime load_kernel_source() works.
-copy_kernels(openvino_gpu)
+# POST_BUILD: symlink kernels/ next to the binary so runtime load_kernel_source() works.
+symlink_kernels(openvino_gpu)
 symlink_assets(openvino_gpu)
