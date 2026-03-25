@@ -19,7 +19,7 @@ Eliminate naming inconsistencies, structural debt, and documentation gaps introd
 - [x] Phase 2: Unified CMake Target & Executable Names — Standardize all `add_executable` target names and `project()` strings across ~30 modules.
 - [x] Phase 3: Unified Submodule Naming Convention — Rename ~36 submodule directories to two-digit numeric prefix + `Title_Snake_Case`.
 - [x] Phase 4: Kernel Symlink (replace copy) — Rename `copy_kernels()` → `symlink_kernels()` in `common/common.cmake` (consistent with existing `symlink_assets()`), update all 41 call sites across 35 CMakeLists files, and replace the 4 remaining inline `copy_directory` blocks with `create_symlink`. Zero kernel copies must remain.
-- [ ] Phase 5: Add Missing Bonus READMEs — Author student-facing READMEs for `06_Bonus/CLBlast_MatMul/` and `06_Bonus/Device_Enqueue/`.
+- [x] Phase 5: Add Missing Bonus READMEs — Author student-facing READMEs for `06_Bonus/CLBlast_MatMul/` and `06_Bonus/Device_Enqueue/`.
 - [ ] Phase 6: Mark submodules with HW/OpenCL version dependencies — Add dependency callouts to submodule READMEs and inline tags to index READMEs.
 - [ ] Phase 7: Unify ROS2 parameters handling — Remove hand-rolled `--help` loop from `C3_Perception_Node`; add `ros2 param` usage hints to all three ROS 2 module READMEs; formally exempt ROS 2 modules from CLI11 DoD gate in master specs.
 - [ ] Phase 8: Extend assets README with creation commands — Add `## Regenerating Assets` section to `assets/assets.md`; replace scattered per-module creation commands with links.

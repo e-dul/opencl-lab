@@ -94,3 +94,7 @@ D09 Cookbook v2.0 Pivot phases (tracked by `scripts/progress.sh`):
 - Renamed all 36 submodule directories across 02_Multimedia through 06_Bonus to `NN_Title_Snake_Case` convention.
 - Updated all 5 module index READMEs and all affected submodule READMEs (cd commands, cross-links).
 - Updated MEMORY.md Known Issues to use new canonical paths.
+
+### 2026-03-25 — Bonus READMEs Session (Task T062)
+- Authored `06_Bonus/01_CLBlast_MatMul/CLBlastMatMul.md` and `06_Bonus/02_Device_Enqueue/DeviceEnqueue.md`; updated `06_Bonus/Bonus.md` table links.
+- **Lesson:** Always fetch prior-art reference files in **full** (`git show <branch>:<path>` with no `head`/line limit) before README authoring. Truncation at 200 lines caused the B4 section to be missed entirely, requiring a second `@educator` pass to recover the GEMM Key Terms callout, CUDA comparison note, and clinfo compatibility note.
