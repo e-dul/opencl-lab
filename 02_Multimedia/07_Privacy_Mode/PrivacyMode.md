@@ -1,4 +1,4 @@
-# A.5 — Privacy Mode: Face Detection + ROI Blur
+# A.7 — Privacy Mode: Face Detection + ROI Blur
 
 **Goal**: Detect face bounding boxes and blur only the detected ROI using `global_work_offset` — launching OpenCL threads exclusively over the target tile without processing the full frame.
 
@@ -7,7 +7,7 @@
 ## Prerequisites (delta from module index)
 
 - [A.3.1 — OpenCV DNN](../04_OpenCV_DNN/OpenCVDNN.md) completed (DNN_TARGET_OPENCL, T-API concepts).
-- YuNet face detector model. Download from OpenCV model zoo:
+- YuNet face detector model (`assets/yunet.onnx`) — included in the repo. If missing, download from the OpenCV model zoo:
   ```bash
   wget -q https://raw.githubusercontent.com/opencv/opencv_zoo/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx \
       -O assets/yunet.onnx

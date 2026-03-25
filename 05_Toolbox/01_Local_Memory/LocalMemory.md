@@ -63,7 +63,7 @@ Increase `--radius` from 5 to 15. At what radius does the local memory variant s
 ## Used In
 - [Track A — 02_YUV_Pipeline](../../02_Multimedia/02_YUV_Pipeline/YUVPipeline.md)
 - [Track C — 02_Costmap_Inflation](../../04_Robotics/02_Costmap_Inflation/CostmapInflation.md)
-- Module 4 SoftISP debayering
+- [Track A — 09 SoftISP](../../02_Multimedia/09_SoftISP/SoftISP.md)
 
 ---
 

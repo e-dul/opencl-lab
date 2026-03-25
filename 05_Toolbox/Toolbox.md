@@ -13,7 +13,7 @@ A library of isolated GPU optimization techniques. Do not read this front-to-bac
 
 Each tool is a standalone project with a measurable before/after. The workflow:
 
-1. Profile your Track project (`02_Projects/`) (`cl::Event` timing on each stage)
+1. Profile your Track project (`02_Multimedia/`, `03_GraphicsHPC/`, or `04_Robotics/`) (`cl::Event` timing on each stage)
 2. Identify the bottleneck (upload? kernel? download?)
 3. Find the matching tool below
 4. Run the tool's demo — see the technique in isolation

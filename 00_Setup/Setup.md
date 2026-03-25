@@ -118,6 +118,9 @@ sudo apt update
 sudo apt install ocl-icd-libopencl1 mesa-opencl-icd ocl-icd-opencl-dev clinfo
 ```
 
+*   `ocl-icd-libopencl1`: ICD Loader — dispatches OpenCL API calls to the correct vendor driver at runtime.
+*   `ocl-icd-opencl-dev`: compile-time dev files (headers + link stub) — required when building OpenCL programs.
+
 ---
 
 ## 4. Build Tools
@@ -127,6 +130,8 @@ To compile the projects in this course, you will need:
 ```bash
 sudo apt install build-essential cmake git ocl-icd-opencl-dev opencl-headers
 ```
+
+> **Note:** `ocl-icd-opencl-dev` is a superset of `opencl-headers` — it includes the Khronos headers plus the ICD link stub. `opencl-headers` installs Khronos headers only (no link stub).
 
 Verification:
 ```bash
@@ -140,3 +145,7 @@ Verify that the OpenCL C++ headers were installed correctly:
 ls /usr/include/CL/
 ```
 You should see `cl.hpp`, `opencl.hpp`, and related headers listed. If the directory is empty or missing, `opencl-headers` was not installed correctly. If CMake < 3.18, install a newer version via `pip install cmake` or the [Kitware APT repository](https://apt.kitware.com/).
+
+---
+
+[← Back to README](../README.md)

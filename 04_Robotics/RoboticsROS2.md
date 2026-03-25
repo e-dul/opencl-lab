@@ -8,7 +8,7 @@ Accelerate a real ROS 2 perception pipeline without breaking the node contract. 
 - ROS 2 Jazzy: see [SETUP.md](SETUP.md) for APT repo, sourcing, and RMW configuration. Required for all sub-modules.
 - `export RMW_IMPLEMENTATION=rmw_fastrtps_cpp` for 03 (loaned messages).
 - Assets: `assets/warehouse.pgm` (512×512 occupancy grid, required for 02).
-- **Assumption**: you know ROS 2 basics — nodes, pub/sub, topics, `rclcpp`. This track focuses on GPU acceleration inside that model.
+- **Assumption**: you know ROS 2 basics — nodes, pub/sub, topics, `rclcpp`. This track focuses on GPU acceleration inside that model. New to ROS 2? Work through the [official beginner CLI tutorials](https://docs.ros.org/en/jazzy/Tutorials/Beginner-CLI-Tools.html) (~2–3 hours) before starting this track.
 
 ## Contents
 

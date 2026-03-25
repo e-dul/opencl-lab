@@ -30,6 +30,9 @@ cmake -B build && cmake --build build
 `--iters N` (default: 8192) scales FMA compute load per work item. Increase it to make the kernel dominate; decrease it (`--iters 256`) to make transfer dominate.
 
 ## Verify
+
+> **Note:** "No overlap detected" is the typical result on NVIDIA CUDA and AMD rusticl — this is expected behavior, not a code defect.
+
 ```
 [basic_sync   ] Upload: X ms | Kernel: X ms | Download: X ms | Total: X ms
 [async_single ] Upload: X ms | Kernel: X ms | Download: X ms | Total: X ms

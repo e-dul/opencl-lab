@@ -9,7 +9,7 @@ No additional requirements beyond the module index prerequisites.
 ## Build & Run
 
 ```bash
-cd opencv_interop
+cd 01_OpenCV_Interop
 cmake -B build
 cmake --build build
 ./build/opencv_interop --input assets/sample.bmp

@@ -1,4 +1,4 @@
-# A.6 — SoftISP: Real-Time 4K Bayer Debayering
+# A.9 — SoftISP: Real-Time 4K Bayer Debayering
 
 **When to use**: you're reading raw frames from an industrial or embedded camera (no hardware ISP) and need to convert them to RGB fast enough for real-time processing.
 

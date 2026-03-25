@@ -18,6 +18,7 @@ cmake -B build
 cmake --build build
 ./build/smart_webcam --device 0
 # Offline test (no webcam): ./build/smart_webcam --input assets/face.png --loop
+# --loop replays the static input image in a loop to simulate live capture without a webcam.
 # GPU=NVIDIA ./build/smart_webcam --device 0
 ```
 

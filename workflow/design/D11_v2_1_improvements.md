@@ -15,11 +15,10 @@ Eliminate remaining structural debt, module consolidation opportunities, and qua
 
 - [x] Phase 1: Merge 10_SVM into 11_SVM_Theory — Absorb `10_SVM`'s Buffer+Map/Unmap baseline mode and per-phase split timing into `11_SVM_Theory/main.cpp`; add `--mode` CLI flag; archive `10_SVM/`; update `Toolbox.md`. Slot 10 left vacant.
 
-- [ ] Phase 2: UX Audit v2 — Re-run `/test-ux` across all 7 modules in their v2.0 structure (`00_Setup`, `01_Host_API`, `02_Multimedia`, `03_GraphicsHPC`, `04_Robotics`, `05_Toolbox`, `06_Bonus`). Aggregate findings, human triage, apply selected fixes. Same protocol as Task 051 but scoped to the renamed v2.0 layout.
+- [x] Phase 2: UX Audit v2 — Re-run `/test-ux` across all 7 modules in their v2.0 structure (`00_Setup`, `01_Host_API`, `02_Multimedia`, `03_GraphicsHPC`, `04_Robotics`, `05_Toolbox`, `06_Bonus`). Aggregate findings, human triage, apply selected fixes. Same protocol as Task 051 but scoped to the renamed v2.0 layout.
 - [ ] Phase 3: Tech Audit v2 — Re-run `/audit` across all 7 modules against their current v2.0 READMEs. Web-search top factual claims per submodule, flag stale/false claims, remove redundancies between READMEs and design docs. Report uses the same human-triage table format as Phase 2.
 - [ ] Phase 4: Grading Pass — Run `/grade-module` on all 7 top-level modules (and key submodules). Produce a merged scores table plus per-module actionable items in the Phase 2/3 human-triage format.
 
-**Status key:** Phase 1 — Approved, awaiting task creation. Phases 2–4 — Idea, not yet approved.
 
 ---
 
@@ -112,6 +111,14 @@ All 7 top-level modules in their v2.0 layout (post-D10 renames):
 - **Link rot from D10 renames:** Phase 3 of D10 renamed 36 submodule directories; any hardcoded `cd` paths or cross-links in READMEs not caught by T060 may be stale.
 - **New READMEs (Bonus):** `CLBlastMatMul.md` and `DeviceEnqueue.md` authored in T062 have not been audited by `/test-ux`.
 - **ROS 2 modules:** `/test-ux` cannot execute `ros2` commands; flag these as MANUAL items for human verification.
+
+### Known Issues (post-T068)
+
+- **Stale `cd` paths (post-T060):** 36 submodule directory renames introduced by D10/T060 left stale `cd` commands and cross-links in several READMEs; the majority were resolved in T068. Any residual cases should be caught by Phase 3.
+- **Title-numbering drift:** Several submodule README H1 titles used old prefixes (e.g., "B.1", "C.3") inconsistent with the `NN_Title_Snake_Case` naming; corrected in T068.
+- **Vacant slot 10 broken link:** `README.md` root Toolbox table contained a stale row for the archived `10_SVM` entry; removed in T068.
+- **MANUAL ROS 2 steps:** Four `ros2` walkthrough steps across `04_Robotics/` are flagged MANUAL and were not auto-verified; human spot-check required.
+- **Scope of T068 fixes:** 31 `.md` files edited; 7 HIGH, 16 MED, 13 LOW findings resolved (36 total). Zero `.cpp`/`.cl`/`CMakeLists.txt` files modified.
 
 ---
 

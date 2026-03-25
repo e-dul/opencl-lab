@@ -24,6 +24,7 @@ To run the vectorized variant (processes all three RGB channels in a single `flo
 
 ## Verify
 
+- The binary generates a synthetic gradient input automatically — no external image file is needed.
 - `output.bmp` — the filter result. Open side-by-side with `gradient_input.bmp` (written alongside it) to confirm visibly higher brightness and contrast. No numbers to check — just visual confirmation the filter was applied.
 
 ## Key Concepts

@@ -1,4 +1,4 @@
-# B.2 — Ray Tracer Basic: Rays, Intersections, No Copies
+# B.1 — Ray Tracer Basic: Rays, Intersections, No Copies
 
 **Goal**: Implement a minimal OpenCL ray tracer and display results via OpenGL interop — the framebuffer lives in GPU memory for both rendering and display, eliminating PCIe transfers entirely.
 

@@ -1,4 +1,4 @@
-# 4.2 — OpenCL vs CUDA: Honest Market Analysis
+# OpenCL vs CUDA: Honest Market Analysis
 
 **When to use**: you're starting a new project and need to choose a GPU compute API.
 

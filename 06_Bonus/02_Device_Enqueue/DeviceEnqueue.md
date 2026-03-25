@@ -51,6 +51,8 @@ GPU=AMD ./build/device_enqueue --mode gpu --width 1920 --height 1080
 
 The binary saves `render.bmp` and prints a per-bounce timing table followed by a summary:
 
+> Device enqueue overhead can exceed the per-bounce savings for small scenes — the speedup is scene and device dependent. The goal is to observe and understand the tradeoff, not to hit a fixed ratio.
+
 ```text
 OpenCL C version: OpenCL C 2.0 AMD-APP (3513.0)
 Triangles: 576
@@ -70,8 +72,6 @@ Total CPU:  9.170 ms
 Total GPU: 12.450 ms
 Speedup (CPU/GPU): 0.74x
 ```
-
-> Device enqueue overhead can exceed the per-bounce savings for small scenes — the speedup is scene and device dependent. The goal is to observe and understand the tradeoff, not to hit a fixed ratio.
 
 The output BMP shows a multi-bounce reflection render of the scene.
 

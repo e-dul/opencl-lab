@@ -1,4 +1,4 @@
-# 4.4 — SVM and Zero-Copy: Deep Dive
+# SVM and Zero-Copy: Deep Dive
 
 **When to use**: the [Zero-Copy toolbox entry](../../05_Toolbox/15_Zero_Copy/ZeroCopy.md) wasn't enough — you want to understand *why* it works at the hardware level.
 

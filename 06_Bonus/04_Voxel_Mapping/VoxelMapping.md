@@ -91,7 +91,7 @@ For each Lidar return:
   Voxels never traversed:                    UNKNOWN
 ```
 
-This is the 3D DDA (Digital Differential Analyzer) algorithm, run in parallel — one GPU work-item per Lidar point. The voxel grid lives in a `cl::Buffer` and cells are updated with `atomic_or` to avoid races.
+This is the 3D DDA (Digital Differential Analyzer) algorithm, run in parallel — one GPU work-item per Lidar point. The voxel grid lives in a `cl::Buffer` and cells are updated with `atomic_or` to avoid races. `atomic_or` sets individual bits without clearing others — same principle as `atomic_add` from Toolbox 12, applied to bitfield flags.
 
 **The knowledge transfer**: the ray-box intersection test from `02_Ray_Tracer_BVH` is reused here unchanged. Instead of testing against BVH node AABBs, you step through voxel grid cells. Same math, different context — this is why Track B teaches BVH before this finale.
 

@@ -2,7 +2,7 @@
 
 **When to use**: you need GPU-accelerated dense linear algebra and don't want to spend weeks writing and tuning a GEMM kernel. This module also builds the matrix-throughput intuition you need before the Ray Tracer modules.
 
-> **Key terms**: GEMM (General Matrix Multiplication) is the operation `C = α·A·B + β·C` for dense matrices. For a square N×N multiply (α=1, β=0), the operation count is **2N³ FLOPs** — N³ multiply-add pairs, each counting as 2 FLOPs. GFLOPS (10⁹ FLOPs/s) is the standard throughput unit for dense linear algebra benchmarks.
+> **Key terms**: GEMM (General Matrix Multiplication) is the operation `C = α·A·B + β·C` for dense matrices. For a square N×N multiply (α=1, β=0), the operation count is **2N³ FLOPs** (each output element needs N multiply-add pairs = 2 FLOPs each → 2N³ total). GFLOPS (10⁹ FLOPs/s) is the standard throughput unit for dense linear algebra benchmarks.
 
 ## Goals
 

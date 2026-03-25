@@ -13,13 +13,10 @@ Its purpose is to verify that your drivers, C++ compiler, and build system are w
 ## How to Run
 
 ```bash
-mkdir build
-cd build
-cmake ..
-cmake --build .
+cmake -B build && cmake --build build
 ```
 
-**Important:** Run the binary from inside the `build/` directory — the kernel loader uses a relative path to `kernels/vector_add.cl`.
+> **Note:** In this repo, OpenCL kernel `.cl` files are symlinked into the build directory at build time and must be present next to the binary at runtime. Run the binary from inside the `build/` directory — the kernel loader uses a relative path to locate `kernels/vector_add.cl`. Running from a parent directory will silently fail with "cannot open kernel file".
 
 ```bash
 ./smoke_test
@@ -27,7 +24,7 @@ cmake --build .
 
 ## Troubleshooting
 *   **"No OpenCL platforms found"**: Install `intel-opencl-icd` (Intel) or check NVIDIA drivers.
-*   **"cl.hpp not found"**: The OpenCL C++ header is provided by the `opencl-headers` apt package (installed in Module 0 §4). It lives at `/usr/include/CL/opencl.hpp` — no `vendor/` directory is needed.
+*   **"cl.hpp not found"**: The OpenCL C++ header is provided by the `opencl-headers` apt package (installed in Module 0 §4). It lives at `/usr/include/CL/opencl.hpp` — no `vendor/` directory is needed. Note: `opencl.hpp` is the modern C++ bindings; `cl.hpp` is the legacy 1.2 bindings used by this course. Both may coexist at `/usr/include/CL/`.
 
 ---
 

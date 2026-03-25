@@ -26,7 +26,7 @@ sudo apt update
 ```bash
 sudo apt install -y ros-jazzy-desktop \
     ros-jazzy-rclcpp ros-jazzy-sensor-msgs ros-jazzy-nav-msgs \
-    ros-jazzy-rmw-fastrtps-cpp
+    ros-jazzy-rmw-fastrtps-cpp ros-jazzy-demo-nodes-cpp
 ```
 
 ---
@@ -67,6 +67,9 @@ env | grep ROS
 ros2 run demo_nodes_cpp talker &
 ros2 run demo_nodes_cpp listener
 # Expected: listener prints "Hello World: N" at ~1 Hz
+
+ros2 doctor
+# Expected: all checks pass (or only warnings for optional features)
 ```
 
 ---

@@ -9,10 +9,10 @@ No additional requirements beyond the module index prerequisites.
 ## Build & Run
 
 ```bash
-cd yuv_pipeline
+cd 02_YUV_Pipeline
 cmake -B build
 cmake --build build
-./build/yuv_pipeline --input assets/sample_nv12.yuv --width 1920 --height 1080
+./build/yuv_pipeline --input assets/sample_nv12_1080p.yuv --width 1920 --height 1080
 ```
 
 ## Verify
@@ -33,9 +33,11 @@ Speedup:                  X.Xx
 
 ## Key Concepts
 
+Cameras output YUV rather than RGB because chroma subsampling (storing one U/V sample per 2×2 pixel block) cuts bandwidth roughly in half with near-zero perceptual loss — critical for embedded sensors and streaming pipelines. BT.601 is the ITU standard defining the YUV ↔ RGB conversion coefficients for standard-definition TV content; it specifies the exact luma/chroma weights used in the kernel.
+
 ### NV12 Layout and the Single-Pass Advantage
 
-Real cameras output YUV — luminance (Y) separate from chrominance (U, V). Chroma subsampling (4:2:0) stores one U/V sample per 2×2 pixel block, cutting bandwidth roughly in half with near-zero perceptual loss.
+NV12 is the most common 4:2:0 format from V4L2 cameras: a full-resolution Y plane followed by an interleaved, half-resolution UV plane.
 
 **NV12 memory layout:**
 ```text

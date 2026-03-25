@@ -5,6 +5,7 @@
 ## Prerequisites (delta from module index)
 
 - [1.1 — Visual Kernel](../01_Visual_Kernel/VisualKernel.md) completed.
+- Key new concept: the queue must be created with `CL_QUEUE_PROFILING_ENABLE` — without it, `getProfilingInfo` returns zero timestamps.
 
 ## Build & Run
 
