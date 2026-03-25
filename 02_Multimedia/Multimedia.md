@@ -17,8 +17,8 @@ Process real video with a GPU pipeline that ships in production. You start with 
 | 02 — YUV Pipeline | NV12 → RGBA single-pass kernel (< 2 ms @ 1080p) | [YUVPipeline.md](02_YUV_Pipeline/YUVPipeline.md) |
 | 03 — YUYV Extension | Port 02 to packed YUYV webcam format | [YUYVExtension.md](03_YUYV_Extension/YUYVExtension.md) |
 | 04 — OpenCV DNN | Segmentation via T-API (UMat stays on GPU) | [OpenCVDNN.md](04_OpenCV_DNN/OpenCVDNN.md) |
-| 05 — OpenVINO GPU | Segmentation via RemoteTensor (zero-copy cl_mem) | [OpenVINOGPU.md](05_OpenVINO_GPU/OpenVINOGPU.md) |
-| 06 — Smart Webcam | Flagship: person segmentation + Bokeh blur ≥ 30 FPS | [SmartWebcam.md](06_Smart_Webcam/SmartWebcam.md) |
+| 05 — OpenVINO GPU | Segmentation via RemoteTensor (zero-copy cl_mem) *(Intel OpenVINO SDK)* | [OpenVINOGPU.md](05_OpenVINO_GPU/OpenVINOGPU.md) |
+| 06 — Smart Webcam | Flagship: person segmentation + Bokeh blur ≥ 30 FPS *(Intel OpenVINO SDK)* | [SmartWebcam.md](06_Smart_Webcam/SmartWebcam.md) |
 | 07 — Privacy Mode | ROI blur with global_work_offset (⚠️ under review) | [PrivacyMode.md](07_Privacy_Mode/PrivacyMode.md) |
 | 08 — FFmpeg Pipeline | Hardware decode → OpenCL filter, no CPU copies | [FFmpegPipeline.md](08_FFmpeg_Pipeline/FFmpegPipeline.md) |
 | 09 — SoftISP | Real-time 4K Bayer debayering with LDS tiling | [SoftISP.md](09_SoftISP/SoftISP.md) |

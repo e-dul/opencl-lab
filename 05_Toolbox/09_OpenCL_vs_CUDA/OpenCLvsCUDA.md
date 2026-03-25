@@ -2,6 +2,8 @@
 
 **When to use**: you're starting a new project and need to choose a GPU compute API.
 
+> **Requires:** NVIDIA GPU with CUDA toolkit installed (for the CUDA side of the comparison). The OpenCL path runs on any supported GPU; only the CUDA build requires NVIDIA hardware.
+
 ## Prerequisites
 See [main README](../../README.md) for base requirements (OpenCL 1.2+, CMake 3.18+).
 

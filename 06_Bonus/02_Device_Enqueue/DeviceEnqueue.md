@@ -1,8 +1,8 @@
 # Device-Side Enqueue
 
-> **Requires:** OpenCL 2.0+ device — check with `clinfo | grep "Device OpenCL C"` (must show `2.0` or higher). Nvidia's OpenCL 2.0 support is incomplete; verified on AMD (ROCm). Intel NEO (Iris Xe) reports OpenCL C 2.0 but has `CL_DEVICE_QUEUE_ON_DEVICE_PROPERTIES == 0` — the binary detects this and exits gracefully.
-
 **When to use**: you want to generate GPU work from inside a GPU kernel — eliminating the round-trip to the host between reflection bounces in a ray tracer.
+
+> **Requires:** OpenCL 2.0+ device with `cl_device_device_enqueue_support`. Falls back gracefully with an informational message on devices that do not support device-side enqueue.
 
 ## Goals
 

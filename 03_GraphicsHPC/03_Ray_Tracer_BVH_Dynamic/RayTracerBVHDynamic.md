@@ -2,6 +2,8 @@
 
 **Goal**: Animate the scene (rigid Y-axis rotation each frame) and benchmark three per-frame BVH strategies side-by-side — full rebuild, AABB refit, and static (stale BVH) — to make the rebuild vs refit cost difference concrete and observable.
 
+> **Requires:** `cl_khr_gl_sharing` extension for the live OpenGL window. Headless BMP output works without the extension. Check availability: `clinfo | grep gl_sharing`.
+
 ## Prerequisites (delta from module index)
 
 - Complete [B3 Ray Tracer BVH](../02_Ray_Tracer_BVH/RayTracerBVH.md) first. This module builds directly on those concepts.

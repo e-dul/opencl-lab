@@ -20,7 +20,7 @@ Eliminate naming inconsistencies, structural debt, and documentation gaps introd
 - [x] Phase 3: Unified Submodule Naming Convention — Rename ~36 submodule directories to two-digit numeric prefix + `Title_Snake_Case`.
 - [x] Phase 4: Kernel Symlink (replace copy) — Rename `copy_kernels()` → `symlink_kernels()` in `common/common.cmake` (consistent with existing `symlink_assets()`), update all 41 call sites across 35 CMakeLists files, and replace the 4 remaining inline `copy_directory` blocks with `create_symlink`. Zero kernel copies must remain.
 - [x] Phase 5: Add Missing Bonus READMEs — Author student-facing READMEs for `06_Bonus/CLBlast_MatMul/` and `06_Bonus/Device_Enqueue/`.
-- [ ] Phase 6: Mark submodules with HW/OpenCL version dependencies — Add dependency callouts to submodule READMEs and inline tags to index READMEs.
+- [x] Phase 6: Mark submodules with HW/OpenCL version dependencies — Add dependency callouts to submodule READMEs and inline tags to index READMEs.
 - [ ] Phase 7: Unify ROS2 parameters handling — Remove hand-rolled `--help` loop from `C3_Perception_Node`; add `ros2 param` usage hints to all three ROS 2 module READMEs; formally exempt ROS 2 modules from CLI11 DoD gate in master specs.
 - [ ] Phase 8: Extend assets README with creation commands — Add `## Regenerating Assets` section to `assets/assets.md`; replace scattered per-module creation commands with links.
 - [ ] Phase 9: Add scripts README — Document all four helper scripts in `scripts/README.md`.
@@ -96,6 +96,7 @@ Phases in this backlog must not break the Standard Definition of Done (§8) for 
 - **Phase 5 reference material on `main` branch:** Archived tasks `028_graphics_b1_clblast_matmul.md` and `033_graphics_b4_device_enqueue.md` exist only on `main`; the coder must check out or `git show` those files.
 - **Phase 7 C1/C2 no action needed:** C1 and C2 have no hand-rolled parser — only C3 requires a code change.
 - **Stale CMakeLists.txt comments (post-Phase 3):** After the T060 rename sweep, `CMakeLists.txt` files inside `02_Multimedia/01_OpenCV_Interop`, `02_Multimedia/03_YUYV_Extension`, and `02_Multimedia/07_Privacy_Mode` may still reference old directory names in comments. Out of scope for Phase 3 (no `.cpp`/`CMakeLists.txt` modifications permitted). Candidate cleanup for Phase 4 or a dedicated comment-scrub task.
+- **Phase 6 tag rendering:** Inline dependency tags in index READMEs use italic markdown (`*...*`). They render as italic text without a distinct visual badge. Layout is acceptable — human-approved (T063).
 
 ## Performance Gate
 

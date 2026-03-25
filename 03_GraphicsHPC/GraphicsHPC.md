@@ -14,9 +14,9 @@ Build a ray tracer from scratch and make it fast enough to render complex triang
 
 | Sub-module | Goal | Doc |
 | :--------- | :--- | :-- |
-| 01 — Ray Tracer Basic | Minimal ray tracer + OpenGL interop (no CPU copies) | [RayTracerBasic.md](01_Ray_Tracer_Basic/RayTracerBasic.md) |
-| 02 — Ray Tracer BVH | Flagship: stackless BVH for 100k-triangle scenes at 60 FPS | [RayTracerBVH.md](02_Ray_Tracer_BVH/RayTracerBVH.md) |
-| 03 — Ray Tracer BVH Dynamic | BVH rebuild vs refit vs static on a moving scene | [RayTracerBVHDynamic.md](03_Ray_Tracer_BVH_Dynamic/RayTracerBVHDynamic.md) |
+| 01 — Ray Tracer Basic | Minimal ray tracer + OpenGL interop (no CPU copies) *(cl_khr_gl_sharing)* | [RayTracerBasic.md](01_Ray_Tracer_Basic/RayTracerBasic.md) |
+| 02 — Ray Tracer BVH | Flagship: stackless BVH for 100k-triangle scenes at 60 FPS *(cl_khr_gl_sharing)* | [RayTracerBVH.md](02_Ray_Tracer_BVH/RayTracerBVH.md) |
+| 03 — Ray Tracer BVH Dynamic | BVH rebuild vs refit vs static on a moving scene *(cl_khr_gl_sharing)* | [RayTracerBVHDynamic.md](03_Ray_Tracer_BVH_Dynamic/RayTracerBVHDynamic.md) |
 
 ## Performance Gates
 

@@ -2,6 +2,8 @@
 
 **Goal**: Run the same segmentation model via OpenVINO GPU plugin, passing a `cl::Buffer` directly as an input tensor — the inference engine reads from and writes to your OpenCL-managed memory with no host round-trip. Intel iGPU required.
 
+> **Requires:** Intel iGPU + Intel OpenVINO SDK (`libopenvino-dev`). Run `source /opt/intel/openvino/setupvars.sh` before building. See [SETUP.md](SETUP.md) for full installation steps.
+
 ## Prerequisites (delta from module index)
 
 - **Intel iGPU required**: `clinfo | grep -i intel` must show a GPU device.

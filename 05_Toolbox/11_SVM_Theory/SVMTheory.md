@@ -2,6 +2,8 @@
 
 **When to use**: the [Zero-Copy toolbox entry](../../05_Toolbox/15_Zero_Copy/ZeroCopy.md) wasn't enough — you want to understand *why* it works at the hardware level.
 
+> **Requires:** OpenCL 2.0+ device (AMD APU, Intel iGPU, ARM Mali). Falls back gracefully with an informational message on OpenCL 1.2 devices. Not supported on NVIDIA OpenCL.
+
 ## Prerequisites
 See [main README](../../README.md) for base requirements (OpenCL 1.2+, CMake 3.18+).
 

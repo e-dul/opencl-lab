@@ -2,6 +2,8 @@
 
 **Goal**: Extend the basic ray tracer with a Bounding Volume Hierarchy to render complex triangle scenes at 60 FPS — the default scene (`bunny.obj`, ~70k triangles) is already well beyond what brute-force intersection can handle interactively.
 
+> **Requires:** `cl_khr_gl_sharing` extension for the live OpenGL window. Headless BMP output works without the extension. Check availability: `clinfo | grep gl_sharing`.
+
 ## Prerequisites (delta from module index)
 
 - `assets/bunny.obj` (Stanford Bunny, ~70k triangles) — included in the repository.

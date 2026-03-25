@@ -2,6 +2,8 @@
 
 **Goal**: Implement a minimal OpenCL ray tracer and display results via OpenGL interop — the framebuffer lives in GPU memory for both rendering and display, eliminating PCIe transfers entirely.
 
+> **Requires:** `cl_khr_gl_sharing` extension for the live OpenGL window. Headless BMP output (`--output render.bmp`) works without the extension. Check availability: `clinfo | grep gl_sharing`.
+
 ## Prerequisites (delta from module index)
 
 - OpenGL + GLFW (live window only): `sudo apt install libglfw3-dev libgl-dev` — optional; headless `--output render.bmp` works without a display.

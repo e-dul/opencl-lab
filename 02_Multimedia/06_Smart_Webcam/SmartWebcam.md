@@ -2,6 +2,8 @@
 
 **Goal**: Build a live webcam pipeline running at ≥ 30 FPS @ 1080p: capture → AI segmentation → OpenCL Bokeh blur → display, with the neural network output feeding directly into the kernel.
 
+> **Requires:** Intel iGPU + Intel OpenVINO SDK (`libopenvino-dev`). Run `source /opt/intel/openvino/setupvars.sh` before building. See [SETUP.md](../05_OpenVINO_GPU/SETUP.md) for full installation steps.
+
 ## Prerequisites (delta from module index)
 
 - [A.3.2 — OpenVINO GPU](../05_OpenVINO_GPU/OpenVINOGPU.md) completed — 06 uses the RemoteTensor path internally.
