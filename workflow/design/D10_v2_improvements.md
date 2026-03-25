@@ -22,7 +22,7 @@ Eliminate naming inconsistencies, structural debt, and documentation gaps introd
 - [x] Phase 5: Add Missing Bonus READMEs — Author student-facing READMEs for `06_Bonus/CLBlast_MatMul/` and `06_Bonus/Device_Enqueue/`.
 - [x] Phase 6: Mark submodules with HW/OpenCL version dependencies — Add dependency callouts to submodule READMEs and inline tags to index READMEs.
 - [x] Phase 7: Unify ROS2 parameters handling — Remove hand-rolled `--help` loop from `C3_Perception_Node`; add `ros2 param` usage hints to all three ROS 2 module READMEs; formally exempt ROS 2 modules from CLI11 DoD gate in master specs.
-- [ ] Phase 8: Extend assets README with creation commands — Add `## Regenerating Assets` section to `assets/assets.md`; replace scattered per-module creation commands with links.
+- [x] Phase 8: Extend assets README with creation commands — Add `## Regenerating Assets` section to `assets/assets.md`; replace scattered per-module creation commands with links.
 - [ ] Phase 9: Add scripts README — Document all four helper scripts in `scripts/README.md`.
 
 **Status key:** All phases Approved — awaiting task creation.

@@ -47,12 +47,9 @@ sudo apt install intel-opencl-icd intel-media-va-driver-non-free vainfo
 **Input asset format requirement:**
 The input `.mp4` must use H.264 High Profile (yuv420p) — not High 4:4:4 Predictive.
 NVDEC and VAAPI do not support the 4:4:4 profile.
-Generate a compatible test clip:
-```bash
-ffmpeg -f lavfi -i testsrc=duration=3:size=1920x1080:rate=25 \
-  -vf format=yuv420p -c:v libx264 -profile:v high -level:v 4.0 \
-  assets/sample.mp4
-```
+
+> The `assets/sample.mp4` test clip is a synthetic H.264 file.
+> To regenerate it, see [Regenerating Assets](../../assets/assets.md#regenerating-assets).
 
 ## Build & Run
 ```bash

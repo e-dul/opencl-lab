@@ -63,3 +63,79 @@ Example: 256 × 256 image
 ```
 U and V are shared per horizontal pair (4:2:2 subsampling — full luma, halved chroma width).
 Dimensions must be passed explicitly at runtime; the file carries no embedded header.
+
+## Regenerating Assets
+
+All synthetic assets can be regenerated from the repository root using the commands below.
+Downloaded assets (`*.onnx`, `*.obj`) are not listed here — see the table above for their source URLs.
+
+### `sample.bmp` (256 × 256 RGB)
+```bash
+ffmpeg -y -f lavfi -i "testsrc=size=256x256:rate=1" -vframes 1 assets/sample.bmp
+```
+
+### `sample_1080p.bmp` (1920 × 1080 RGB)
+```bash
+ffmpeg -y -f lavfi -i "testsrc=size=1920x1080:rate=1" -vframes 1 assets/sample_1080p.bmp
+```
+
+### `rgb_4k.bmp` (3840 × 2160 RGB)
+```bash
+ffmpeg -y -f lavfi -i "testsrc2=size=3840x2160:rate=1" -vframes 1 assets/rgb_4k.bmp
+```
+
+### `sample_nv12.yuv` (256 × 256 NV12)
+```bash
+ffmpeg -y -i assets/sample.bmp -pix_fmt nv12 -f rawvideo assets/sample_nv12.yuv
+```
+
+### `sample_nv12_1080p.yuv` (1920 × 1080 NV12)
+```bash
+ffmpeg -y -i assets/sample_1080p.bmp -pix_fmt nv12 -f rawvideo assets/sample_nv12_1080p.yuv
+```
+
+### `sample_yuyv.yuv` (256 × 256 YUYV)
+```bash
+ffmpeg -y -i assets/sample.bmp -pix_fmt yuyv422 -f rawvideo assets/sample_yuyv.yuv
+```
+
+### `sample_yuyv_1080p.yuv` (1920 × 1080 YUYV)
+```bash
+ffmpeg -y -i assets/sample_1080p.bmp -pix_fmt yuyv422 -f rawvideo assets/sample_yuyv_1080p.yuv
+```
+
+### `sample.mp4` (1920 × 1080 H.264, 3 s)
+```bash
+ffmpeg -y -f lavfi -i "testsrc=duration=3:size=1920x1080:rate=25" \
+  -c:v libx264 -preset fast -crf 23 assets/sample.mp4
+```
+
+### `raw_bayer_4k.raw` (3840 × 2160 RGGB Bayer)
+```bash
+# Requires rgb_4k.bmp to exist first (see above).
+python3 scripts/gen_bayer.py
+```
+
+### `warehouse.pgm` and `warehouse_2k.pgm`
+```bash
+python3 scripts/gen_pgm.py
+```
+
+### `test_440hz.wav` (440 + 880 Hz sine mix, 2 s, float32 PCM)
+```bash
+ffmpeg -y -f lavfi -i "sine=frequency=440:duration=2" \
+          -f lavfi -i "sine=frequency=880:duration=2" \
+       -filter_complex "amix=inputs=2" \
+       -ar 44100 -c:a pcm_f32le assets/test_440hz.wav
+```
+
+### `test_1024frames.wav` (4-tone mix, 12 s, float32 PCM)
+```bash
+# 12 s yields >=1024 FFT frames at default hop size
+ffmpeg -y -f lavfi -i "sine=frequency=220:duration=12" \
+          -f lavfi -i "sine=frequency=440:duration=12" \
+          -f lavfi -i "sine=frequency=880:duration=12" \
+          -f lavfi -i "sine=frequency=1760:duration=12" \
+       -filter_complex "amix=inputs=4" \
+       -ar 44100 -c:a pcm_f32le assets/test_1024frames.wav
+```
