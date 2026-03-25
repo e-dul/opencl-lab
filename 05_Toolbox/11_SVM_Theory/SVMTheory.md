@@ -2,7 +2,7 @@
 
 **When to use**: the [Zero-Copy toolbox entry](../../05_Toolbox/15_Zero_Copy/ZeroCopy.md) wasn't enough — you want to understand *why* it works at the hardware level.
 
-> **Requires:** OpenCL 2.0+ device (AMD APU, Intel iGPU, ARM Mali). Falls back gracefully with an informational message on OpenCL 1.2 devices. Not supported on NVIDIA OpenCL.
+> **Requires:** OpenCL 2.0+ device (AMD APU, Intel iGPU, ARM Mali) for SVM modes. Falls back gracefully with an informational message on OpenCL 1.2 devices. Not supported on NVIDIA OpenCL.
 
 ## Prerequisites
 See [main README](../../README.md) for base requirements (OpenCL 1.2+, CMake 3.18+).
@@ -14,17 +14,54 @@ See [main README](../../README.md) for base requirements (OpenCL 1.2+, CMake 3.1
 ```bash
 cd 05_Toolbox/11_SVM_Theory
 cmake -B build && cmake --build build
-./build/svm_theory --width 8192 --height 8192     # ~256 MB buffer (8192×8192 floats)
-# GPU=INTEL ./build/svm_theory --width 8192 --height 8192   # iGPU: near-zero transfer time
+
+# Run all 5 modes (default):
+./build/svm_theory
+
+# Run a specific mode:
+./build/svm_theory --mode buffer_map
+./build/svm_theory --mode copy_host_ptr
+./build/svm_theory --mode use_host_ptr
+./build/svm_theory --mode coarse_svm
+./build/svm_theory --mode fine_svm
+./build/svm_theory --mode all
+
+# Custom image size (larger = more representative transfer times):
+./build/svm_theory --width 8192 --height 8192
+
+# iGPU path (near-zero transfer time expected):
+GPU=INTEL ./build/svm_theory --mode all
 ```
+
+## Modes
+
+| Mode | Flag value | OpenCL | Transfer timing | Description |
+|:-----|:-----------|:-------|:----------------|:------------|
+| Buffer + Map/Unmap | `buffer_map` | 1.x+ | `enqueueMapBuffer` + `Unmap` latency (chrono) | **Baseline**: `CL_MEM_COPY_HOST_PTR` + explicit map/unmap fence |
+| Copy host ptr | `copy_host_ptr` | 1.x+ | `enqueueWriteBuffer` (cl::Event) | Driver allocates device memory and copies on creation |
+| Use host ptr | `use_host_ptr` | 1.x+ | `enqueueWriteBuffer` (cl::Event) | Driver may zero-copy on UMA hardware |
+| Coarse SVM | `coarse_svm` | 2.0+ | `clEnqueueSVMMap` + `Unmap` round-trip (chrono) | Shared pointer with explicit map/unmap cache fences |
+| Fine SVM | `fine_svm` | 2.0+ | 0 ms (direct coherent write) | Fully coherent: CPU writes visible to GPU with no fence |
+
+### `buffer_map` — the OpenCL 1.x baseline
+`buffer_map` is the educational starting point. It allocates a buffer with `CL_MEM_COPY_HOST_PTR`
+(driver copies at creation) and then exercises `enqueueMapBuffer` + `enqueueUnmapMemObject` to
+show the explicit synchronisation round-trip cost on OpenCL 1.x hardware.
+
+This path requires no OpenCL 2.0 features and runs on all supported devices. Compare its
+**Transfer** time against `coarse_svm` to see how much the map/unmap fence costs relative to
+SVM allocation overhead. On a UMA iGPU, both may converge near zero — on a discrete GPU over
+PCIe, `copy_host_ptr` and `buffer_map` will dominate.
 
 ## Verify
 ```
-Architecture detected: NUMA (discrete GPU, PCIe 4.0 x16)
-PCIe bandwidth (measured):  24.1 GB/s upload, 23.8 GB/s download
-[regular_buffer] 256 MB upload:  10.6 ms  (pageable overhead)
-[coarse_svm    ] 256 MB access:   1.2 ms  (map + sync, no copy)
-[fine_svm      ]                  N/A     (not supported on this device)
+Device: Intel(R) Iris(R) Xe Graphics
+
+[buffer_map    ]  Transfer: 0.017 ms  Kernel: 0.048 ms
+[copy_host_ptr ]  Transfer: 0.067 ms  Kernel: 0.056 ms
+[use_host_ptr  ]  Transfer: 0.042 ms  Kernel: 0.059 ms
+[coarse_svm    ]  Transfer: 0.001 ms  Kernel: 0.064 ms
+[fine_svm      ]  SKIPPED — CL_DEVICE_SVM_FINE_GRAIN_SYSTEM not supported
 ```
 
 ## Concept: Why UMA Changes Everything
@@ -60,12 +97,15 @@ SVM fine-grained requires a unified cache hierarchy — the CPU and GPU L2/L3 ca
 
 ## Mini-Challenge
 
-Run `svm_theory` on a laptop (iGPU) and a desktop (discrete GPU). Record the `USE_HOST_PTR` time on both. Explain in one paragraph why the iGPU result is ~0 ms, citing the physical memory layout shown above.
+Run `svm_theory` on a laptop (iGPU) and a desktop (discrete GPU). Record the `Transfer` time for
+`buffer_map` and `use_host_ptr` on both. Explain in one paragraph why the iGPU transfer time
+is ~0 ms, citing the physical memory layout shown above.
 
 ## Troubleshooting
 
 - **SVM coarse returns `CL_INVALID_OPERATION`**: device reports OpenCL 2.0 but SVM support is incomplete. Check `clGetDeviceInfo(CL_DEVICE_SVM_CAPABILITIES)` — must be non-zero.
 - **Measured PCIe bandwidth far below spec**: run the benchmark with a larger buffer (`--width 16384 --height 16384`). Small transfers don't saturate the bus due to command overhead.
+- **`coarse_svm` or `fine_svm` exits with `[INFO]` message**: device does not support SVM (typical on NVIDIA OpenCL 1.2). Use `buffer_map`, `copy_host_ptr`, or `use_host_ptr` instead.
 
 ---
 

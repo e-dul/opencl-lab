@@ -25,7 +25,6 @@ Each tool is a standalone project with a measurable before/after. The workflow:
 |:-----|:--------|:-------|
 | [Zero-Copy](15_Zero_Copy/ZeroCopy.md) | Upload time dominates frame budget | `15_Zero_Copy/` |
 | [Coalesced Access](02_Coalesced_Access/CoalescedAccess.md) | Kernel slow despite simple logic | `02_Coalesced_Access/` |
-| [SVM](10_SVM/SVM.md) | Repeated map/unmap overhead on UMA *(OpenCL 2.0)* | `10_SVM/` |
 | [Work-Group Sizing](14_Work_Group_Sizing/WorkGroupSizing.md) | GPU underutilized, low occupancy | `14_Work_Group_Sizing/` |
 | [Thread Divergence](13_Thread_Divergence/ThreadDivergence.md) | Kernel slower than expected with conditionals | `13_Thread_Divergence/` |
 | [Local Memory](01_Local_Memory/LocalMemory.md) | Kernel re-reads same global data repeatedly | `01_Local_Memory/` |

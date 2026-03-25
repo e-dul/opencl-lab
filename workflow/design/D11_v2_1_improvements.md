@@ -13,7 +13,7 @@ Eliminate remaining structural debt, module consolidation opportunities, and qua
 
 ## Roadmap / Status
 
-- [ ] Phase 1: Merge 10_SVM into 11_SVM_Theory — Absorb `10_SVM`'s Buffer+Map/Unmap baseline mode and per-phase split timing into `11_SVM_Theory/main.cpp`; add `--mode` CLI flag; archive `10_SVM/`; update `Toolbox.md`. Slot 10 left vacant.
+- [x] Phase 1: Merge 10_SVM into 11_SVM_Theory — Absorb `10_SVM`'s Buffer+Map/Unmap baseline mode and per-phase split timing into `11_SVM_Theory/main.cpp`; add `--mode` CLI flag; archive `10_SVM/`; update `Toolbox.md`. Slot 10 left vacant.
 
 - [ ] Phase 2: UX Audit v2 — Re-run `/test-ux` across all 7 modules in their v2.0 structure (`00_Setup`, `01_Host_API`, `02_Multimedia`, `03_GraphicsHPC`, `04_Robotics`, `05_Toolbox`, `06_Bonus`). Aggregate findings, human triage, apply selected fixes. Same protocol as Task 051 but scoped to the renamed v2.0 layout.
 - [ ] Phase 3: Tech Audit v2 — Re-run `/audit` across all 7 modules against their current v2.0 READMEs. Web-search top factual claims per submodule, flag stale/false claims, remove redundancies between READMEs and design docs. Report uses the same human-triage table format as Phase 2.
@@ -54,6 +54,7 @@ Eliminate remaining structural debt, module consolidation opportunities, and qua
 - **`scale_add.cl` vs `passthrough.cl`:** Different kernels (`y[i] = a*x[i] + b` vs identity). `buffer_map` mode will reuse `passthrough.cl` for consistency.
 - **CL 2.0 target version:** 10_SVM sets `CL_HPP_TARGET_OPENCL_VERSION 200` inline; merged binary sets it at CMake level (already done in 11_SVM_Theory).
 - **Toolbox.md:** `SVM.md` back-link must be removed; `SVMTheory.md` back-link remains.
+- **`fine_svm` graceful skip on OpenCL 1.2 hardware:** Expected behavior. When `CL_DEVICE_SVM_FINE_GRAIN_SYSTEM` is not supported, `fine_svm` mode prints a descriptive skip message and exits with code 0. Observed on Intel Iris Xe with 1.2-capable driver. Not a bug.
 
 ### Prerequisites
 
