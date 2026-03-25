@@ -8,6 +8,7 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/../../common/common.cmake)
 
 add_executable(visual_kernel_events src/main.cpp)
 opencl_lab_target(visual_kernel_events)
-copy_kernels(visual_kernel_events)
+symlink_kernels(visual_kernel_events)
+symlink_assets(visual_kernel_events)
 
 message(STATUS "VisualKernelEvents configured. Build then run: ./build/visual_kernel_events -p")

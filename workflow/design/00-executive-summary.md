@@ -1,7 +1,7 @@
 # Executive Summary: Applied OpenCL Lab
 
-**Version:** 1.0 (Final)
-**Status:** Active Strategy
+**Version:** 2.0 (Final)
+**Status:** Major update - see Pivot to Cookbook v2.0 Summary 
 **Target Audience:** Mid/Senior C++ Engineers, Roboticists, HPC Developers
 
 ---
@@ -305,3 +305,91 @@ Success is defined by metrics, not just compilation.
     6.  **Educational Goal:** The perfect example of Local Memory (LDS) optimization. Memory bound operation. Tile-based processing pattern.
     7.  **Visual Effect:** Turning a green-pink checkerboard (RAW) into a beautiful, colorful RGB image – huge satisfaction.
     8.  **Market Niche:** Embedded vision engineers using cheap sensors (without hardware ISP) or raw industrial cameras.
+
+
+## Pivot to Cookbook v2.0 Summary (2026-03-22)
+
+### Context
+
+v1 was module-based (00_Setup → 04_Addons). Too linear for "code-first" philosophy.
+
+**Decision:** Full Cookbook Reorganization. Convert to Hub & Spoke with independent, runnable recipes:
+
+New structure: 
+- Parts 0-1: Sequential foundations (Setup + Host API)
+- Parts 2-4: Three parallel Tracks (A: Multimedia, B: Graphics/HPC, C: Robotics)
+- Part 5: Toolbox (reference tools)
+- Part 6: Bonus (standalone recipes, cross-track capstones)
+
+Detailed changes:
+
+1. Move FFmpeg Pipeline and SoftISP from Addons to Multimedia track
+2. Rename Addons to Bonus
+3. Move CLBlast and Device Enqueue from GraphicsHPC to Bonus
+4. Move OpenCL vs CUDA, SVM Theory and Deployment from Bonus to Toolbox
+5. Update main folder to match new structure
+    - Split 02_Projects to -> 02_Multimedia, 03_GraphicsHPC, 04_Robotics
+    - Rename 99_Toolbox to 05_Toolbox
+    - Rename 04_Addons to 06_Bonus
+
+### Protocol changes
+
+Updated name formats: T<id>_*.md for tasks and D<id>_*.md for designs for easier filtering.
+
+### Design limtations
+
+1. Support focused on linux and tested on Ubuntu 24.04
+2. Due to common utilites location fixed structure is assumed - user moving folders and/or CMake is not a concern
+3. Duplications can be side effect of independent runnable recipies approach, but allow to experiment is more controlled way.
+
+### New content
+
+#### Toolbox: `global_work_offset` \& Tiled Benchmark
+
+* **Problem:** Processing a full 4K frame when only a small bounding box (Region of Interest - ROI) requires computation (e.g., face blurring). Masking pixels inside the kernel wastes compute, and cropping the image on the CPU wastes memory bandwidth.
+* **Solution:** Utilizing `global_work_offset` and `global_work_size` from the Host API to launch threads exclusively over the target tile, without copying buffers or rewriting the kernel.
+* **Index Space \& Memory Layout:**
+    - Understanding how `get_global_id()` shifts when an offset is applied.
+    - Stride and Pitch awareness: Calculating correct linear buffer indices when the thread's logical `(0,0)` corresponds to `(offset_x, offset_y)` in the actual image memory.
+    - Boundary checks: Handling edge cases when the ROI tile does not perfectly align with the `local_work_size`.
+* **The Tiled Benchmark:**
+    - **Educational Goal:** Using `cl_event` to profile and compare the execution time of processing a 256x256 tile versus the full 4K frame.
+    - **Application:** Demonstrating that "not processing unnecessary pixels" via Host API configuration is fundamentally faster and more power-efficient than using `if-else` branch masking inside the kernel.
+
+*(Note: This recipe directly supports the "Privacy Mode" Face Blur challenge in Track A, Project \#1)*
+
+### Improvements
+
+#### Copy assets to binary directory via CMake POST_BUILD
+
+Previously, docs required fragile relative paths like `../../../assets/sample.bmp` — depth-dependent and silently broken if run from the wrong directory. To eliminate path-counting entirely, symlink `assets/` into each module's binary dir at build time (mirroring the existing kernel-copy pattern), so every module's docs reduce to a single flat path.
+
+Add to each module's CMakeLists.txt:
+
+```
+add_custom_command(TARGET <target> POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E create_symlink
+          ${CMAKE_SOURCE_DIR}/assets
+          $<TARGET_FILE_DIR:<target>>/assets)
+```
+
+Docs show: `./build/opencv_interop_demo --input assets/sample.bmp`
+
+#### README Unification — Toolbox Pattern for All Modules
+
+All module documentation adopts a two-level structure:
+
+**Module index** (`<ModuleName>.md`): thin (~40-60 lines), contains the common prerequisites,
+hardware limitations, and a navigation table linking to sub-modules.
+
+**Sub-module doc** (`<SubName>/<SubName>.md`): self-contained, follows one of two templates:
+- *Track/Bonus sub-module*: `# N.M — Name` → Goal, Prerequisites (delta), Build & Run, Verify, Key Concepts
+- *Toolbox entry*: `# Tool Name` → Symptom, Prerequisites (delta), Build & Run, Verify
+- Always link to Module index
+
+Custom file names (e.g. `LocalMemory.md`, `OpenCVInterop.md`) are kept — not renamed to
+`README.md` — for clearer navigation in editors and search results.
+
+Links between index and sub-modules replace duplicated prerequisite/limitation blocks.
+Toolbox and Bonus are already compliant; Multimedia, GraphicsHPC, Robotics, and Host API
+require splitting their current fat single-file READMEs into this structure.

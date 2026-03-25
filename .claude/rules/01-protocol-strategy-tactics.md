@@ -4,14 +4,14 @@
 To prevent context rot and hallucinations, we separate **Long-term Truth** from **Short-term Execution**.
 
 ### 🛡️ STRATEGY (The Design Layer)
-- **Location:** `workflow/design/<feature_name>.md`
+- **Location:** `workflow/design/D[ID]_<feature_name>.md`
 - **Purpose:** Single Source of Truth for Architecture, Vision, Key Decisions, and High-Level Status.
 - **Lifecycle:** Long-lived. Updated only upon milestone completion or design changes.
 - **Rule:** NEVER implicitly change architecture defined here.
 - **Template:** See `workflow/templates/design_doc_template.md`
 
 ### ⚔️ TACTICS (The Task Layer)
-- **Location:** workflow/tasks/<id>_<task_name>.md`
+- **Location:** workflow/tasks/T<id>_<task_name>.md`
 - **Purpose:** Disposable instructions for atomic units of work.
 - **Lifecycle:** Ephemeral. Created -> Executed -> Archived (workflow/tasks/archive/`).
 - **Rule:** Must strictly follow the Strategy.
@@ -23,11 +23,11 @@ To prevent context rot and hallucinations, we separate **Long-term Truth** from 
 Follow this cycle for every feature request:
 
 1.  **ANALYZE (Strategy Mode)**
-    - Read `workflow/design/[FEATURE].md`.
+    - Read `workflow/design/D[ID]_[FEATURE].md`.
     - Identify the next logical step from the Roadmap.
 
 2.  **PLAN (Tactics Mode)**
-    - Create a new file: workflow/tasks/[ID]_[NAME].md`.
+    - Create a new file: workflow/tasks/T[ID]_[NAME].md`.
     - Copy *minimal* relevant context from Design.
     - Define clear **Definition of Done (DoD)** (e.g., "Builds and passes test X").
     - Mark agent-verifiable items with no prefix. Mark items requiring human eyes/hardware with `MANUAL:` prefix (live display, webcam, physical device). The `/validate` agent must leave `MANUAL:` items unchecked; the human ticks them before `/sync`.
@@ -38,7 +38,7 @@ Follow this cycle for every feature request:
     - Do not read archived tasks unless necessary for migration.
 
 4.  **SYNC & CLEAN (Closing)**
-    - ✅ Mark status in `workflow/design/[FEATURE].md` (check boxes).
+    - ✅ Mark status in `workflow/design/D[ID]_[FEATURE].md` (check boxes).
     - 📝 Add any "Known Issues" discovered to Design.
     - 🗑️ Move Task file to workflow/tasks/archive/`.
 
@@ -105,6 +105,3 @@ To ensure consistency between educational goals and technical implementation:
 ## 6. General remarks
 - When asked to plan a task, write the plan and store in `workflow/tasks/`. Never implement unless explicitly told to proceed.
 - Consider task completed only after explicitly told.
-
-## Future improvement
-- consider different name formats: T<id>_*.md for tasks and D<id>_*.md for designs for easier filtering.

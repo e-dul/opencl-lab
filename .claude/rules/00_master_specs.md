@@ -11,18 +11,21 @@
 - **Build System**: CMake 3.18+.
   - Every sub-project (`01_Visual_Kernel`) must be standalone buildable via `cmake -B build && cmake --build build` from within that directory. No shared parent required.
   - `find_package(OpenCL REQUIRED)` must be used in every `CMakeLists.txt`. Unless it's included via common.cmake.
-  - Kernel files must be copied to the binary directory post-build using:
+  - Kernel files must be symlinked to the binary directory post-build using:
     ```cmake
     add_custom_command(TARGET <target> POST_BUILD
-      COMMAND ${CMAKE_COMMAND} -E copy_directory
+      COMMAND ${CMAKE_COMMAND} -E create_symlink
               ${CMAKE_CURRENT_SOURCE_DIR}/kernels
               $<TARGET_FILE_DIR:<target>>/kernels
-      COMMENT "Copying kernels"
+      COMMENT "Symlinking kernels (source stays canonical; build dir mirrors live)"
     )
     ```
+  > **Note:** `cmake -E create_symlink` requires source and build directory to reside on the same filesystem. Cross-filesystem or container builds must fall back to `copy_directory`.
+  - Prefer the function from `common/common.cmake` over custom implementations.
 - **CLI Parsing**: Use [CLI11](https://github.com/CLIUtils/CLI11) (v2.4.2, header-only, FetchContent) in all modules.
   - **FORBIDDEN**: Hand-rolled `Args` structs or custom `parse_args()` functions.
   - Integrated via `common/common.cmake`; linked as `CLI11::CLI11`.
+  > **ROS 2 Exemption:** Modules using ROS2 under `04_Robotics/` or `06_Bonus` are exempt from the CLI11 requirement. Use `declare_parameter()` / `get_parameter()` for parameter handling and `ros2 param` CLI for runtime inspection. Hand-rolled `--help` loops are still forbidden.
 
 ## 2. Directory Structure Protocol
 - **Snapshots over Branches**: Code evolves in sequential folders (`01_Basic/`, `02_Optimized/`).
@@ -30,6 +33,13 @@
   - `common/`: Header-only shared utilities (Platform selection, IO).
   - `vendor/`: Third-party header-only libs (`stb_image`, `cl.hpp`).
   - **Rule**: No complex linking. User must be able to copy-paste code easily.
+
+### Naming Conventions
+- **Executable names (`add_executable` target):** `snake_case`. No module prefix (`A1_`, `b2_`, `c3_`). No `_demo` suffix.
+- **`project()` names:** `PascalCase` matching the submodule directory name exactly (after stripping the numeric prefix).
+- **Submodule directory names:** `NN_Title_Snake_Case` where `NN` is a two-digit number scoped per parent module. Gaps on add/remove are acceptable; renumbering existing entries is **FORBIDDEN**.
+- **Acronyms:** ALLCAPS for well-known technical initialisms (`SVM`, `BVH`, `YUV`, `ISP`, `DNN`). Preserve upstream spelling for product/library names (`OpenCV`, `OpenVINO`, `CLBlast`, `VkFFT`).
+- **Multi-target modules:** Keep a descriptive per-target `snake_case` name when a module exposes multiple binaries.
 
 ## 3. Input / Output Standards
 - **Visual Verification**: All kernels must produce visual artifacts (`output.bmp`). Console text alone is not enough.
@@ -94,7 +104,14 @@
 - Scope inner objects (`cl::ImageGL`, `cl::CommandQueue`, kernels, buffers) in an explicit `{}` block that ends before GL teardown.
 - Explicitly reset the shared `cl::Context` itself — `cl_ctx = cl::Context();` — after the inner scope, before `glfwTerminate`. A `cl::Context` declared outside the inner scope is not destroyed by the inner scope's exit and will crash in `clReleaseContext` after the GL context is gone.
 
-### 7.7 Other
+### 7.7 Bulk Renames
+- After renaming any function, macro, or CMake helper across multiple files, grep for the old name with context to catch stale comments — call-site renames leave comments untouched.
+  ```
+  grep -rC2 "old_name" --include="CMakeLists.txt"   # -C2 shows 2 lines of context around each match
+  ```
+- Also grep natural-language variants (e.g. renaming `copy_kernels` → also search `copy kernels` to catch prose comments).
+
+### 7.8 Other
 - Throw exceptions instead of using `std::exit`
 - Remove unused headers
 - Always wrap enqueueUnmapMemObject and getInfo (two-arg overload) in CL_CHECK — they are silent cl_int returners, not covered by CL_HPP_ENABLE_EXCEPTIONS.
@@ -109,3 +126,8 @@ Every task inherits these baseline DoD items unless explicitly marked inapplicab
 - [ ] `GPU=<vendor> ./build/<bin>` selects the correct device without crashing.
 
 DoD performance gates for speedup should include a hardware-waiver clause from the start, rather than targeting a fixed ratio that depends on driver internals.
+
+## 9. Design Limitations
+- **Platform**: Linux only; tested on Ubuntu 24.04.
+- **Directory Structure**: Fixed layout assumed. User relocating folders or CMake files is out of scope.
+- **Code Duplication**: Expected side-effect of the standalone-recipe approach; enables isolated experimentation.

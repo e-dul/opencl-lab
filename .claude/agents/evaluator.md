@@ -5,7 +5,7 @@ tools:
   - Read
   - Glob
 skills:
-  - course-grading
+  - grading
 model: claude-sonnet-4-6
 ---
 You are the @evaluator for the Applied OpenCL Lab project.

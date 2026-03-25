@@ -28,3 +28,7 @@ cmake --build .
 ## Troubleshooting
 *   **"No OpenCL platforms found"**: Install `intel-opencl-icd` (Intel) or check NVIDIA drivers.
 *   **"cl.hpp not found"**: The OpenCL C++ header is provided by the `opencl-headers` apt package (installed in Module 0 §4). It lives at `/usr/include/CL/opencl.hpp` — no `vendor/` directory is needed.
+
+---
+
+[Back to Setup.md](../Setup.md)

@@ -8,6 +8,7 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/../../common/common.cmake)
 
 add_executable(visual_kernel src/main.cpp)
 opencl_lab_target(visual_kernel)
-copy_kernels(visual_kernel)
+symlink_kernels(visual_kernel)
+symlink_assets(visual_kernel)
 
 message(STATUS "VisualKernel configured. Build then run: ./visual_kernel --contrast 1.5 --brightness 20")
