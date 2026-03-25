@@ -694,27 +694,6 @@ private:
 // ─────────────────────────────────────────────────────────────────────────────
 int main(int argc, char* argv[])
 {
-    // Print parameter usage and exit if --help is requested.
-    // (perception_node uses declare_parameter, not CLI11, so we handle --help manually.)
-    for (int i = 1; i < argc; ++i) {
-        if (std::string(argv[i]) == "--help" || std::string(argv[i]) == "-h") {
-            std::cout <<
-                "Usage: perception_node [ROS args]\n\n"
-                "ROS 2 LifecycleNode — accelerated PointCloud2 processing via OpenCL.\n\n"
-                "Node parameters (set via --ros-args -p <name>:=<value>):\n"
-                "  topic              string  default: /points       — subscription topic\n"
-                "  ground_z           double  default: 0.2           — ground removal threshold (m)\n"
-                "  min_intensity      double  default: 10.0          — minimum intensity threshold\n"
-                "  max_points         int64   default: 100000        — pre-allocated buffer size\n"
-                "  use_double_buffer  bool    default: false         — enable non-blocking double-buffer path (C3 Challenge)\n\n"
-                "Publishes:\n"
-                "  /filtered_points   sensor_msgs/PointCloud2  — ground- and intensity-filtered cloud\n"
-                "  /cluster_features  sensor_msgs/PointCloud2  — centroid XYZ, intensity mean, count\n\n"
-                "GPU selection: set GPU=<vendor> env var (e.g. GPU=AMD, GPU=NVIDIA, GPU=INTEL).\n";
-            return 0;
-        }
-    }
-
     rclcpp::init(argc, argv);
 
     // WHY default NodeOptions (not intra-process): perception_node is designed

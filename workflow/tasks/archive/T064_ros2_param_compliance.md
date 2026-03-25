@@ -79,37 +79,53 @@ ros2 param set /<node_name> <param> <value>
 
 ## Definition of Done (DoD)
 
-- [ ] `04_Robotics/03_Perception_Node/main.cpp` no longer contains a hand-rolled `--help` argument loop; no other logic is altered.
-- [ ] `git diff 04_Robotics/03_Perception_Node/main.cpp` shows only the removal of the help-output block with no surrounding context lines changed beyond the deleted block.
-- [ ] All three ROS 2 READMEs (`NodeAcceleration.md`, `CostmapInflation.md`, `PerceptionNode.md`) contain a `## Inspecting Parameters` section with all four `ros2 param` commands (`list`, `describe`, `get`, `set`).
-- [ ] Node names in the README `ros2 param` snippets match the actual node names declared in the corresponding `main.cpp` files (verified by grep or read).
-- [ ] Each of the three READMEs documents how to pass parameters at node launch time via `--ros-args -p <param>:=<value>` (verify by grep for `--ros-args`).
-- [ ] No `.cl` or `CMakeLists.txt` files appear in `git diff --name-only`.
+- [x] `04_Robotics/03_Perception_Node/main.cpp` no longer contains a hand-rolled `--help` argument loop; no other logic is altered.
+- [x] `git diff 04_Robotics/03_Perception_Node/main.cpp` shows only the removal of the help-output block with no surrounding context lines changed beyond the deleted block.
+- [x] All three ROS 2 READMEs (`NodeAcceleration.md`, `CostmapInflation.md`, `PerceptionNode.md`) contain a `## Inspecting Parameters` section with all four `ros2 param` commands (`list`, `describe`, `get`, `set`).
+- [x] Node names in the README `ros2 param` snippets match the actual node names declared in the corresponding `main.cpp` files (verified by grep or read).
+- [x] Each of the three READMEs documents how to pass parameters at node launch time via `--ros-args -p <param>:=<value>` (verify by grep for `--ros-args`).
+- [x] No `.cl` or `CMakeLists.txt` files appear in `git diff --name-only`.
 - [ ] MANUAL: In a live ROS 2 environment, launch the perception node and run `ros2 param list /perception_node`; confirm the listed parameters match those described in `PerceptionNode.md`.
 
 ---
 
 ## Execution Report
-<!-- Filled by @coder after implementation. -->
 
-- **Status:** PENDING
-- **Session:** —
+- **Status:** VALIDATED
+- **Session:** 2026-03-25 (validation pass: 2026-03-25)
 
 ### Completed
 | Item | Action |
 |------|--------|
-| A — Delete hand-rolled --help loop | — |
-| B — Add Inspecting Parameters sections | — |
+| A — Delete hand-rolled --help loop | Removed lines 697–717 from `04_Robotics/03_Perception_Node/main.cpp`; no logic altered |
+| B — Add Inspecting Parameters sections | Inserted standardized section into all three ROS 2 READMEs with correct node names |
 
 ### Validation
 ```
-[output here]
+cmake --build build (04_Robotics/03_Perception_Node):
+[100%] Built target perception_node
+[100%] Built target point_cloud_publisher
+Zero errors, zero warnings.
+
+git diff --name-only:
+04_Robotics/01_Node_Acceleration/NodeAcceleration.md
+04_Robotics/02_Costmap_Inflation/CostmapInflation.md
+04_Robotics/03_Perception_Node/PerceptionNode.md
+04_Robotics/03_Perception_Node/main.cpp
+(no .cl or CMakeLists.txt files)
 ```
 
 ### Changed Files
 | File | Change |
 |------|--------|
-| — | — |
+| `04_Robotics/03_Perception_Node/main.cpp` | Deleted hand-rolled --help block (21 lines) |
+| `04_Robotics/01_Node_Acceleration/NodeAcceleration.md` | Added `## Inspecting Parameters` (node: `accel_node`) |
+| `04_Robotics/02_Costmap_Inflation/CostmapInflation.md` | Added `## Inspecting Parameters` (node: `costmap_node`) |
+| `04_Robotics/03_Perception_Node/PerceptionNode.md` | Added `## Inspecting Parameters` (node: `perception_node`) |
 
 ### Remaining
-- [ ] All items above
+- [x] A — main.cpp hand-rolled --help loop removed
+- [x] B — All three READMEs have `## Inspecting Parameters` with correct node names
+- [x] No .cl or CMakeLists.txt modified
+- [x] --ros-args already present in all three READMEs (pre-existing)
+- [ ] MANUAL: Live `ros2 param list /perception_node` verification

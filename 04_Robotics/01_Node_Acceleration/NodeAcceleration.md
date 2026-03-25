@@ -45,6 +45,24 @@ Context init appears once. Dispatch times are flat across all callbacks. The nod
 
 **Performance gate**: per-callback dispatch time ≤ 0.5 ms flat. Hardware waiver applies for CPU-fallback and integrated GPU devices.
 
+## Inspecting Parameters
+
+All tunable parameters are declared via `declare_parameter()` and inspectable at runtime without recompiling.
+
+```bash
+# List all declared parameters
+ros2 param list /accel_node
+
+# Show type, description, and constraints for a single parameter
+ros2 param describe /accel_node <param>
+
+# Read a parameter value
+ros2 param get /accel_node <param>
+
+# Set a parameter value at runtime
+ros2 param set /accel_node <param> <value>
+```
+
 ## Key Concepts
 
 ### LifecycleNode State Machine Maps to OpenCL Resource Lifetime

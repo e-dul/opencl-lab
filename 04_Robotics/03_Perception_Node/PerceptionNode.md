@@ -57,6 +57,24 @@ Total:                             4.700 ms  <- must be < 5 ms to pass
 
 **Performance gate**: total end-to-end < 5 ms at 100k points †.
 
+## Inspecting Parameters
+
+All tunable parameters are declared via `declare_parameter()` and inspectable at runtime without recompiling.
+
+```bash
+# List all declared parameters
+ros2 param list /perception_node
+
+# Show type, description, and constraints for a single parameter
+ros2 param describe /perception_node <param>
+
+# Read a parameter value
+ros2 param get /perception_node <param>
+
+# Set a parameter value at runtime
+ros2 param set /perception_node <param> <value>
+```
+
 ## Key Concepts
 
 ### The Serialization Problem (Loaned Messages)

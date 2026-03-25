@@ -48,6 +48,24 @@ Map: 512x512, inflation radius: 10 cells
 
 > **Known issue — LDS tiling on RTX 4060 / Radeon 680M**: dense 2D neighbourhood scans are not LDS-bandwidth-bound on these architectures; tiled may show ~1.0× vs naive. Hardware waiver † applies to the tiled ≥ 1.5× speedup gate. The correct optimisation for large radii is a separable 1D distance transform (Meijster/Saito algorithm).
 
+## Inspecting Parameters
+
+All tunable parameters are declared via `declare_parameter()` and inspectable at runtime without recompiling.
+
+```bash
+# List all declared parameters
+ros2 param list /costmap_node
+
+# Show type, description, and constraints for a single parameter
+ros2 param describe /costmap_node <param>
+
+# Read a parameter value
+ros2 param get /costmap_node <param>
+
+# Set a parameter value at runtime
+ros2 param set /costmap_node <param> <value>
+```
+
 ## Key Concepts
 
 ### Why Costmap Inflation?
