@@ -57,7 +57,7 @@ Increase `--radius` from 5 to 15. At what radius does the local memory variant s
 
 ## Troubleshooting
 
-- **"Out of resources" at large radius**: Local memory is limited (typically 32–64 KB per compute unit). Reduce tile size or work-group size to fit within budget.
+- **"Out of resources" at large radius**: Local memory is limited per compute unit — check your device's actual limit with `clinfo | grep "Local memory"` or query `CL_DEVICE_LOCAL_MEM_SIZE` at runtime (typical range: 32–128 KB depending on GPU generation). Reduce tile size or work-group size to fit within budget.
 - **Missing the `barrier()` causes incorrect output**: Without `barrier(CLK_LOCAL_MEM_FENCE)`, some work-items read the tile before neighbors finish writing the halo. The result is visually noisy in predictable ways — use this to confirm the bug.
 
 ## Used In

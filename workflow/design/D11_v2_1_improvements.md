@@ -16,7 +16,7 @@ Eliminate remaining structural debt, module consolidation opportunities, and qua
 - [x] Phase 1: Merge 10_SVM into 11_SVM_Theory — Absorb `10_SVM`'s Buffer+Map/Unmap baseline mode and per-phase split timing into `11_SVM_Theory/main.cpp`; add `--mode` CLI flag; archive `10_SVM/`; update `Toolbox.md`. Slot 10 left vacant.
 
 - [x] Phase 2: UX Audit v2 — Re-run `/test-ux` across all 7 modules in their v2.0 structure (`00_Setup`, `01_Host_API`, `02_Multimedia`, `03_GraphicsHPC`, `04_Robotics`, `05_Toolbox`, `06_Bonus`). Aggregate findings, human triage, apply selected fixes. Same protocol as Task 051 but scoped to the renamed v2.0 layout.
-- [ ] Phase 3: Tech Audit v2 — Re-run `/audit` across all 7 modules against their current v2.0 READMEs. Web-search top factual claims per submodule, flag stale/false claims, remove redundancies between READMEs and design docs. Report uses the same human-triage table format as Phase 2.
+- [x] Phase 3: Tech Audit v2 — Re-run `/audit` across all 7 modules against their current v2.0 READMEs. Web-search top factual claims per submodule, flag stale/false claims, remove redundancies between READMEs and design docs. Report uses the same human-triage table format as Phase 2.
 - [ ] Phase 4: Grading Pass — Run `/grade-module` on all 7 top-level modules (and key submodules). Produce a merged scores table plus per-module actionable items in the Phase 2/3 human-triage format.
 
 
@@ -179,6 +179,15 @@ Verdict values: `OK` / `UNVERIFIED` / `FALSE` / `STALE`.
 - All 7 module index READMEs and their submodule READMEs (v2.0 paths).
 - `workflow/design/00_master_specs.md` — normative reference for technical claims.
 - Grep output of existing `AUDIT FLAG` markers across the repo before starting.
+
+### Known Issues (post-T069)
+
+- **`half_sqrt` gate incorrect (FALSE → fixed):** `05_Toolbox/05_Fast_Math/FastMath.md` incorrectly gated `half_sqrt` behind `cl_khr_fp16`; removed the gate. Precision note corrected from "≥11-bit" to "≥10-bit (≤8192 ULP, §6.12.2)".
+- **Dead SVM cross-link (STALE → fixed):** `02_Multimedia/01_OpenCV_Interop/OpenCVInterop.md` referenced the archived `10_SVM/SVM.md`; updated to `11_SVM_Theory/SVMTheory.md` (residual from Phase 1 merge not caught by T068).
+- **`04_Deployment` row missing from Toolbox (STALE → fixed):** `05_Toolbox/Toolbox.md` contents table omitted the `04_Deployment` submodule entry entirely; row added.
+- **Setup.md CPU generation error (FALSE → fixed):** "6th Gen Skylake" was incorrect; corrected to "5th Gen Broadwell" per Intel ARK.
+- **PCIe Gen 3 bandwidth understated (STALE → updated):** `03_GraphicsHPC/01_Ray_Tracer_Basic/RayTracerBasic.md` stated "~12 GB/s"; widened to "~16 GB/s theoretical, ~12–14 GB/s measured".
+- **`tech_audit_v2_report.md` archived alongside task:** Report retained in `workflow/tasks/archive/` for traceability.
 
 ---
 

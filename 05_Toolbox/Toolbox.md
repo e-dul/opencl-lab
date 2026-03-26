@@ -37,6 +37,7 @@ Each tool is a standalone project with a measurable before/after. The workflow:
 | [Global Work Offset](07_Global_Work_Offset/GlobalWorkOffset.md) | Full-frame dispatch wastes threads when only a small ROI needs work | `07_Global_Work_Offset/` |
 | [OpenCL vs CUDA](09_OpenCL_vs_CUDA/OpenCLvsCUDA.md) | Choosing a GPU compute API for a new project *(NVIDIA GPU + CUDA)* | `09_OpenCL_vs_CUDA/` |
 | [SVM Theory](11_SVM_Theory/SVMTheory.md) | Zero-Copy wasn't enough — need the hardware-level theory behind SVM *(OpenCL 2.0)* | `11_SVM_Theory/` |
+| [Deployment](04_Deployment/Deployment.md) | Packaging and shipping an OpenCL application | `04_Deployment/` |
 
 ## What's Next
 

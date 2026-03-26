@@ -3,7 +3,7 @@
 **Target OS:** Ubuntu 24.04 LTS (Noble Numbat)
 **Hardware Focus:** Intel Integrated Graphics (Default), NVIDIA/AMD (Optional)
 
-> **How OpenCL driver stacks work:** OpenCL uses a three-layer model — an ICD Loader (`libOpenCL`), one or more vendor ICDs (the GPU driver plugin), and the device (GPU/CPU). When you install `intel-opencl-icd` or `nvidia-opencl-icd`, you are installing the vendor ICD. The `ocl-icd-libopencl1` package provides the ICD Loader that dispatches API calls to the right ICD at runtime.
+> **How OpenCL driver stacks work:** OpenCL uses a three-layer model (ICD Loader → vendor ICD → device). See [Deployment](../05_Toolbox/04_Deployment/Deployment.md) for the full breakdown.
 
 After completing setup, validate your installation by following [01_Smoke_Test/SmokeTest.md](01_Smoke_Test/SmokeTest.md).
 
@@ -11,7 +11,7 @@ After completing setup, validate your installation by following [01_Smoke_Test/S
 
 ## 1. Intel Integrated Graphics (Quick Start)
 
-For most laptops with Intel CPUs (6th Gen "Skylake" and newer), OpenCL drivers are available directly from the official Ubuntu repositories.
+For most laptops with Intel CPUs (5th Gen "Broadwell" and newer), OpenCL drivers are available directly from the official Ubuntu repositories.
 
 ### Step 1: Install Drivers
 

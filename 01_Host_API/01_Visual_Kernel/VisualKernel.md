@@ -82,7 +82,7 @@ The `--kernel vec3` variant dispatches one work-item per pixel and processes all
 
 **Pragmatic choice**: OpenCL 1.2 works everywhere — Nvidia, AMD, Intel, mobile, PoCL.
 
-**What 2.0 adds**: SVM (Shared Virtual Memory), Pipes, device-side enqueue. These are covered in Module 4 where hardware support can be verified at runtime. 1.2 features cover 95% of real workloads.
+**What 2.0 adds**: SVM (Shared Virtual Memory), Pipes, device-side enqueue. These are covered in Module 4 where hardware support can be verified at runtime. 1.2 features cover most common GPU compute workloads.
 
 ## Mini-Challenge
 

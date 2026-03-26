@@ -16,7 +16,7 @@ cmake -B build && cmake --build build
 ## Verify
 ```
 [Standard  ] 1M ray normalizations:  18.4 ms   (IEEE 754 sqrt/rsqrt)
-[half_      ] 1M ray normalizations:   9.1 ms   (2.0x faster, ≥11-bit)
+[half_      ] 1M ray normalizations:   9.1 ms   (2.0x faster, ≥10-bit)
 [native_    ] 1M ray normalizations:   2.3 ms   (8.0x faster, hw-defined)
 [-cl-fast-relaxed-math + native_] 1.9 ms   (8.7x faster)
 ```
@@ -30,7 +30,7 @@ OpenCL exposes three precision tiers for transcendental math functions:
 | Prefix | ULP error guarantee | Typical speed | Use when |
 |:-------|:--------------------|:-------------|:---------|
 | (none) `sqrt(x)` | ≤ 3 ULP (IEEE 754) | 1× | Correctness required: physics, finance, medical |
-| `half_sqrt(x)` | ≥ 11-bit mantissa | ~2× | Visual output, signal processing (if `cl_khr_fp16` supported) |
+| `half_sqrt(x)` | ≥ 10-bit mantissa (≤ 8192 ULP, §6.12.2) | ~2× | Visual output, signal processing |
 | `native_sqrt(x)` | Hardware-defined, no guarantee | 4–10× | Ray tracing, particle systems, games |
 
 **`-cl-fast-relaxed-math`**: a `clBuildProgram` flag that enables the compiler to:

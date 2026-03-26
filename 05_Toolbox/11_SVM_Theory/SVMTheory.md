@@ -82,7 +82,7 @@ CPU RAM == GPU "VRAM"  (same physical DRAM)
          ↑
     No copy. GPU and CPU share the same DDR5/LPDDR5 bus.
     CL_MEM_USE_HOST_PTR: GPU accesses your pointer with zero latency.
-    Bandwidth limited by system memory (~100 GB/s on modern APUs).
+    Bandwidth limited by system memory (85–140 GB/s on modern APUs, depending on DDR5/LPDDR5x configuration).
 ```
 
 ## SVM Levels
