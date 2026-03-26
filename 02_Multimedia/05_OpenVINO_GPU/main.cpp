@@ -53,13 +53,13 @@ int main(int argc, char* argv[]) {
     CLI::App app{"A3_2 OpenVINO GPU — Selfie segmentation RemoteTensor + bokeh blur"};
     std::string input_path;
     std::string model_path = "assets/selfie_segmentation.onnx";
-    float       threshold  = 0.5f;
+    float       threshold  = 0.6f;
 
     app.add_option("--input",     input_path, "Path to input image (BMP/PNG/JPG)")->required();
     app.add_option("--model",     model_path, "Path to ONNX model")
         ->default_val("assets/selfie_segmentation.onnx");
-    app.add_option("--threshold", threshold,  "Mask threshold (0.0–1.0, default 0.5)")
-        ->default_val(0.5f);
+    app.add_option("--threshold", threshold,  "Mask threshold (0.0–1.0, default 0.6)")
+        ->default_val(0.6f);
     int runs = 5;
     app.add_option("--runs", runs, "Number of inference iterations (default 5)")
         ->default_val(5);
