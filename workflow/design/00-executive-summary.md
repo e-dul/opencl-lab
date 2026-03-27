@@ -1,7 +1,7 @@
 # Executive Summary: Applied OpenCL Lab
 
-**Version:** 2.1 (Final)
-**Status:** Minor update - see v2.1 Update Summary 
+**Version:** 2.2 (Final)
+**Status:** Minor update - see v2.2 Update Summary 
 **Target Audience:** Mid/Senior C++ Engineers, Roboticists, HPC Developers
 
 ---
@@ -394,7 +394,7 @@ Links between index and sub-modules replace duplicated prerequisite/limitation b
 Toolbox and Bonus are already compliant; Multimedia, GraphicsHPC, Robotics, and Host API
 require splitting their current fat single-file READMEs into this structure.
 
-## v2.1 Update Summary (2026-03-25) - DRAFT
+## v2.1 Update Summary (2026-03-25)
 
 ### Context
 
@@ -408,5 +408,50 @@ Eliminate remaining structural debt, module consolidation opportunities, and qua
 - UX Audit v2 — Re-run `/test-ux` across all 7 modules in their v2.0 structure.
 - Tech Audit v2 — Re-run `/audit` across all 7 modules against their current v2.0 READMEs.
 
+## v2.2 Update Summary (2026-03-28)
 
+### Context
 
+Further improvements.
+
+> **Purpose:** Optimization Toolbox consolidation, deep-hardware edge cases, and memory partitioning.
+
+### New content
+
+#### New Core Tool: Sub-Buffers (Tool 10)
+The final empty slot in the Optimization Toolbox has been allocated to **Sub-Buffers**, serving as the critical bridge between single-GPU constraints and advanced multi-queue pipelines.
+*   **Tool:** `10_Sub_Buffers_Partitioning`
+*   **Symptom:** VRAM limits exceeded / High CPU overhead from manual `memcpy` chunking.
+*   **Educational Value:** Replaces the C++ anti-pattern of manual host-side slicing. Teaches safe memory aliasing (`cl::Buffer::createSubBuffer`) with zero data movement.
+*   **Strategic Placement:** Acts as the mechanical prerequisite for out-of-core streaming, `08_Multi_GPU_Strategy`, and `16_Async_Multi_Thread` pipelining.
+
+### Improvements
+
+#### Architectural Refinement: Preventing Toolbox Bloat
+To maintain a high-signal-to-noise ratio and avoid overwhelming students with standalone theory, hardcore hardware edge cases have been strategically nested into existing foundational tools as **Advanced Challenges**:
+*   **Bank Conflicts:** Added as an advanced extension inside `01_Local_Memory`. Demonstrates how bad stride patterns destroy LDS bandwidth and teaches `+1` padding fixes.
+*   **Register Pressure & Spilling:** Added as an advanced extension inside `14_Work_Group_Sizing`. Teaches students to break the "black box" of the compiler (e.g., using `-cl-nv-verbose`) to diagnose silent occupancy drops and VRAM spilling caused by excessive `private` variable usage.
+
+#### Project-Level Refinements: The "Silicon Realities"
+Critical data layout and vectorization "gotchas" are now deeply integrated directly into the project modules (Path B - Ray Tracer, Path C - Robotics) as inline **"Stop and Read"** engineering lessons, rather than isolated theory:
+*   **The `float3` Alignment Trap:** Teaching the reality that OpenCL aligns `float3` to 16 bytes. Exposing implicit widening bugs (e.g., AMD driver `NaN` generation on `normalize()`) and the necessity of explicit custom math functions (like `dot3`).
+*   **Hardware-Safe C++ Structs:** Enforcing strict memory padding rules (`int pad[2]`) and the mandatory use of `static_assert(sizeof(MyStruct) == N)` on the Host to mathematically guarantee Host-Device ABI alignment before compilation.
+*   **AoS vs. SoA:** Emphasizing the transition from Object-Oriented memory (Array of Structures) to Data-Oriented memory (Structure of Arrays) to maximize 128-byte cache line utilization on the memory bus.
+
+#### Updated Optimization Toolbox content
+
+**Added:**
+```markdown
+| [Sub-Buffers](10_Sub_Buffers_Partitioning/SubBuffers.md) | VRAM limits exceeded / High CPU overhead from manual `memcpy` chunking | `10_Sub_Buffers_Partitioning/` |
+```
+
+**Modified (Advanced challenges nested into symptoms):**
+```markdown
+| [Local Memory](01_Local_Memory/LocalMemory.md) | Kernel re-reads same global data repeatedly *(Incl. Bank Conflicts)* | `01_Local_Memory/` |
+| [Work-Group Sizing](14_Work_Group_Sizing/WorkGroupSizing.md) | GPU underutilized, low occupancy *(Incl. Register Pressure)* | `14_Work_Group_Sizing/` |
+``` 
+
+*(All other 13 tools remain exactly the same as your original list).*
+
+#### Quality assesment 
+Grading Pass — Run `/grade-module` on all 7 top-level modules (and key submodules).
