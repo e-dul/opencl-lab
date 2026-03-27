@@ -1,7 +1,7 @@
 # Executive Summary: Applied OpenCL Lab
 
-**Version:** 2.0 (Final)
-**Status:** Major update - see Pivot to Cookbook v2.0 Summary 
+**Version:** 2.1 (Final)
+**Status:** Minor update - see v2.1 Update Summary 
 **Target Audience:** Mid/Senior C++ Engineers, Roboticists, HPC Developers
 
 ---
@@ -393,3 +393,20 @@ Custom file names (e.g. `LocalMemory.md`, `OpenCVInterop.md`) are kept — not r
 Links between index and sub-modules replace duplicated prerequisite/limitation blocks.
 Toolbox and Bonus are already compliant; Multimedia, GraphicsHPC, Robotics, and Host API
 require splitting their current fat single-file READMEs into this structure.
+
+## v2.1 Update Summary (2026-03-25) - DRAFT
+
+### Context
+
+Eliminate remaining structural debt, module consolidation opportunities, and quality gaps not addressed in the v2.0 backlog (D10).
+
+> **Purpose:** Cross-cutting improvement backlog for the Applied OpenCL Lab v2.1.
+
+### Changes
+
+- Merge 10_SVM into 11_SVM_Theory — Absorb `10_SVM`'s Buffer+Map/Unmap baseline mode and per-phase split timing into `11_SVM_Theory/main.cpp.
+- UX Audit v2 — Re-run `/test-ux` across all 7 modules in their v2.0 structure.
+- Tech Audit v2 — Re-run `/audit` across all 7 modules against their current v2.0 READMEs.
+
+
+

@@ -17,7 +17,7 @@ Eliminate remaining structural debt, module consolidation opportunities, and qua
 
 - [x] Phase 2: UX Audit v2 — Re-run `/test-ux` across all 7 modules in their v2.0 structure (`00_Setup`, `01_Host_API`, `02_Multimedia`, `03_GraphicsHPC`, `04_Robotics`, `05_Toolbox`, `06_Bonus`). Aggregate findings, human triage, apply selected fixes. Same protocol as Task 051 but scoped to the renamed v2.0 layout.
 - [x] Phase 3: Tech Audit v2 — Re-run `/audit` across all 7 modules against their current v2.0 READMEs. Web-search top factual claims per submodule, flag stale/false claims, remove redundancies between READMEs and design docs. Report uses the same human-triage table format as Phase 2.
-- [ ] Phase 4: Grading Pass — Run `/grade-module` on all 7 top-level modules (and key submodules). Produce a merged scores table plus per-module actionable items in the Phase 2/3 human-triage format.
+- [ ] Phase 4: Grading Pass — Run `/grade-module` on all 7 top-level modules (and key submodules). Produce a merged scores table plus per-module actionable items in the Phase 2/3 human-triage format. **Deferred to v2.2.**
 
 
 ---
@@ -191,7 +191,9 @@ Verdict values: `OK` / `UNVERIFIED` / `FALSE` / `STALE`.
 
 ---
 
-## Phase 4 Detail: Grading Pass
+## Phase 4 Detail: Grading Pass *(Deferred to v2.2)*
+
+> **Status:** Deferred. Description retained for v2.2 planning.
 
 ### Grading Scope
 
