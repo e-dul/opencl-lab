@@ -13,7 +13,7 @@ A library of isolated GPU optimization techniques. Do not read this front-to-bac
 
 Each tool is a standalone project with a measurable before/after. The workflow:
 
-1. Profile your Track project (`02_Projects/`) (`cl::Event` timing on each stage)
+1. Profile your Track project (`02_Multimedia/`, `03_GraphicsHPC/`, or `04_Robotics/`) (`cl::Event` timing on each stage)
 2. Identify the bottleneck (upload? kernel? download?)
 3. Find the matching tool below
 4. Run the tool's demo — see the technique in isolation
@@ -25,7 +25,6 @@ Each tool is a standalone project with a measurable before/after. The workflow:
 |:-----|:--------|:-------|
 | [Zero-Copy](15_Zero_Copy/ZeroCopy.md) | Upload time dominates frame budget | `15_Zero_Copy/` |
 | [Coalesced Access](02_Coalesced_Access/CoalescedAccess.md) | Kernel slow despite simple logic | `02_Coalesced_Access/` |
-| [SVM](10_SVM/SVM.md) | Repeated map/unmap overhead on UMA *(OpenCL 2.0)* | `10_SVM/` |
 | [Work-Group Sizing](14_Work_Group_Sizing/WorkGroupSizing.md) | GPU underutilized, low occupancy | `14_Work_Group_Sizing/` |
 | [Thread Divergence](13_Thread_Divergence/ThreadDivergence.md) | Kernel slower than expected with conditionals | `13_Thread_Divergence/` |
 | [Local Memory](01_Local_Memory/LocalMemory.md) | Kernel re-reads same global data repeatedly | `01_Local_Memory/` |
@@ -38,6 +37,7 @@ Each tool is a standalone project with a measurable before/after. The workflow:
 | [Global Work Offset](07_Global_Work_Offset/GlobalWorkOffset.md) | Full-frame dispatch wastes threads when only a small ROI needs work | `07_Global_Work_Offset/` |
 | [OpenCL vs CUDA](09_OpenCL_vs_CUDA/OpenCLvsCUDA.md) | Choosing a GPU compute API for a new project *(NVIDIA GPU + CUDA)* | `09_OpenCL_vs_CUDA/` |
 | [SVM Theory](11_SVM_Theory/SVMTheory.md) | Zero-Copy wasn't enough — need the hardware-level theory behind SVM *(OpenCL 2.0)* | `11_SVM_Theory/` |
+| [Deployment](04_Deployment/Deployment.md) | Packaging and shipping an OpenCL application | `04_Deployment/` |
 
 ## What's Next
 

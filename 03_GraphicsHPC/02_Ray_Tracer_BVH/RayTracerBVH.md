@@ -1,4 +1,4 @@
-# B.3 — Ray Tracer BVH: Flagship Project
+# B.2 — Ray Tracer BVH: Flagship Project
 
 **Goal**: Extend the basic ray tracer with a Bounding Volume Hierarchy to render complex triangle scenes at 60 FPS — the default scene (`bunny.obj`, ~70k triangles) is already well beyond what brute-force intersection can handle interactively.
 
@@ -62,6 +62,8 @@ while (node != MISS) {
 ```
 
 ### BVH Build on CPU (SAH)
+
+For a deeper treatment of SAH and BVH construction, see PBRT §4.3 (free online at [pbr-book.org](https://www.pbr-book.org/3ed-2018/Primitives_and_Intersection_Acceleration/Bounding_Volume_Hierarchies)) — it covers the same algorithm used here.
 
 SAH (Surface Area Heuristic) estimates split cost by weighting the probability of a ray hitting a child node by its surface area. The BVH is built on the CPU once and uploaded as a flat array. The kernel only traverses — it never modifies the structure:
 

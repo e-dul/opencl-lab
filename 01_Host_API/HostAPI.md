@@ -4,7 +4,7 @@ Learn how to control the GPU from C++ and measure whether it's actually faster t
 
 ## Prerequisites
 
-See [main README](../README.md) for base requirements (OpenCL, CMake 3.18+, Docker setup).
+See [root README](../README.md) for base requirements (OpenCL, CMake 3.18+, Docker setup).
 
 ## Heterogeneous Architecture in a Nutshell
 
@@ -30,7 +30,7 @@ The GPU is not a faster CPU. It is a separate processor with its own memory. Eve
 | 02 — Visual Kernel Events | Add `cl::Event` profiling: measure upload, kernel, download | [VisualKernelEvents.md](02_Visual_Kernel_Events/VisualKernelEvents.md) |
 | 03 — Buffer Flags | Buffer flag experiments: USE_HOST_PTR vs COPY_HOST_PTR | [BufferFlags.md](03_Buffer_Flags/BufferFlags.md) |
 
-## Performance Gate
+## Verification Gate
 
 - `02_Visual_Kernel_Events -p` must print three non-zero timings (Upload, Kernel, Download).
 - `01_Visual_Kernel` must produce a valid `output.bmp` showing brightness/contrast adjustment.

@@ -1,4 +1,4 @@
-# B.3 Dynamic — Ray Tracer BVH: Dynamic Scene Challenge
+# B.3 — Ray Tracer BVH Dynamic: Dynamic Scene Challenge
 
 **Goal**: Animate the scene (rigid Y-axis rotation each frame) and benchmark three per-frame BVH strategies side-by-side — full rebuild, AABB refit, and static (stale BVH) — to make the rebuild vs refit cost difference concrete and observable.
 
@@ -54,6 +54,8 @@ static   | unlimited |           0.00 |        0.00 |        0.63 |       0.63 |
 **Static** never touches the BVH. GPU traversal tests stale AABBs against moved triangles — rays skip subtrees whose AABBs no longer enclose the actual geometry. `render_static.bmp` shows exactly what this failure mode looks like in practice.
 
 ### `--max-depth` and BVH Acceleration
+
+Default `--max-depth 0` = unlimited depth (yields ~2N nodes for N triangles).
 
 Use `--max-depth` to observe the BVH benefit directly:
 

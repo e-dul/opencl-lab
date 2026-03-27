@@ -39,6 +39,8 @@ kernel.setArg(1, mask_buf);           // hand off to your blur kernel
 
 **When to use**: OpenCV is already in your stack and ease of integration matters. The T-API hides memory management but gives you less control over buffer layout.
 
+> **Note:** `handle()` is semi-private OpenCV API for OpenCL interop; `ACCESS_READ` signals read-only access to the underlying `cl_mem`.
+
 **vs 05**: T-API is lower integration effort; OpenVINO RemoteTensor gives explicit buffer ownership and control. See [A.3.2](../05_OpenVINO_GPU/OpenVINOGPU.md) for the comparison table.
 
 ## Mini-Challenge

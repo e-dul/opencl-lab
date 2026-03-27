@@ -3,7 +3,7 @@
 **Target OS:** Ubuntu 24.04 LTS (Noble Numbat)
 **Hardware Focus:** Intel Integrated Graphics (Default), NVIDIA/AMD (Optional)
 
-> **How OpenCL driver stacks work:** OpenCL uses a three-layer model — an ICD Loader (`libOpenCL`), one or more vendor ICDs (the GPU driver plugin), and the device (GPU/CPU). When you install `intel-opencl-icd` or `nvidia-opencl-icd`, you are installing the vendor ICD. The `ocl-icd-libopencl1` package provides the ICD Loader that dispatches API calls to the right ICD at runtime.
+> **How OpenCL driver stacks work:** OpenCL uses a three-layer model (ICD Loader → vendor ICD → device). See [Deployment](../05_Toolbox/04_Deployment/Deployment.md) for the full breakdown.
 
 After completing setup, validate your installation by following [01_Smoke_Test/SmokeTest.md](01_Smoke_Test/SmokeTest.md).
 
@@ -11,7 +11,7 @@ After completing setup, validate your installation by following [01_Smoke_Test/S
 
 ## 1. Intel Integrated Graphics (Quick Start)
 
-For most laptops with Intel CPUs (6th Gen "Skylake" and newer), OpenCL drivers are available directly from the official Ubuntu repositories.
+For most laptops with Intel CPUs (5th Gen "Broadwell" and newer), OpenCL drivers are available directly from the official Ubuntu repositories.
 
 ### Step 1: Install Drivers
 
@@ -118,6 +118,9 @@ sudo apt update
 sudo apt install ocl-icd-libopencl1 mesa-opencl-icd ocl-icd-opencl-dev clinfo
 ```
 
+*   `ocl-icd-libopencl1`: ICD Loader — dispatches OpenCL API calls to the correct vendor driver at runtime.
+*   `ocl-icd-opencl-dev`: compile-time dev files (headers + link stub) — required when building OpenCL programs.
+
 ---
 
 ## 4. Build Tools
@@ -127,6 +130,8 @@ To compile the projects in this course, you will need:
 ```bash
 sudo apt install build-essential cmake git ocl-icd-opencl-dev opencl-headers
 ```
+
+> **Note:** `ocl-icd-opencl-dev` is a superset of `opencl-headers` — it includes the Khronos headers plus the ICD link stub. `opencl-headers` installs Khronos headers only (no link stub).
 
 Verification:
 ```bash
@@ -140,3 +145,7 @@ Verify that the OpenCL C++ headers were installed correctly:
 ls /usr/include/CL/
 ```
 You should see `cl.hpp`, `opencl.hpp`, and related headers listed. If the directory is empty or missing, `opencl-headers` was not installed correctly. If CMake < 3.18, install a newer version via `pip install cmake` or the [Kitware APT repository](https://apt.kitware.com/).
+
+---
+
+[← Back to README](../README.md)

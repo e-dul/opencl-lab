@@ -9,6 +9,8 @@
 
 ## Build & Run
 
+> New to lifecycle nodes? See the [ROS 2 Jazzy Lifecycle Tutorial](https://docs.ros.org/en/jazzy/Tutorials/Intermediate/Managed-Nodes.html) before reading the code below.
+
 ```bash
 cd 01_Node_Acceleration
 source /opt/ros/jazzy/setup.bash
@@ -46,6 +48,8 @@ Context init appears once. Dispatch times are flat across all callbacks. The nod
 **Performance gate**: per-callback dispatch time ≤ 0.5 ms flat. Hardware waiver applies for CPU-fallback and integrated GPU devices.
 
 ## Inspecting Parameters
+
+In a second terminal (with ROS 2 sourced), while the node is running:
 
 All tunable parameters are declared via `declare_parameter()` and inspectable at runtime without recompiling.
 

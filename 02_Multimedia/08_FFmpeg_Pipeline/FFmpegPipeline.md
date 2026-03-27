@@ -1,4 +1,4 @@
-# A.5 — FFmpeg Pipeline: Hardware Decode to OpenCL
+# A.8 — FFmpeg Pipeline: Hardware Decode to OpenCL
 
 **When to use**: you want to apply the blur/filter kernel from Track A to a video file — hardware decode directly into GPU memory, no CPU copies.
 

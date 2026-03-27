@@ -1,5 +1,7 @@
 # Applied OpenCL Lab
 
+> **Note:** This project is an AI-assisted coding experiment. The code, READMEs, and design documents were primarily authored with the help of [Claude Code](https://claude.ai/claude-code) (Anthropic). Content is provided as-is — review critically and verify before use in production.
+
 Think of Applied OpenCL Lab as an OpenCL **cookbook for real systems**, not a traditional textbook.
 
 Each module is a self‑contained "recipe": a runnable project with a clear goal, required tools, step‑by‑step instructions, and a reference implementation that hits concrete performance gates (e.g., 30 FPS 1080p webcam processing).
@@ -96,7 +98,7 @@ A collection of "on-demand" optimization techniques. Projects link here when the
 *   [07_Global_Work_Offset](05_Toolbox/07_Global_Work_Offset/) - Global work offset for sub-region dispatch.
 *   [08_Multi_GPU_Strategy](05_Toolbox/08_Multi_GPU_Strategy/) - Multi-GPU distribution strategies.
 *   [09_OpenCL_vs_CUDA](05_Toolbox/09_OpenCL_vs_CUDA/) - Performance and portability comparison.
-*   [10_SVM](05_Toolbox/10_SVM/) - Shared Virtual Memory deep dive.
+*   [11_SVM_Theory](05_Toolbox/11_SVM_Theory/) - Shared Virtual Memory deep dive.
 *   [12_Sync_Atomics](05_Toolbox/12_Sync_Atomics/) - Atomic operations and synchronization.
 *   [13_Thread_Divergence](05_Toolbox/13_Thread_Divergence/) - Reducing warp/wavefront divergence.
 *   [14_Work_Group_Sizing](05_Toolbox/14_Work_Group_Sizing/) - Occupancy and work-group sizing.
@@ -160,11 +162,8 @@ This repository is optimized for collaboration with AI assistants.
 ## TODO
 
 - Add links to external resources for more in depth information
-- Summarize command, agents, skills and usage for this project
-- Add better asset with selfie - blur is not clearly visible
 - **[Feature] `cl::Buffer` sub-buffers — parallel band processing**: Slice a large frame into N horizontal bands; each band is a sub-buffer aliasing the same allocation, dispatched independently (separate queues for parallel execution). Natural motivation for work partitioning and memory aliasing without copies. Precursor to multi-GPU distribution. Candidate exercise: 4 horizontal strips on a 1080p image, benchmark vs. single full-frame dispatch.
 - **[Feature] GPU-built BVH (LBVH via Morton codes)**: After B3's CPU SAH-BVH, add a challenge variant that constructs the BVH entirely on the GPU using Morton-code sorting + radix sort → parallel hierarchy build. Enables per-frame rebuild for dynamic scenes without CPU round-trip. Natural follow-on to B3 Challenge (Phase 4).= {W/2, H/2}`. Compare against single dispatch with explicit offset arithmetic inside the kernel body.
-- Consider ROS2 related examples to integrate with ROS world better(launch files, service to restart static publisher, parameters handling etc.)
+- Consider ROS2 related examples to integrate with ROS world better(launch files, service to restart static publisher, parameters handling, loaned messages runtime setup and verification etc.)
 - Work on setup with docker
 - Explore AMD specific SDK features
-- Add AI assisted coding experiment note or disclaimer to adjust expectations

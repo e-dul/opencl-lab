@@ -1,4 +1,4 @@
-# B.2 — Ray Tracer Basic: Rays, Intersections, No Copies
+# B.1 — Ray Tracer Basic: Rays, Intersections, No Copies
 
 **Goal**: Implement a minimal OpenCL ray tracer and display results via OpenGL interop — the framebuffer lives in GPU memory for both rendering and display, eliminating PCIe transfers entirely.
 
@@ -51,7 +51,7 @@ queue.enqueueReleaseGLObjects(&gl_objects);
 
 ### Why No PCIe Transfer
 
-A 1280×720 RGBA framebuffer is ~3.5 MB. At PCIe Gen 3 bandwidth (~12 GB/s) a round-trip costs ~0.6 ms — over 36% of a 60 FPS frame budget. At 4K it exceeds 3 ms. Interop eliminates this cost by keeping the framebuffer in GPU-resident memory throughout.
+A 1280×720 RGBA framebuffer is ~3.5 MB. At PCIe Gen 3 bandwidth (~16 GB/s theoretical, ~12–14 GB/s measured) a round-trip costs ~0.6 ms — over 36% of a 60 FPS frame budget. At 4K it exceeds 3 ms. Interop eliminates this cost by keeping the framebuffer in GPU-resident memory throughout.
 
 ## Mini-Challenge
 

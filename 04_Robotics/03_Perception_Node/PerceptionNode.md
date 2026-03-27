@@ -127,11 +127,15 @@ GPU=NVIDIA ./build/perception_node --ros-args \
 
 **Pass condition**: zero `WARN: double-buffer contention` entries in 10 seconds at 200 Hz, 100k points.
 
-**MANUAL — RViz**: Fixed Frame `lidar_link`; PointCloud2 on `/filtered_points`; with `--scene mixed` must show only three valid clusters, no ground or low-intensity points, no frame drops over 10 seconds.
+**MANUAL — RViz**:
+```bash
+ros2 run rviz2 rviz2
+```
+Fixed Frame `lidar_link`; PointCloud2 on `/filtered_points`; with `--scene mixed` must show only three valid clusters, no ground or low-intensity points, no frame drops over 10 seconds.
 
 ## Mini-Challenge
 
-Replace AoS (`XYZIXYZIXYZ...`) with SoA (`XXX...YYY...ZZZ...III...`) in the upload path. Profile the filter kernel before and after. Which layout wins, and why? See [Toolbox: Memory Coalescing](../../05_Toolbox/Toolbox.md).
+Replace AoS (`XYZIXYZIXYZ...`) with SoA (`XXX...YYY...ZZZ...III...`) in the upload path. Profile the filter kernel before and after. Which layout wins, and why? See [Toolbox: Memory Coalescing](../../05_Toolbox/02_Coalesced_Access/CoalescedAccess.md).
 
 ## Troubleshooting
 

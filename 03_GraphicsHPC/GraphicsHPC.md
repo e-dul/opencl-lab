@@ -6,7 +6,7 @@ Build a ray tracer from scratch and make it fast enough to render complex triang
 
 - Base requirements: see [main README](../README.md) (OpenCL, CMake 3.18+).
 - OpenGL + GLFW (live window in 01/02): `sudo apt install libglfw3-dev libgl-dev` — optional; headless `--output render.bmp` works without it.
-- tinyobjloader (02/03 Dynamic): fetched automatically by CMake at configure time. Offline: `-DCMAKE_PREFIX_PATH=/path/to/install`.
+- tinyobjloader (02/03 Dynamic): fetched automatically by CMake at configure time. Offline: pass `-DCMAKE_PREFIX_PATH=/path/to/install` as a `cmake -B build` argument.
 - Assets: `assets/bunny.obj` (Stanford Bunny, ~70k triangles), `assets/cornell_box.obj`.
 - CLBlast and Device Enqueue have moved to [06_Bonus/](../06_Bonus/Bonus.md).
 

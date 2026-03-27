@@ -9,7 +9,7 @@ No additional requirements beyond the module index prerequisites.
 ## Build & Run
 
 ```bash
-cd opencv_interop
+cd 01_OpenCV_Interop
 cmake -B build
 cmake --build build
 ./build/opencv_interop --input assets/sample.bmp
@@ -38,7 +38,7 @@ On iGPU, GPU buffer shares physical memory with system RAM — both paths conver
 
 - **Zero-copy interop**: `UMat` wraps the same GPU memory the OpenCL runtime allocated. No `memcpy` across the PCIe bus.
 - **When it matters**: on discrete GPU, copy overhead is linear in buffer size. At 4K (≈24 MB) it easily exceeds 5 ms. On UMA (iGPU, ARM Mali), physical memory is shared — both paths converge.
-- **Toolbox links**: [Toolbox: Zero-Copy](../../05_Toolbox/15_Zero_Copy/ZeroCopy.md) · [Toolbox: SVM](../../05_Toolbox/10_SVM/SVM.md) (hardware explanation of UMA zero-copy).
+- **Toolbox links**: [Toolbox: Zero-Copy](../../05_Toolbox/15_Zero_Copy/ZeroCopy.md) · [Toolbox: SVM](../../05_Toolbox/11_SVM_Theory/SVMTheory.md) (hardware explanation of UMA zero-copy).
 
 ## Mini-Challenge
 
