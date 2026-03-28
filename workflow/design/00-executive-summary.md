@@ -429,6 +429,7 @@ The final empty slot in the Optimization Toolbox has been allocated to **Sub-Buf
 
 #### Architectural Refinement: Preventing Toolbox Bloat
 To maintain a high-signal-to-noise ratio and avoid overwhelming students with standalone theory, hardcore hardware edge cases have been strategically nested into existing foundational tools as **Advanced Challenges**:
+*   **AoS vs. SoA (Data Layout):** Added as an advanced extension inside 02_Coalesced_Access. Demonstrates how Object-Oriented C++ structs (Array of Structures) implicitly create strided memory access, wasting up to 75% of memory bus bandwidth. Teaches the Data-Oriented shift to Structure of Arrays (SoA) to guarantee perfect 128-byte cache line utilization.
 *   **Bank Conflicts:** Added as an advanced extension inside `01_Local_Memory`. Demonstrates how bad stride patterns destroy LDS bandwidth and teaches `+1` padding fixes.
 *   **Register Pressure & Spilling:** Added as an advanced extension inside `14_Work_Group_Sizing`. Teaches students to break the "black box" of the compiler (e.g., using `-cl-nv-verbose`) to diagnose silent occupancy drops and VRAM spilling caused by excessive `private` variable usage.
 
@@ -436,7 +437,6 @@ To maintain a high-signal-to-noise ratio and avoid overwhelming students with st
 Critical data layout and vectorization "gotchas" are now deeply integrated directly into the project modules (Path B - Ray Tracer, Path C - Robotics) as inline **"Stop and Read"** engineering lessons, rather than isolated theory:
 *   **The `float3` Alignment Trap:** Teaching the reality that OpenCL aligns `float3` to 16 bytes. Exposing implicit widening bugs (e.g., AMD driver `NaN` generation on `normalize()`) and the necessity of explicit custom math functions (like `dot3`).
 *   **Hardware-Safe C++ Structs:** Enforcing strict memory padding rules (`int pad[2]`) and the mandatory use of `static_assert(sizeof(MyStruct) == N)` on the Host to mathematically guarantee Host-Device ABI alignment before compilation.
-*   **AoS vs. SoA:** Emphasizing the transition from Object-Oriented memory (Array of Structures) to Data-Oriented memory (Structure of Arrays) to maximize 128-byte cache line utilization on the memory bus.
 
 #### Updated Optimization Toolbox content
 
@@ -448,6 +448,7 @@ Critical data layout and vectorization "gotchas" are now deeply integrated direc
 **Modified (Advanced challenges nested into symptoms):**
 ```markdown
 | [Local Memory](01_Local_Memory/LocalMemory.md) | Kernel re-reads same global data repeatedly *(Incl. Bank Conflicts)* | `01_Local_Memory/` |
+| [Coalesced Access](02_Coalesced_Access/CoalescedAccess.md) | Kernel slow despite simple logic *(Incl. AoS vs. SoA)* | `02_Coalesced_Access/` |
 | [Work-Group Sizing](14_Work_Group_Sizing/WorkGroupSizing.md) | GPU underutilized, low occupancy *(Incl. Register Pressure)* | `14_Work_Group_Sizing/` |
 ``` 
 

@@ -166,3 +166,4 @@ This repository is optimized for collaboration with AI assistants.
 - Consider ROS2 related examples to integrate with ROS world better(launch files, service to restart static publisher, parameters handling, loaned messages runtime setup and verification etc.)
 - Work on setup with docker
 - Explore AMD specific SDK features
+- Code quality improvements
