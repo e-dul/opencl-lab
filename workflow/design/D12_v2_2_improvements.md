@@ -14,7 +14,7 @@ Consolidate the Optimization Toolbox by filling the vacant slot 10 with Sub-Buff
 
 ## Roadmap / Status
 
-- [ ] Phase 1: Sub-Buffers Tool — Create `05_Toolbox/10_Sub_Buffers_Partitioning/` with README and implementation; update `05_Toolbox/Toolbox.md` table and root `README.md` Toolbox section.
+- [x] Phase 1: Sub-Buffers Tool — Create `05_Toolbox/10_Sub_Buffers_Partitioning/` with README and implementation; update `05_Toolbox/Toolbox.md` table and root `README.md` Toolbox section.
 - [ ] Phase 2: Toolbox Advanced Challenges — Nest AoS/SoA into `02_Coalesced_Access`, Bank Conflicts into `01_Local_Memory`, Register Pressure into `14_Work_Group_Sizing`; update each submodule README.
 - [ ] Phase 3: Silicon Realities Lessons — Add `float3` alignment trap and hardware-safe struct lessons to Path B (Ray Tracer) and Path C (Robotics) project module READMEs.
 - [ ] Phase 4: Grading Pass — Run `/grade-module` on all 7 top-level modules and key submodules; produce `grade_report_v2.md`; human triage actionable items. *(Carried forward from D11 Phase 4.)*
@@ -227,6 +227,7 @@ Per `grading` skill (`SKILL.md`):
 - **Toolbox slot 10 vacancy**: Phase 1 must not shift any other tool's numbering. Verify `Toolbox.md` index table does not reorder rows.
 - **Grading scope (~40 submodules)**: Wall-clock time for Phase 4 is significant. Parallel `@evaluator` invocations (max 3) are expected.
 - **Phase 3 AMD NaN note**: The `normalize()` / `float3` zero-vector behavior is AMD-specific. The lesson must be framed as a hardware reality check, not a spec bug, to avoid misleading students on other platforms.
+- **Phase 1 open human gates (2026-03-28)**: `@educator /test-ux` pass on `SubBuffers.md` and MANUAL visual inspection of `output.bmp` are deferred. All automated DoD items pass on Intel Iris Xe. These must be resolved before Phase 4 grading of `10_Sub_Buffers_Partitioning`.
 
 ## Performance Gate
 

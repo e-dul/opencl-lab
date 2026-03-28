@@ -98,6 +98,7 @@ A collection of "on-demand" optimization techniques. Projects link here when the
 *   [07_Global_Work_Offset](05_Toolbox/07_Global_Work_Offset/) - Global work offset for sub-region dispatch.
 *   [08_Multi_GPU_Strategy](05_Toolbox/08_Multi_GPU_Strategy/) - Multi-GPU distribution strategies.
 *   [09_OpenCL_vs_CUDA](05_Toolbox/09_OpenCL_vs_CUDA/) - Performance and portability comparison.
+*   [10_Sub_Buffers_Partitioning](05_Toolbox/10_Sub_Buffers_Partitioning/) - Buffer partitioning via sub-buffers for zero-copy segmented processing.
 *   [11_SVM_Theory](05_Toolbox/11_SVM_Theory/) - Shared Virtual Memory deep dive.
 *   [12_Sync_Atomics](05_Toolbox/12_Sync_Atomics/) - Atomic operations and synchronization.
 *   [13_Thread_Divergence](05_Toolbox/13_Thread_Divergence/) - Reducing warp/wavefront divergence.
