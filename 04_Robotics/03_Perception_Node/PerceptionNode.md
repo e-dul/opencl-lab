@@ -144,6 +144,36 @@ Replace AoS (`XYZIXYZIXYZ...`) with SoA (`XXX...YYY...ZZZ...III...`) in the uplo
 - **Double-buffer contention at nominal rate**: GPU pipeline > 5 ms. Break down per-stage times to find the bottleneck.
 - **PointCloud2 size unexpected**: compute as `msg->width * msg->height * msg->point_step`. Never hard-code 16 bytes.
 
+## Common Gotchas
+
+### Host/Device Struct Layout
+
+When sharing a C++ struct between host code and an OpenCL kernel, the device imposes its own
+alignment rules — which may differ from the host compiler's layout. Silent corruption results
+when the two disagree.
+
+Two mandatory defences:
+
+#### 1. Explicit padding fields
+
+```cpp
+struct PointCloud {
+    cl_float x, y, z;
+    cl_int   pad;     // satisfies 16-byte device alignment; never access on host
+};
+```
+
+#### 2. Compile-time size assertion
+
+```cpp
+static_assert(sizeof(PointCloud) == 16,
+    "PointCloud ABI mismatch — check device alignment");
+```
+
+The `static_assert` catches ABI drift at compile time, not at runtime with silent data
+corruption. Add one for every struct that crosses the host/device boundary. If the assertion
+fires after a refactor, fix the struct layout before touching any kernel code.
+
 ---
 
 [Path C: Robotics & ROS 2](../RoboticsROS2.md)

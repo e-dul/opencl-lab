@@ -16,7 +16,7 @@ Consolidate the Optimization Toolbox by filling the vacant slot 10 with Sub-Buff
 
 - [x] Phase 1: Sub-Buffers Tool — Create `05_Toolbox/10_Sub_Buffers_Partitioning/` with README and implementation; update `05_Toolbox/Toolbox.md` table and root `README.md` Toolbox section.
 - [x] Phase 2: Toolbox Advanced Challenges — Nest AoS/SoA into `02_Coalesced_Access`, Bank Conflicts into `01_Local_Memory`, Register Pressure into `14_Work_Group_Sizing`; update each submodule README.
-- [ ] Phase 3: Silicon Realities Lessons — Add `float3` alignment trap and hardware-safe struct lessons to Path B (Ray Tracer) and Path C (Robotics) project module READMEs.
+- [x] Phase 3: Silicon Realities Lessons — Add `float3` alignment trap and hardware-safe struct lessons to Path B (Ray Tracer) and Path C (Robotics) project module READMEs.
 - [ ] Phase 4: Grading Pass — Run `/grade-module` on all 7 top-level modules and key submodules; produce `grade_report_v2.md`; human triage actionable items. *(Carried forward from D11 Phase 4.)*
 
 ---

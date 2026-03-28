@@ -86,6 +86,33 @@ Visualize BVH depth per pixel: color each pixel by the number of nodes the ray v
 - **Wrong GPU**: `GPU=NVIDIA ./build/ray_tracer_bvh` or `GPU=AMD ./build/ray_tracer_bvh`.
 - **tinyobjloader not found at configure time**: requires network access. Offline: `-DCMAKE_PREFIX_PATH=/path/to/tinyobjloader`.
 
+## Common Gotchas
+
+### The float3 Alignment Trap
+
+OpenCL aligns `float3` to **16 bytes** — the same as `float4`. A struct with a `float3` member
+therefore contains an invisible 4-byte padding hole after it:
+
+```c
+// Host C++ struct — appears to be 12 bytes, is actually 16
+typedef struct { float x, y, z; } Ray;  // + 4 bytes silent padding
+```
+
+This matters because a `float3` array on the host (`std::vector<cl_float3>`) lays out elements
+at 16-byte strides, not 12. If you pack ray data as `float x, y, z` with no padding field, the
+host and device see different memory layouts — producing corrupted ray directions with zero
+symptoms at launch.
+
+**Rule:** Either use `float4` (explicit `w = 0`) or add an explicit `float pad` field and verify
+with `static_assert(sizeof(Ray) == 16, "Ray struct ABI mismatch")`.
+
+**AMD-specific reality:** On some AMD drivers, calling `normalize()` on a zero-length `float3`
+(e.g., a miss ray hitting the background) silently produces `NaN` components rather than an
+implementation-defined result. This causes `NaN` to propagate through shading and surface as
+black or corrupted pixels. Defensive fix: replace `dot(a, b)` with an explicit
+`dot3(a, b) = a.x*b.x + a.y*b.y + a.z*b.z` helper for `float3` operands, and guard
+`normalize()` calls with a length check.
+
 ---
 
 [Path B: Graphics & HPC](../GraphicsHPC.md)
