@@ -11,6 +11,9 @@ You are encouraged to treat the provided code as one possible solution and then 
 **Key topics**: Zero-copy interop with OpenCV/FFmpeg/ROS2, SoftISP debayering, BVH ray tracing, ROS2 perception nodes, and an optimization toolbox covering memory coalescing, thread divergence, occupancy, and device enqueue.
 
 
+> **🤖 Built with Strategy \& Tactics**
+> This repository is the reference implementation for the [Strategy \& Tactics AI Workflow](https://github.com/e-dul/strategy-tactics-workflow-template). Explore the `workflow/` and `.claude/` directories to see the exact LLM prompts, architectural constraints, and historical execution logs used to generate this project without context collapse.
+
 ---
 
 ## 📚 Table of Contents

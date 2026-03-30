@@ -38,7 +38,7 @@ Process real video with a GPU pipeline that ships in production. You start with 
 
 - **Green-pink checkerboard**: NV12 buffer fed to an RGB kernel without conversion. Run 02 first.
 - **`DNN_TARGET_OPENCL` falls back to CPU**: OpenCV not built with OpenCL. Check: `python3 -c "import cv2; print(cv2.getBuildInformation())"`.
-- **OpenVINO GPU plugin not found**: `sudo apt install libopenvino-dev` + `source /opt/intel/openvino/setupvars.sh`.
+- **OpenVINO GPU plugin not found**: See [05_OpenVINO_GPU/SETUP.md](05_OpenVINO_GPU/SETUP.md) for installation instructions.
 - **First frame ~100–160 ms inference (05/06)**: JIT warm-up — expected. Measure FPS from frame 2+.
 - **01: both paths similar timing (iGPU)**: UMA hardware — expected. Test on discrete GPU.
 

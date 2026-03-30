@@ -17,7 +17,8 @@ Consolidate the Optimization Toolbox by filling the vacant slot 10 with Sub-Buff
 - [x] Phase 1: Sub-Buffers Tool — Create `05_Toolbox/10_Sub_Buffers_Partitioning/` with README and implementation; update `05_Toolbox/Toolbox.md` table and root `README.md` Toolbox section.
 - [x] Phase 2: Toolbox Advanced Challenges — Nest AoS/SoA into `02_Coalesced_Access`, Bank Conflicts into `01_Local_Memory`, Register Pressure into `14_Work_Group_Sizing`; update each submodule README.
 - [x] Phase 3: Silicon Realities Lessons — Add `float3` alignment trap and hardware-safe struct lessons to Path B (Ray Tracer) and Path C (Robotics) project module READMEs.
-- [ ] Phase 4: Grading Pass — Run `/grade-module` on all 7 top-level modules and key submodules; produce `grade_report_v2.md`; human triage actionable items. *(Carried forward from D11 Phase 4.)*
+- [x] Phase 4: Grading Pass — Run `/grade-module` on all 7 top-level modules and key submodules; produce `grade_report_v2.md`; human triage actionable items. *(Carried forward from D11 Phase 4.)*
+- [ ] Phase 5: Grade Report Fixes — Apply all `[x]`-approved actionable items from `grade_report_v2.md`; rebuild affected modules to confirm zero regressions.
 
 ---
 
@@ -166,9 +167,9 @@ Run `/grade-module` on all 7 top-level modules. For modules with multiple distin
 
 Severity derived from score gap: criterion score ≤ 5 → HIGH, 6–7 → MED, 8+ → LOW/skip.
 
-**C — MANUAL: Human triage:** Human ticks `[x]` in the `Fix?` column. Items typically feed back into Phase 2 (README fixes) or future design backlog entries.
+**C — MANUAL: Human triage:** Human ticks `[x]` in the `Fix?` column. Approved items are implemented in Phase 5.
 
-**D — No auto-fixes in this phase.** Grading is read-only. Selected action items are graduated to tasks or appended to Phase 2/3 fix lists.
+**D — No auto-fixes in this phase.** Grading is read-only. Implementation of approved items is deferred to Phase 5.
 
 ### Grading Criteria Reference
 
@@ -187,13 +188,46 @@ Per `grading` skill (`SKILL.md`):
 
 - **Strict output template must be reproduced verbatim** — do not reformat or summarize evaluator output. Append raw table + justification for each submodule, then extract actionable items into the triage table.
 - **Phase 1 dependency:** Grade `10_Sub_Buffers_Partitioning` only after D12 Phase 1 is complete (slot 10 vacant until then).
-- **Large scope:** ~40 submodules. Run `@evaluator` agents in parallel (up to 3 at a time) to keep wall-clock time reasonable.
+- **Large scope / token budget:** ~40 submodules across 7 modules. The grading pass is split into 5 session-scoped sub-steps (1a–1e) in `T073_grading_pass_v2.md` — each sub-step appends its raw evaluator output and actionable items to `grade_report_v2.md`; the Merged Scores table is assembled only after all sub-steps complete. Within each sub-step, run up to 3 `@evaluator` agents in parallel.
 
 ### Grading Prerequisites
 
 - All submodule READMEs and source files in v2.0 paths.
 - `workflow/design/00-executive-summary.md` — `@evaluator` reads this for project vision.
 - `workflow/design/00_master_specs.md` — normative reference for design decisions and known limitations.
+
+---
+
+## Phase 5 Detail: Grade Report Fixes
+
+Apply every item marked `[x]` in `workflow/tasks/grade_report_v2.md`. Items are grouped by fix category below for tasking purposes.
+
+### Fix Categories
+
+**A — Code correctness** (`.cpp`, `.cl` files): `size_t` gid casts, `CL_CHECK` wrapping of non-throwing methods, integer promotion before `size_t` cast, `std::exit` → `throw`, mismatched version queries.
+
+**B — CMake hygiene** (`CMakeLists.txt`): Add `set(CMAKE_CXX_EXTENSIONS OFF)`, replace `file(COPY ...)` with `POST_BUILD create_symlink`, remove stray `symlink_assets` / `symlink_kernels` calls, pin floating `GIT_TAG master` refs to fixed SHAs, fix stale path comments.
+
+**C — README accuracy** (`*.md`): Align prose/snippets with actual code, remove duplicated explanations, add missing caveats (hardware-waiver clauses, iGPU notes), add cross-links between related modules.
+
+See `workflow/tasks/grade_report_v2.md → ## Actionable Items` for the per-submodule `[x]` item list. Items marked `[ ]` (excluded by human triage) are out of scope.
+
+### Tasking Strategy
+
+Group `[x]` items into atomic task files by module track:
+- **Task A**: `00_Setup` + `01_Host_API` (high-density code correctness fixes)
+- **Task B**: `02_Multimedia` + `03_GraphicsHPC` + `04_Robotics`
+- **Task C**: `05_Toolbox` (all submodules)
+- **Task D**: `06_Bonus`
+
+Each task runs `/implement` → `/review` → `/validate` per the standard pipeline.
+
+### Definition of Done
+
+- [ ] All `[x]` items in `grade_report_v2.md` resolved and verified.
+- [ ] `cmake -B build && cmake --build build` passes with zero errors and zero warnings for every modified submodule.
+- [ ] No files outside the approved `[x]` item scope are modified.
+- [ ] Items marked `[ ]` (human-excluded) remain untouched.
 
 ---
 
@@ -212,6 +246,7 @@ Per `grading` skill (`SKILL.md`):
 2. Phase 2 enriches existing tool READMEs with advanced content; no new binaries.
 3. Phase 3 enriches project READMEs with inline engineering lessons; no new binaries.
 4. Phase 4 reads all submodule READMEs + source files, produces the grading report, feeds actionable items back into documentation fix lists.
+5. Phase 5 applies approved fixes across all tracks; each modified submodule is rebuilt to confirm no regressions.
 
 ## Key Decisions
 
@@ -242,6 +277,7 @@ N/A — this is a maintenance and enrichment backlog, not a module with runtime 
 - **Phase 1 visual artifact**: BMP output showing partitioned sub-buffer strips required per §3.
 - **Phases 2, 3**: Documentation edits only — zero `.cpp`/`.cl`/`CMakeLists.txt` modifications.
 - **Phase 4**: No auto-fixes. `grade_report_v2.md` is the sole output artifact.
+- **Phase 5**: Fixes scoped strictly to `[x]`-approved items in `grade_report_v2.md`. Standard DoD §8 applies to every modified submodule.
 - **Sub-buffer alignment**: `CL_DEVICE_MEM_BASE_ADDR_ALIGN` queried at runtime; never hardcoded.
 
 ## Prerequisites
