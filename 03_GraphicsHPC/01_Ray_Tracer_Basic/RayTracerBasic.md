@@ -32,6 +32,8 @@ cmake --build build
   ```
 - The framebuffer is never downloaded to CPU during the render loop. To confirm: pass `--debug-download` and observe frame time increase by several milliseconds compared to baseline.
 
+> **Note on Optimus/hybrid GPU systems**: `--live` may silently fall back to headless if `cl_khr_gl_sharing` is unavailable on the primary GPU — see Troubleshooting.
+
 ## Key Concepts
 
 ### OpenGL Interop (`cl_khr_gl_sharing`)
@@ -51,7 +53,7 @@ queue.enqueueReleaseGLObjects(&gl_objects);
 
 ### Why No PCIe Transfer
 
-A 1280×720 RGBA framebuffer is ~3.5 MB. At PCIe Gen 3 bandwidth (~16 GB/s theoretical, ~12–14 GB/s measured) a round-trip costs ~0.6 ms — over 36% of a 60 FPS frame budget. At 4K it exceeds 3 ms. Interop eliminates this cost by keeping the framebuffer in GPU-resident memory throughout.
+A 1280×720 RGBA framebuffer is ~3.5 MB. At PCIe Gen 3 bandwidth (~16 GB/s theoretical, ~12–14 GB/s measured) a round-trip costs ~0.6 ms — over 36% of a 60 FPS frame budget. At 4K it exceeds 3 ms. Interop eliminates this cost by keeping the framebuffer in GPU-resident memory throughout (see Mini-Challenge below).
 
 ## Mini-Challenge
 
@@ -60,10 +62,7 @@ Add a second light source in the kernel. Profile with `cl::Event` before and aft
 ## Troubleshooting
 
 - **`cl_khr_gl_sharing` not listed**: run `clinfo | grep gl_sharing`. Not available on all CPU-fallback runtimes (PoCL).
-- **Optimus/hybrid GPU — interop init fails**: GLFW creates a GL context on the iGPU; the NVIDIA OpenCL driver can only share with a GL context it owns. Force the NVIDIA GPU:
-  ```bash
-  __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia GPU=NVIDIA ./build/ray_tracer --live
-  ```
+- **Optimus/hybrid GPU issues**: see [GraphicsHPC.md Troubleshooting](../GraphicsHPC.md#troubleshooting) for the PRIME render offload command.
 
 ---
 

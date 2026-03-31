@@ -84,17 +84,9 @@ static float3 safe_normalize(float3 v) {
 // ---------------------------------------------------------------------------
 // BVH ray tracer kernel
 //
-// Args:
-//   0  framebuffer  — write_only image2d_t (RGBA float or UNORM_INT8)
-//   1  nodes        — flat BvhNode array
-//   2  v0x..v2z     — SoA triangle positions (args 2-10)
-//   3  n0x..n2z     — SoA triangle normals   (args 11-19)
-//   20 num_tris
-//   21 width
-//   22 height
-//   23 cam_pos_x/y/z (args 23-25)
-//   26 cam_target_x/y/z (args 26-28)
-//   27 fov_deg (arg 29)
+// Arg names are self-documenting — see the parameter list below.
+// SoA layout: each triangle component is a separate float array for coalesced
+// access across the warp (avoids AoS stride penalty on triangle vertex reads).
 // ---------------------------------------------------------------------------
 __kernel void ray_trace_bvh(
     __write_only image2d_t framebuffer,

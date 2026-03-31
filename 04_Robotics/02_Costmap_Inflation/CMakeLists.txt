@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 # ── common.cmake: CLI11, stb, OpenCL, include dirs ────────────────────────────
-# Module is 2 levels deep: 04_Robotics/C2_Costmap_Inflation/
+# Module is 2 levels deep: 04_Robotics/02_Costmap_Inflation/
 include(${CMAKE_CURRENT_SOURCE_DIR}/../../common/common.cmake)
 
 # ── ROS 2 environment guard — must precede find_package ─────────────────────

@@ -113,3 +113,23 @@ inline std::vector<uint8_t> make_gradient(int& width, int& height,
     }
     return img;
 }
+
+// Generate a synthetic YUYV 4:2:2 frame of the given dimensions.
+// Y ramps 16→235 left-to-right; U=128, V=128 (neutral chroma).
+// WHY 2 bytes per pixel: YUYV packs Y0,U,Y1,V into 4 bytes for 2 pixels.
+// Width must be even (YUYV macropixel constraint).
+inline std::vector<uint8_t> make_synthetic_yuyv(int width, int height) {
+    std::vector<uint8_t> buf(static_cast<size_t>(width) * height * 2, 0);
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; x += 2) {
+            uint8_t y0 = static_cast<uint8_t>(16 + (x * 219) / (width - 1));
+            uint8_t y1 = static_cast<uint8_t>(16 + ((x + 1) * 219) / (width - 1));
+            size_t off = static_cast<size_t>(y) * width * 2 + x * 2;
+            buf[off + 0] = y0;
+            buf[off + 1] = 128;  // U neutral
+            buf[off + 2] = y1;
+            buf[off + 3] = 128;  // V neutral
+        }
+    }
+    return buf;
+}

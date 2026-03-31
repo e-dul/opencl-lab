@@ -9,8 +9,6 @@
 
 ## Build & Run
 
-> New to lifecycle nodes? See the [ROS 2 Jazzy Lifecycle Tutorial](https://docs.ros.org/en/jazzy/Tutorials/Intermediate/Managed-Nodes.html) before reading the code below.
-
 ```bash
 cd 01_Node_Acceleration
 source /opt/ros/jazzy/setup.bash
@@ -47,6 +45,8 @@ Context init appears once. Dispatch times are flat across all callbacks. The nod
 
 **Performance gate**: per-callback dispatch time ≤ 0.5 ms flat. Hardware waiver applies for CPU-fallback and integrated GPU devices.
 
+> **20 Hz vs 200 Hz**: the demo `SyntheticPublisher` runs at 20 Hz (not 200 Hz as specified in the design gate). A flat dispatch-time curve across all callbacks is the meaningful verification signal — raw throughput is not the goal. The 200 Hz gate applies when wiring the node into a real sensor pipeline.
+
 ## Inspecting Parameters
 
 In a second terminal (with ROS 2 sourced), while the node is running:
@@ -76,13 +76,15 @@ ros2 param set /accel_node <param> <value>
 ```cpp
 class AccelNode : public rclcpp_lifecycle::LifecycleNode {
 public:
-    AccelNode() : LifecycleNode("node_acceleration") {
-        declare_parameter("iterations", 10);
-        declare_parameter("buffer_size", 1048576);
-    }
+    AccelNode() : LifecycleNode("node_acceleration") {}
 
     rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn
     on_configure(const rclcpp_lifecycle::State &) override {
+        // WHY declare_parameter in on_configure (not constructor):
+        // idiomatic LifecycleNode pattern — parameters are declared once the
+        // node transitions to the configured state, matching the actual code.
+        declare_parameter("iterations", 10);
+        declare_parameter("buffer_size", 1048576);
         int buf_size = get_parameter("buffer_size").as_int();
         // OpenCL init happens once, here — never inside a callback.
         ctx_    = create_context();

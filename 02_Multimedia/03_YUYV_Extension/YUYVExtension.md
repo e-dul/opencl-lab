@@ -12,12 +12,18 @@
 cd 03_YUYV_Extension
 cmake -B build
 cmake --build build
+# Run without arguments (synthetic 64×64 gradient):
+./build/yuyv_extension
+# Run with a real YUYV file:
 ./build/yuyv_extension --input assets/sample_yuyv_1080p.yuv --width 1920 --height 1080
 ```
 
+To generate a YUYV asset from a video file (see also [assets/assets.md](../../assets/assets.md#regenerating-assets)).
+
 ## Verify
 
-- `output_yuyv_rgba.bmp` — correctly colored image from YUYV input
+- `output_rgba_singlepass.bmp` — correctly colored image from YUYV input
+- `output_rgba_twopass.bmp` — same image via the two-pass path
 - Console prints single-pass vs two-pass timing comparison:
   ```
   Single-pass yuyv_to_rgba:    X.X ms
@@ -28,11 +34,7 @@ cmake --build build
 
 ### YUYV Packed Format
 
-Byte stream: `Y0 U0 Y1 V0 Y2 U1 Y3 V1 ...` — 4 bytes encode 2 pixels. Each pair of pixels shares one U and one V sample. Index arithmetic for pixel `x`:
-
-- `Y = buf[x * 2]`
-- `U = buf[(x & ~1) * 2 + 1]`  (even column's U, shared with odd neighbour)
-- `V = buf[(x & ~1) * 2 + 3]`
+Byte stream: `Y0 U0 Y1 V0 Y2 U1 Y3 V1 ...` — 4 bytes encode 2 pixels. Each pair of pixels shares one U and one V sample. The authoritative index arithmetic is in the kernel header — see `kernels/yuyv_to_rgba.cl`.
 
 **Two-pass vs single-pass**: the two-pass path reads the YUYV buffer twice and writes an intermediate Y buffer — doubling memory traffic. On hardware with large GPU L2 cache the gap may be smaller than 2x, but the extra write always costs something. Profile with `cl::Event` to measure your hardware.
 

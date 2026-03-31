@@ -104,6 +104,14 @@ ffmpeg -y -i assets/sample.bmp -pix_fmt yuyv422 -f rawvideo assets/sample_yuyv.y
 ffmpeg -y -i assets/sample_1080p.bmp -pix_fmt yuyv422 -f rawvideo assets/sample_yuyv_1080p.yuv
 ```
 
+### YUYV from a real video
+
+To generate a YUYV raw file from any MP4 video (e.g., for the `--input` argument of `03_YUYV_Extension`):
+```bash
+ffmpeg -i input.mp4 -pix_fmt yuyv422 -f rawvideo assets/sample_yuyv_1080p.yuv
+```
+Pass `--width` and `--height` matching your source video resolution. Use `ffprobe input.mp4` to read them.
+
 ### `sample.mp4` (1920 × 1080 H.264, 3 s)
 ```bash
 ffmpeg -y -f lavfi -i "testsrc=duration=3:size=1920x1080:rate=25" \

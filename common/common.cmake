@@ -21,7 +21,7 @@ include(FetchContent)
 FetchContent_Declare(
     stb
     GIT_REPOSITORY https://github.com/nothings/stb.git
-    GIT_TAG        master
+    GIT_TAG        904aa67e1e2d1dec92959df63e700b166d5c1022
 )
 FetchContent_MakeAvailable(stb)
 

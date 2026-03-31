@@ -8,7 +8,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # double-definition warnings; explicit flags keep IDE tooling aware.
 add_definitions(-DCL_HPP_ENABLE_EXCEPTIONS -DCL_HPP_TARGET_OPENCL_VERSION=120)
 
-# Module is 2 levels deep: 03_GraphicsHPC/B3_Ray_Tracer_BVH_Dynamic/
+# Module is 2 levels deep: 03_GraphicsHPC/03_Ray_Tracer_BVH_Dynamic/
 # common.cmake provides OpenCL, CLI11, stb, and opencl_lab_target() / symlink_kernels().
 include(${CMAKE_CURRENT_SOURCE_DIR}/../../common/common.cmake)
 

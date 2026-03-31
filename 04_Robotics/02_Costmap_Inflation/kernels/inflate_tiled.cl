@@ -10,8 +10,15 @@
 // (matches common SIMD widths and LDS bank counts).  A full parameter sweep
 // (4, 8, 16, 32) can be added later without changing the kernel signature.
 
-#define TILE_W 16
-#define TILE_H 16
+// WHY ifndef guard: TILE_W / TILE_H are exposed as -D TILE_W=... -D TILE_H=...
+// build-time macros from build_program() so students can vary tile size without
+// editing the kernel source. The defaults match the classic GPU sweet spot.
+#ifndef TILE_W
+#  define TILE_W 16
+#endif
+#ifndef TILE_H
+#  define TILE_H 16
+#endif
 
 __kernel void inflate_tiled(
     __global const uchar* input,   // obstacle map: 1 = obstacle, 0 = free

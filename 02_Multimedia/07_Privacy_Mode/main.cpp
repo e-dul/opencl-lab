@@ -113,7 +113,7 @@ int main(int argc, char* argv[]) try {
     int         cap_width      = 640;
     int         cap_height     = 480;
     std::string output_path    = "output.bmp";
-    std::string face_model     = "assets/face_detection_yunet_2023mar.onnx";
+    std::string face_model     = "assets/face_detection_yunet_2022mar.onnx";
     float       conf_threshold = 0.6f;
     int         blur_radius    = 15;
     bool        loop_mode      = false;
@@ -128,7 +128,7 @@ int main(int argc, char* argv[]) try {
     app.add_option("--width",          cap_width,      "Webcam capture width (webcam mode only)")  ->default_val(640);
     app.add_option("--height",         cap_height,     "Webcam capture height (webcam mode only)") ->default_val(480);
     app.add_option("--output",         output_path,    "Output BMP path (file mode only)")         ->default_val("output.bmp");
-    app.add_option("--face-model",     face_model,     "Path to YuNet ONNX model") ->default_val("assets/face_detection_yunet_2023mar.onnx");
+    app.add_option("--face-model",     face_model,     "Path to YuNet ONNX model") ->default_val("assets/face_detection_yunet_2022mar.onnx");
     app.add_option("--conf-threshold", conf_threshold, "Detection confidence threshold")            ->default_val(0.6f);
     app.add_option("--blur-radius",    blur_radius,    "Box blur size for both paths")              ->default_val(15);
     app.add_flag  ("--loop",           loop_mode,      "Replay --input in a live preview window (requires --input)");
