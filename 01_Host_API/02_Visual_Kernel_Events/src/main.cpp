@@ -6,7 +6,7 @@
  *
  * Flow:
  *   1. Parse CLI args (--contrast, --brightness, --input, --kernel, --profile)
- *   2. Load image OR generate 256×256 RGB gradient
+ *   2. Load image OR generate 256x256 RGB gradient
  *   3. Create CommandQueue — with CL_QUEUE_PROFILING_ENABLE only if -p given
  *   4. Upload src → GPU, run kernel, download dst ← GPU
  *   5. queue.finish() — if -p: extract timestamps and print breakdown
@@ -21,10 +21,11 @@
 
 #include "image_utils.hpp"    // load_rgb_image(), save_bmp(), make_gradient()
 #include "ocl_wrapper.hpp"    // create_context(), OclContext
-#include "opencl_utils.hpp"   // load_kernel_source(), CL_CHECK, duration_ms()
+#include "opencl_utils.hpp"   // load_kernel_source(), build_program(), CL_CHECK, duration_ms()
 
 #include <CLI/CLI.hpp>
 
+#include <climits>
 #include <iomanip>
 #include <iostream>
 #include <stdexcept>
@@ -53,7 +54,7 @@ int main(int argc, char* argv[]) {
         std::vector<uint8_t> src_data;
 
         if (input_path.empty()) {
-            std::cout << "No --input provided. Generating 256×256 synthetic gradient.\n";
+            std::cout << "No --input provided. Generating 256x256 synthetic gradient.\n";
             src_data = make_gradient(width, height, channels);
             // Save the unmodified gradient so the user can diff before/after visually.
             save_bmp("gradient_input.bmp", src_data, width, height, channels);
@@ -61,10 +62,19 @@ int main(int argc, char* argv[]) {
         } else {
             src_data = load_rgb_image(input_path, width, height, channels);
             std::cout << "Loaded: " << input_path
-                      << " (" << width << "×" << height << ")\n";
+                      << " (" << width << "x" << height << ")\n";
         }
 
-        const size_t total_bytes = static_cast<size_t>(width * height * channels);
+        // WHY promote width first: width * height * channels as plain int
+        // multiplication overflows before the cast on large images (e.g. 4K).
+        // Promoting the first operand to size_t makes the entire expression size_t.
+        const size_t total_bytes = static_cast<size_t>(width) * height * channels;
+
+        // WHY INT_MAX guard: the kernel receives pixel_count as cl_int (signed).
+        // A silent truncation would dispatch the wrong NDRange on very large images.
+        if (total_bytes > static_cast<size_t>(INT_MAX)) {
+            throw std::runtime_error("Image too large: total_bytes exceeds INT_MAX");
+        }
 
         std::cout << "Contrast=" << contrast
                   << "  Brightness=" << brightness
@@ -88,19 +98,9 @@ int main(int argc, char* argv[]) {
         cl::Buffer buf_dst(ocl.context, CL_MEM_WRITE_ONLY, total_bytes);
 
         // 6. Build program
-        const std::string source = load_kernel_source("kernels/mad.cl");
-        cl::Program::Sources sources;
-        sources.push_back({source.c_str(), source.size()});
-
-        cl::Program program(ocl.context, sources);
-        try {
-            program.build({ocl.device});
-        } catch (const cl::Error&) {
-            std::cerr << "Build log:\n"
-                      << program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(ocl.device)
-                      << "\n";
-            throw;
-        }
+        // WHY build_program(): centralises the try/catch + getBuildInfo log so every
+        // module surfaces the same diagnostic on kernel compile errors.
+        cl::Program program = build_program(ocl.context, ocl.device, "kernels/mad.cl");
 
         // 7. Set kernel arguments
         //    scalar: one work-item per byte  → NDRange = total_bytes
@@ -108,37 +108,45 @@ int main(int argc, char* argv[]) {
         const bool   use_vec3  = (kvariant == "vec3");
         const char*  kname     = use_vec3 ? "mad_vec_kernel" : "mad_kernel";
         const size_t work_size = use_vec3
-            ? static_cast<size_t>(width * height)
+            ? static_cast<size_t>(width) * height
             : total_bytes;
 
         cl::Kernel kernel(program, kname);
-        kernel.setArg(0, buf_src);
-        kernel.setArg(1, buf_dst);
-        kernel.setArg(2, contrast);
-        kernel.setArg(3, brightness);
+        CL_CHECK(kernel.setArg(0, buf_src));
+        CL_CHECK(kernel.setArg(1, buf_dst));
+        CL_CHECK(kernel.setArg(2, contrast));
+        CL_CHECK(kernel.setArg(3, brightness));
+        // WHY cast to cl_int: kernel parameter is declared as int; work_size holds
+        // the exact element count for the chosen variant (bytes or pixels).
+        CL_CHECK(kernel.setArg(4, static_cast<cl_int>(work_size)));
 
         // 8. Enqueue pipeline — attach events only when -p is active
+        // WHY all three enqueue calls are issued before queue.finish():
+        // the command queue is in-order by default, so the driver serialises
+        // write → kernel → read automatically. Issuing them all before
+        // finish() allows the driver to pipeline and overlap transfers with
+        // compute where hardware supports it (e.g. async DMA engines).
         std::vector<uint8_t> dst_data(total_bytes);
         cl::Event write_event, kernel_event, read_event;
         cl::Event* p_write  = profile ? &write_event  : nullptr;
         cl::Event* p_kernel = profile ? &kernel_event : nullptr;
         cl::Event* p_read   = profile ? &read_event   : nullptr;
 
-        queue.enqueueWriteBuffer(buf_src, CL_FALSE, 0, total_bytes,
-                                 src_data.data(), nullptr, p_write);
+        CL_CHECK(queue.enqueueWriteBuffer(buf_src, CL_FALSE, 0, total_bytes,
+                                          src_data.data(), nullptr, p_write));
 
-        queue.enqueueNDRangeKernel(kernel,
-                                    cl::NullRange,
-                                    cl::NDRange(work_size),
-                                    cl::NullRange,
-                                    nullptr, p_kernel);
+        CL_CHECK(queue.enqueueNDRangeKernel(kernel,
+                                             cl::NullRange,
+                                             cl::NDRange(work_size),
+                                             cl::NullRange,
+                                             nullptr, p_kernel));
 
-        queue.enqueueReadBuffer(buf_dst, CL_FALSE, 0, total_bytes,
-                                dst_data.data(), nullptr, p_read);
+        CL_CHECK(queue.enqueueReadBuffer(buf_dst, CL_FALSE, 0, total_bytes,
+                                         dst_data.data(), nullptr, p_read));
 
         // WHY finish() before getProfilingInfo(): timestamps are only valid
         // once the event has reached CL_COMPLETE state.
-        queue.finish();
+        CL_CHECK(queue.finish());
 
         // 9. Print timing breakdown (only when -p was passed)
         if (profile) {
@@ -156,7 +164,7 @@ int main(int argc, char* argv[]) {
 
         // 10. Save output
         save_bmp("output.bmp", dst_data, width, height, channels);
-        std::cout << "Written: output.bmp (" << width << "×" << height << ")\n";
+        std::cout << "Written: output.bmp (" << width << "x" << height << ")\n";
 
     } catch (const cl::Error& e) {
         std::cerr << "OpenCL error: " << e.what() << " (" << e.err() << ")\n";

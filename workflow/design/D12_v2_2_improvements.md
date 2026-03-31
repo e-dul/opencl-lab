@@ -18,7 +18,7 @@ Consolidate the Optimization Toolbox by filling the vacant slot 10 with Sub-Buff
 - [x] Phase 2: Toolbox Advanced Challenges — Nest AoS/SoA into `02_Coalesced_Access`, Bank Conflicts into `01_Local_Memory`, Register Pressure into `14_Work_Group_Sizing`; update each submodule README.
 - [x] Phase 3: Silicon Realities Lessons — Add `float3` alignment trap and hardware-safe struct lessons to Path B (Ray Tracer) and Path C (Robotics) project module READMEs.
 - [x] Phase 4: Grading Pass — Run `/grade-module` on all 7 top-level modules and key submodules; produce `grade_report_v2.md`; human triage actionable items. *(Carried forward from D11 Phase 4.)*
-- [ ] Phase 5: Grade Report Fixes — Apply all `[x]`-approved actionable items from `grade_report_v2.md`; rebuild affected modules to confirm zero regressions.
+- [ ] Phase 5: Grade Report Fixes — Apply all `[x]`-approved actionable items from `grade_report_v2.md`; rebuild affected modules to confirm zero regressions. *(Track A complete — see T074; Tracks B/C/D pending.)*
 
 ---
 
@@ -263,6 +263,7 @@ Each task runs `/implement` → `/review` → `/validate` per the standard pipel
 - **Grading scope (~40 submodules)**: Wall-clock time for Phase 4 is significant. Parallel `@evaluator` invocations (max 3) are expected.
 - **Phase 3 AMD NaN note**: The `normalize()` / `float3` zero-vector behavior is AMD-specific. The lesson must be framed as a hardware reality check, not a spec bug, to avoid misleading students on other platforms.
 - **Phase 1 open human gates (2026-03-28)**: `@educator /test-ux` pass on `SubBuffers.md` and MANUAL visual inspection of `output.bmp` are deferred. All automated DoD items pass on Intel Iris Xe. These must be resolved before Phase 4 grading of `10_Sub_Buffers_Partitioning`.
+- **Phase 5 Track A (2026-03-31)**: `00_Setup/01_Smoke_Test` and all three `01_Host_API` submodules validated clean. All `[x]` items from `grade_report_v2.md` applied: `size_t gid`, `CL_CHECK` wrapping, integer promotion before `size_t` cast, `build_program()` migration, `CMAKE_CXX_EXTENSIONS OFF`, symlink pattern. Zero build warnings across all four submodule builds (Intel Iris Xe, 2026-03-31).
 - **Phase 2 Advanced Challenge formatting (2026-03-28)**: Task spec mandated `> **Advanced Challenge: <Title>**` blockquote callout format. Implementation used plain `## Advanced Challenge: <Title>` headings instead to match the existing heading style of each submodule README. Plain headings were retained as they fit the surrounding document structure better than nested blockquotes.
 
 ## Performance Gate

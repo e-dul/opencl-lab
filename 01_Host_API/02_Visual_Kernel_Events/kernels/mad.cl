@@ -12,9 +12,15 @@ __kernel void mad_kernel(
     __global const uchar* src,
     __global       uchar* dst,
     float contrast,
-    int   brightness
+    int   brightness,
+    int   total_bytes
 ) {
-    int gid = get_global_id(0);
+    // WHY size_t: get_global_id() returns size_t; using int truncates on large
+    // images and causes signed/unsigned comparison warnings.
+    size_t gid = get_global_id(0);
+    // WHY bounds guard: NDRange may exceed the actual element count when rounded
+    // up to a local work-group multiple — excess work-items must be discarded.
+    if (gid >= (size_t)total_bytes) return;
     float val = (float)src[gid] * contrast + (float)brightness;
     dst[gid] = (uchar)clamp(val, 0.0f, 255.0f);
 }
@@ -38,9 +44,17 @@ __kernel void mad_vec_kernel(
     __global const uchar* src,
     __global       uchar* dst,
     float contrast,
-    int   brightness
+    int   brightness,
+    int   total_bytes
 ) {
-    int    gid     = get_global_id(0);          // pixel index (not byte index)
+    // WHY size_t: get_global_id() returns size_t; pixel index matches size_t
+    // domain of vload3/vstore3 offset parameter.
+    size_t gid = get_global_id(0);          // pixel index (not byte index)
+    // WHY bounds guard: NDRange may exceed the actual pixel count when rounded
+    // up to a local work-group multiple — excess work-items must be discarded.
+    // total_bytes holds the pixel count when --kernel vec3 is selected
+    // (caller passes work_size = width * height).
+    if (gid >= (size_t)total_bytes) return;
     uchar3 pixel   = vload3(gid, src);
     float3 pixel_f = convert_float3(pixel);
     float3 result  = mad(pixel_f, (float3)(contrast), (float3)((float)brightness));

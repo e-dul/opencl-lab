@@ -58,18 +58,26 @@ Profiling requires the queue to be created with `CL_QUEUE_PROFILING_ENABLE`.
 
 ### The GPU Timing Diagram
 
-Understanding which phase each timing measures prevents misdiagnosis:
+Understanding which phase each timing measures prevents misdiagnosis.
+
+**Important**: all three `enqueue*` calls are issued on the host **before** `queue.finish()` blocks.
+The queue is in-order by default, so the driver serialises write → kernel → read automatically.
+The diagram below shows host issue order on the left and actual GPU execution order on the right:
 
 ```
 Host thread              Command Queue             GPU
     │                         │                     │
     ├─ enqueueWriteBuffer ────►│                     │
-    ├─ enqueueNDRangeKernel ──►│── upload ──────────►│
-    ├─ enqueueReadBuffer ─────►│── kernel ──────────►│
-    ├─ queue.finish() ─────────│── download ─────────│
-    │  (blocks here)           │                     │
+    ├─ enqueueNDRangeKernel ──►│                     │
+    ├─ enqueueReadBuffer ─────►│                     │
+    ├─ queue.finish() ─────────│── upload ──────────►│
+    │  (blocks here)           │── kernel ──────────►│
+    │                          │── download ─────────│
     ◄─ returns ───────────────────────────────────────┘
 ```
+
+The three `enqueue*` calls return immediately (non-blocking); `queue.finish()` is the single
+barrier that blocks the host until all three commands complete on the GPU.
 
 What each timing reveals:
 
@@ -99,7 +107,7 @@ ffmpeg -y -f lavfi -i "color=c=gray:s=4096x4096" -vframes 1 -f image2 -vcodec bm
 ./build/visual_kernel_events -p -i test_4k.bmp
 ```
 
-Run with 256×256, 1920×1080, and 4096×4096 inputs. At what image size does kernel time exceed upload time on your hardware? The answer differs between a discrete GPU and an integrated GPU — use `GPU=NVIDIA` / `GPU=AMD` / `GPU=INTEL` to pin the target.
+Run with 256x256, 1920x1080, and 4096x4096 inputs. At what image size does kernel time exceed upload time on your hardware? The answer differs between a discrete GPU and an integrated GPU — use `GPU=NVIDIA` / `GPU=AMD` / `GPU=INTEL` to pin the target.
 
 ---
 
