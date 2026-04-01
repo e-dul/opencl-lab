@@ -4,8 +4,9 @@
 // as concrete millisecond numbers.  A 256×256 tile over a 4K frame dispatches
 // ~430× fewer threads than the full frame; the timing table shows this directly.
 //
-// WHY no BMP output: this is a numeric benchmark tool (master specs §3 exception).
-// The artifact is a structured console timing table from cl::Event profiling.
+// WHY no BMP output: the artifact is a structured console timing table from cl::Event
+// profiling — the numeric-benchmark exception applies (purely synthetic workload,
+// no image content to inspect visually).
 
 #include "opencl_utils.hpp"   // CL_CHECK, duration_ms, load_kernel_source, get_binary_dir, round_up
 #include "ocl_wrapper.hpp"    // create_context(), OclContext

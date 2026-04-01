@@ -31,8 +31,6 @@ cmake -B build && cmake --build build
 
 ## Verify
 
-> **Note:** "No overlap detected" is the typical result on NVIDIA CUDA and AMD rusticl — this is expected behavior, not a code defect.
-
 ```
 [basic_sync   ] Upload: X ms | Kernel: X ms | Download: X ms | Total: X ms
 [async_single ] Upload: X ms | Kernel: X ms | Download: X ms | Total: X ms
@@ -43,6 +41,19 @@ Speedup multi_thread vs basic_sync:  X.XXx
 ```
 
 Run all three modes and compare the timelines. Speedup is hardware-dependent — do not expect fixed numbers. Read the concept sections after you see your own output.
+
+## Example Output
+
+```
+[basic_sync   ] Upload: 2.1 ms | Kernel: 5.3 ms | Download: 1.8 ms | Total: 74.2 ms
+[async_single ] Upload: 1.9 ms | Kernel: 5.1 ms | Download: 1.7 ms | Total: 69.8 ms
+[async_single ] No overlap detected (device may serialize internally)
+[multi_thread ] Upload: 2.0 ms | Kernel: 5.4 ms | Download: 1.8 ms | Total: 72.1 ms
+Speedup async_single vs basic_sync: 1.06x   ← overlap not visible on this driver
+Speedup multi_thread vs basic_sync:  1.03x
+```
+
+`Upload`/`Kernel`/`Download` values are **per-frame averages** (cl::Event profiling). `Total` is **wall-clock** for all frames. The speedup reflects how well the driver overlaps DMA and compute.
 
 ## Concept
 

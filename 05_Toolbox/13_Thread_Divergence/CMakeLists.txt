@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 # Pull in stb, CLI11 and the common INTERFACE target.
-# WHY ../../common: this module sits 2 levels deep (99_Toolbox/ThreadDivergence/).
+# WHY ../../common: this module sits 2 levels deep (05_Toolbox/13_Thread_Divergence/).
 include(${CMAKE_CURRENT_SOURCE_DIR}/../../common/common.cmake)
 
 add_executable(thread_divergence main.cpp)

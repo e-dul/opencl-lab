@@ -36,6 +36,7 @@ __kernel void mad_kernel(__global scalar_t* restrict out,
 
     // WHY clamp: contrast/brightness can produce values outside [0, TYPE_MAX].
     // For uchar, out-of-range float→uchar conversion is implementation-defined.
+    // clamp to [0, 255] before the cast prevents implementation-defined overflow.
     float result = (float)in[gid] * contrast + brightness;
-    out[gid] = (scalar_t)result;
+    out[gid] = (scalar_t)clamp(result, 0.0f, 255.0f);
 }

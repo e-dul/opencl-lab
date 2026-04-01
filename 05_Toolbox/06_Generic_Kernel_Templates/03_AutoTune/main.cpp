@@ -64,57 +64,7 @@ static bool has_extension(const cl::Device& dev, const std::string& ext)
     return exts.find(ext) != std::string::npos;
 }
 
-// ---------------------------------------------------------------------------
-// build_program_from_source — compile with options; print log and rethrow on failure.
-// WHY not common build_program: source is a runtime-generated template string,
-// not a .cl file path.
-// ---------------------------------------------------------------------------
-static cl::Program build_program_from_source(const cl::Context& ctx,
-                                              const cl::Device&  dev,
-                                              const std::string& src,
-                                              const std::string& opts)
-{
-    cl::Program prog(ctx, cl::Program::Sources{src});
-    try {
-        prog.build({dev}, opts.c_str());
-    } catch (const cl::Error&) {
-        std::cerr << "Build log (" << opts << "):\n"
-                  << prog.getBuildInfo<CL_PROGRAM_BUILD_LOG>(dev) << "\n";
-        throw;
-    }
-    return prog;
-}
-
-// ---------------------------------------------------------------------------
-// run_kernel — dispatch mad_kernel once, return kernel time in ms.
-// ---------------------------------------------------------------------------
-static double run_kernel(cl::CommandQueue& queue,
-                         cl::Program&      prog,
-                         cl::Buffer&       buf_out,
-                         cl::Buffer&       buf_in,
-                         float             contrast,
-                         float             brightness,
-                         cl_uint           n_elements)
-{
-    cl::Kernel kernel(prog, "mad_kernel");
-    CL_CHECK(kernel.setArg(0, buf_out));
-    CL_CHECK(kernel.setArg(1, buf_in));
-    CL_CHECK(kernel.setArg(2, contrast));
-    CL_CHECK(kernel.setArg(3, brightness));
-    CL_CHECK(kernel.setArg(4, n_elements));
-
-    cl::Event evt;
-    CL_CHECK(queue.enqueueNDRangeKernel(
-        kernel,
-        cl::NullRange,
-        cl::NDRange(static_cast<size_t>(n_elements)),
-        cl::NullRange,
-        nullptr,
-        &evt));
-    CL_CHECK(queue.finish());
-
-    return duration_ms(evt);
-}
+// build_program_from_source and run_kernel are provided by common/opencl_utils.hpp
 
 int main(int argc, char** argv)
 {
@@ -126,14 +76,11 @@ int main(int argc, char** argv)
     int         height     = 1080;
     float       contrast   = 1.2f;
     float       brightness = -10.0f;
-    bool        autotune   = false;   // flag accepted for CLI11 --help conformance
-
     app.add_option("--image",      image_path, "Input BMP/PNG path (gradient used if absent)");
     app.add_option("--width",      width,      "Gradient width  (default 1920)");
     app.add_option("--height",     height,     "Gradient height (default 1080)");
     app.add_option("--contrast",   contrast,   "Contrast multiplier (default 1.2)");
     app.add_option("--brightness", brightness, "Brightness addend   (default -10)");
-    app.add_flag  ("--autotune",   autotune,   "Enable autotuner (always on; flag kept for CLI compatibility)");
 
     CLI11_PARSE(app, argc, argv);
 

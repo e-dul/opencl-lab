@@ -140,6 +140,9 @@ static std::vector<VariantResult> run_benchmark(OclContext&               ocl,
                       const_cast<float*>(host_rays.data()));
 
     // Output buffer reused per variant — no need to preserve between runs.
+    // WHY reuse buf_out across all three variants: each kernel unconditionally
+    // overwrites all n_rays elements, so no inter-variant state carry-over occurs.
+    // Reusing avoids three separate allocations for data we never read mid-run.
     cl::Buffer buf_out(ocl.context, CL_MEM_WRITE_ONLY, buf_bytes);
 
     // ── Build standard variant ────────────────────────────────────────────

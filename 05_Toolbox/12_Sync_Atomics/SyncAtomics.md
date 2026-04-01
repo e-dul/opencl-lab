@@ -15,9 +15,11 @@ cmake -B build && cmake --build build
 ## Verify
 ```
 [Unsafe   ] 1M-element histogram (256 bins):  corrupt — bins sum to 876,231 ≠ 1,048,576
-[Global   ] 1M-element histogram (256 bins):  correct —  23.4 ms  (atomic_add global)
-[Local+Red] 1M-element histogram (256 bins):  correct —   5.1 ms  (local atomics + merge)
+[Global   ] 1M-element histogram (256 bins):  correct — XX.X ms  (atomic_add global)
+[Local+Red] 1M-element histogram (256 bins):  correct —  X.X ms  (local atomics + merge)
 ```
+
+> **Note:** Timing values are representative output on a mid-range discrete GPU; your values will differ based on hardware and driver.
 
 The unsafe run will show a different total on every execution — that non-determinism is the bug.
 
@@ -90,7 +92,7 @@ void unlock(__global int* mutex) {
 
 ## Mini-Challenge
 
-Change the histogram kernel to track the **maximum** value seen per bin (not the count). Use `atomic_max` in the local phase and verify the global maximum matches `*std::max_element` on the host.
+Change the histogram kernel to track the **maximum** value seen per bin (not the count). Use `atomic_max` in the local phase and verify the global maximum matches `*std::max_element` on the host. The expected output format is a per-bin max array of 256 values (one maximum input value per bin), not a single global maximum — confirm with a host-side comparison loop.
 
 ## Troubleshooting
 

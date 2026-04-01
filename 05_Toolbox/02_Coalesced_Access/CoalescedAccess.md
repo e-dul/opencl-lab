@@ -73,7 +73,7 @@ The coalescing penalty is not a fixed multiplier — it is proportional to **mem
 
 ## Mini-Challenge
 
-Add a fourth variant that reads every 4th element (stride=4). Measure whether it is slower or faster than stride=width. Explain the result in terms of cache-line transactions.
+Add a fourth variant that reads every 4th element (stride=4). Measure whether it is slower or faster than stride=width. Explain the result in terms of cache-line transactions. Reuse the `run_kernel` helper already defined in `main.cpp` — it handles NDRange construction and event readback for you.
 
 ## Troubleshooting
 

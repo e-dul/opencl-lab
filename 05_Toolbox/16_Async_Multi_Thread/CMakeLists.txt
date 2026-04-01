@@ -25,7 +25,6 @@ target_link_libraries(async_multi_thread PRIVATE Threads::Threads)
 
 # Copies kernels/ next to the binary after build
 symlink_kernels(async_multi_thread)
-symlink_assets(async_multi_thread)
 
 # Expose common/ and vendor/ for all translation units in this target
 target_include_directories(async_multi_thread PRIVATE

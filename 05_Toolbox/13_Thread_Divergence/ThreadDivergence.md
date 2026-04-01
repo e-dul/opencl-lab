@@ -41,6 +41,8 @@ output[id] = select(input[id], blurred, mask[id] == BACKGROUND);
 
 `select(a, b, c)` returns `b` when `c` is non-zero, `a` otherwise — equivalent to `c ? b : a`. It maps to a hardware conditional-select instruction. No branch, no divergence, no serialization.
 
+> **Portability note (`blur1d_row` macro):** The kernel uses a function-like macro rather than an `inline` helper. Some vendor compilers poorly handle `inline` in `.cl` files; a function-like macro guarantees single expansion across all drivers without relying on compiler inlining behaviour.
+
 **When divergence is unavoidable**: restructure the workload so divergent work items are in different work-groups (sort by mask value before dispatch). This is the basis of stream compaction.
 
 ## Mini-Challenge

@@ -10,6 +10,7 @@ Prerequisites: OpenCL 1.2+, CMake 3.18+, `clinfo` installed. See [main README](.
 cd 05_Toolbox/05_Fast_Math
 cmake -B build && cmake --build build
 ./build/fast_math --rays 1000000
+./build/fast_math --rays 1000000 --relaxed   # also runs -cl-fast-relaxed-math variants
 # GPU=NVIDIA ./build/fast_math --rays 10000000
 ```
 
@@ -22,6 +23,8 @@ cmake -B build && cmake --build build
 ```
 
 Run with `--rays 10000000` on a discrete GPU to get stable numbers — small counts are dominated by launch overhead.
+
+> **Note:** `native_` gain may be negligible or absent on CPU/PoCL devices — hardware-defined precision means some runtimes map `native_rsqrt` directly to the standard path.
 
 ## Concept
 
@@ -57,21 +60,15 @@ float3 inv_dir = (float3)(native_recip(dir.x),
                           native_recip(dir.z));
 ```
 
-**When precision trade-offs are acceptable:**
-
-| Domain | Standard math | Fast math |
-|:-------|:-------------|:----------|
-| Ray tracing (visual) | ✗ unnecessary | ✓ — sub-pixel error invisible |
-| BVH traversal (hit/miss) | ✗ unnecessary | ✓ — false hit/miss rate negligible |
-| Particle systems | ✗ unnecessary | ✓ |
-| Physics simulation | ✓ | depends on step size |
-| Financial / medical | ✓ mandatory | ✗ never |
+**When precision trade-offs are acceptable:** see the "Use when" and "Example domains" columns in the table above.
 
 **`native_` vs `-cl-fast-relaxed-math`**: prefer explicit `native_` calls over the build flag. The build flag silently affects every function in the kernel; explicit `native_` calls document exactly where you are trading precision for speed.
 
 ## Mini-Challenge
 
 In the BVH traversal kernel from [02_Ray_Tracer_BVH](../../03_GraphicsHPC/02_Ray_Tracer_BVH/RayTracerBVH.md), replace `rsqrt` with `native_rsqrt` in the ray normalisation step. Measure the kernel time before and after. Then enable `-cl-fast-relaxed-math` and compare the output images pixel-by-pixel — quantify the maximum pixel error introduced.
+
+**Second challenge:** Add a `native_sin` variant to the fast_math kernel to simulate an audio oscillator or physics spring (`y = A * native_sin(t * freq)`). Compare `native_sin` vs standard `sin` throughput on 1M samples. On Nvidia hardware, expect 4–8× speedup; on CPU/PoCL runtimes the gain is typically < 1.5×.
 
 ## Troubleshooting
 

@@ -393,7 +393,9 @@ static TimingResult run_fine_svm(OclSetup& ocl, cl::Program& program,
     }
 
     // Direct host write — no map needed for fine-grained coherent memory.
-    // Transfer time is effectively 0: CPU writes are immediately visible to GPU.
+    // WHY r.transfer_ms = 0.0: fine-grained coherency eliminates explicit fences;
+    // transfer time is definitionally zero because CPU writes are immediately
+    // visible to the GPU without any map/unmap synchronisation overhead.
     std::memcpy(svm_in, src.data(), byte_size);
     r.transfer_ms = 0.0;
 
@@ -535,6 +537,19 @@ int main(int argc, char* argv[]) {
     for (const auto& r : results)
         print_result(r);
     std::cout << "\n";
+
+    // Count SKIPPED results; print a summary only when at least one was skipped.
+    // WHY conditional: on OpenCL 2.0 devices with full SVM nothing is skipped;
+    // printing the message would be misleading noise.
+    int skipped_count = 0;
+    for (const auto& r : results) {
+        if (r.skipped) ++skipped_count;
+    }
+    if (skipped_count > 0) {
+        std::cout << "[" << skipped_count << " mode"
+                  << (skipped_count == 1 ? "" : "s")
+                  << " skipped — OpenCL 2.0 SVM not available]\n";
+    }
 
     return 0;
 }

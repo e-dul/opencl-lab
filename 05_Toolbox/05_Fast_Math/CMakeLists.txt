@@ -15,7 +15,6 @@ opencl_lab_target(fast_math)
 
 # Copies kernels/ next to the binary after build
 symlink_kernels(fast_math)
-symlink_assets(fast_math)
 
 # Expose common/ and vendor/ for opencl_utils.hpp, ocl_wrapper.hpp
 target_include_directories(fast_math PRIVATE

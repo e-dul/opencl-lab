@@ -2,7 +2,7 @@
 
 **Symptom**: Single GPU throughput ceiling reached. Adding a second GPU shows no benefit because workload is pinned to one device.
 
-**Performance gate**: >= 1.65x speedup with 2x GPUs on the same workload.
+**Performance gate**: >= 1.65x speedup with 2x GPUs on the same workload. Result is hardware-dependent; heterogeneous GPU pairs may require a proportional split to meet this target.
 
 ## Prerequisites
 Prerequisites: OpenCL 1.2+, CMake 3.18+, `clinfo` installed. See [main README](../../README.md) for base requirements.
@@ -21,6 +21,8 @@ Run with `--gpus 1` first to establish the single-GPU baseline, then with `--gpu
 ./build/multi_gpu_strategy --width 3840 --height 2160 --gpus 1
 ./build/multi_gpu_strategy --width 3840 --height 2160 --gpus 2
 ```
+
+Use `--image <path>` to load a BMP/PNG source image instead of the synthetic gradient (any RGBA image accepted).
 
 ## Verify
 
@@ -51,9 +53,9 @@ for (int i = 0; i < (int)devices.size(); i++) {
 }
 ```
 
-**Workload splitting strategies**:
+**Workload splitting strategies** (the current implementation uses static equal slices; dynamic split is the Mini-Challenge homework):
 - **Static (equal slices)**: simple, works when GPUs are identical
-- **Dynamic (work-stealing queue)**: needed when GPUs have different throughput
+- **Dynamic (work-stealing queue)**: needed when GPUs have different throughput — see Mini-Challenge below
 - **Proximity (NUMA-aware)**: assign data that lives near the GPU to that GPU (PCIe topology)
 
 **Synchronization**: use `clWaitForEvents` on all per-device completion events before accessing the merged result. Never use `clFinish` on one queue while another is still running — they are independent.

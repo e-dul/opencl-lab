@@ -32,60 +32,7 @@
 #include <string>
 #include <vector>
 
-// ---------------------------------------------------------------------------
-// build_program_from_source — compile kernel source with given options.
-// WHY not common build_program: source is generated at runtime from a
-// template string, not loaded from a .cl file path.
-// Prints build log and rethrows on error so callers get a clean message.
-// ---------------------------------------------------------------------------
-static cl::Program build_program_from_source(const cl::Context& ctx,
-                                              const cl::Device&  dev,
-                                              const std::string& src,
-                                              const std::string& options)
-{
-    cl::Program prog(ctx, cl::Program::Sources{src});
-    try {
-        prog.build({dev}, options.c_str());
-    } catch (const cl::Error&) {
-        std::cerr << "Build log (" << options << "):\n"
-                  << prog.getBuildInfo<CL_PROGRAM_BUILD_LOG>(dev) << "\n";
-        throw;
-    }
-    return prog;
-}
-
-// ---------------------------------------------------------------------------
-// run_variant — dispatch mad_kernel, return cl::Event kernel time in ms.
-// WHY template on element size: uchar is 1 byte, float is 4 bytes, so the
-// buffer byte size differs even though pixel count is identical.
-// ---------------------------------------------------------------------------
-static double run_variant(cl::CommandQueue& queue,
-                          cl::Program&      prog,
-                          cl::Buffer&       buf_in,   // typed input on device
-                          cl::Buffer&       buf_out,  // typed output on device
-                          float             contrast,
-                          float             brightness,
-                          cl_uint           n_elements)
-{
-    cl::Kernel kernel(prog, "mad_kernel");
-    CL_CHECK(kernel.setArg(0, buf_out));
-    CL_CHECK(kernel.setArg(1, buf_in));
-    CL_CHECK(kernel.setArg(2, contrast));
-    CL_CHECK(kernel.setArg(3, brightness));
-    CL_CHECK(kernel.setArg(4, n_elements));
-
-    cl::Event evt;
-    CL_CHECK(queue.enqueueNDRangeKernel(
-        kernel,
-        cl::NullRange,
-        cl::NDRange(static_cast<size_t>(n_elements)),
-        cl::NullRange,
-        nullptr,
-        &evt));
-    CL_CHECK(queue.finish());
-
-    return duration_ms(evt);
-}
+// build_program_from_source and run_kernel are provided by common/opencl_utils.hpp
 
 int main(int argc, char** argv)
 {
@@ -167,14 +114,14 @@ int main(int argc, char** argv)
 
     // ── Run both variants ─────────────────────────────────────────────────────
     std::cout << "\nRunning uchar variant...\n";
-    const double ms_u8 = run_variant(prof_queue, prog_u8,
-                                     buf_in_u8, buf_out_u8,
-                                     contrast, brightness, n_elem_int);
+    const double ms_u8 = run_kernel(prof_queue, prog_u8,
+                                    buf_out_u8, buf_in_u8,
+                                    contrast, brightness, n_elem_int);
 
     std::cout << "Running float variant...\n";
-    const double ms_f32 = run_variant(prof_queue, prog_f32,
-                                      buf_in_f32, buf_out_f32,
-                                      contrast, brightness, n_elem_int);
+    const double ms_f32 = run_kernel(prof_queue, prog_f32,
+                                     buf_out_f32, buf_in_f32,
+                                     contrast, brightness, n_elem_int);
 
     // ── Timing table ─────────────────────────────────────────────────────────
     std::cout << "\nType    | Kernel Time (ms)\n";

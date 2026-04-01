@@ -61,6 +61,9 @@ double run_basic_sync(cl::Context& ctx, cl::Device& device, int frames, int size
         // CL_TRUE = blocking: host stalls until transfer completes.
         // This ensures strict sequencing and is the simplest correct approach,
         // but prevents any overlap with compute.
+        // WHY blocking writes here: used intentionally for simplicity; fully
+        // non-blocking dispatches would require intra-thread event chains
+        // (see 02_AsyncSingle for that pattern).
         CL_CHECK(queue.enqueueWriteBuffer(buf_in, CL_TRUE, 0, buf_bytes,
                                           host_in.data(), nullptr, &ev_upload));
 

@@ -9,7 +9,7 @@ Prerequisites: OpenCL 1.2+, CMake 3.18+, `clinfo` installed. See [main README](.
 ```bash
 cd 05_Toolbox/01_Local_Memory
 cmake -B build && cmake --build build
-./build/local_memory --kernel blur --radius 5 --width 1920 --height 1080
+./build/local_memory --radius 5 --width 1920 --height 1080
 ```
 
 ## Verify
@@ -19,6 +19,10 @@ cmake -B build && cmake --build build
 ```
 
 Run the demo first. Note the speedup at radius 5. Then increase the radius and observe the crossover point where local memory pressure limits gains.
+
+> **Note:** Numbers are indicative for a discrete GPU; iGPU or CPU devices will show smaller ratios.
+
+For the underlying cause of LDS bank conflicts and how to fix them, see the [Advanced Challenge: Bank Conflicts in LDS](#advanced-challenge-bank-conflicts-in-lds) section below.
 
 ## Concept
 

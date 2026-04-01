@@ -123,9 +123,10 @@ static void verify(const std::string&           strategy_name,
 {
     const size_t check_bytes = std::min<size_t>(64, input.size());
     if (std::memcmp(input.data(), output.data(), check_bytes) != 0) {
-        std::cerr << "[ERROR] Buffer strategy " << strategy_name
-                  << " produced incorrect output\n";
-        std::exit(1);
+        // WHY throw instead of std::exit: per master spec §7.8, exceptions allow
+        // RAII destructors to run and let callers decide how to handle the error.
+        throw std::runtime_error("Buffer strategy " + strategy_name +
+                                 " produced incorrect output");
     }
 }
 
@@ -233,6 +234,59 @@ int main(int argc, char** argv) {
                                      host_pixels, CL_MEM_READ_ONLY | CL_MEM_USE_HOST_PTR);
     verify("USE_HOST_PTR",   host_pixels, result_use.output_pixels);
 
+    // MAP_UNMAP strategy: the most portable zero-copy pattern on discrete GPUs.
+    // Allocate a pinned buffer with ALLOC_HOST_PTR, then use enqueueMapBuffer to
+    // get a host pointer into the pinned region.  The host fills the mapped
+    // pointer, unmap flushes to device, then the kernel reads from device memory.
+    //
+    // WHY ALLOC_HOST_PTR | COPY_HOST_PTR together: ALLOC_HOST_PTR allocates
+    // page-locked (pinned) host memory; COPY_HOST_PTR pre-populates it from
+    // host_pixels in one driver call, avoiding a separate enqueueWriteBuffer.
+    BenchmarkResult result_map;
+    {
+        if (host_pixels.size() > static_cast<size_t>(std::numeric_limits<cl_int>::max()))
+            throw std::runtime_error("Image too large for cl_int size parameter");
+        cl_int size = static_cast<cl_int>(host_pixels.size());
+
+        // Allocate pinned input buffer pre-populated from host_pixels.
+        cl::Buffer buf_in(ocl.context,
+                          CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR | CL_MEM_COPY_HOST_PTR,
+                          static_cast<size_t>(size),
+                          const_cast<cl_uchar*>(host_pixels.data()));
+        cl::Buffer buf_out(ocl.context, CL_MEM_WRITE_ONLY, static_cast<size_t>(size));
+
+        // Map the pinned buffer to a host pointer, then immediately unmap.
+        // WHY map+unmap before kernel: exercises the portable zero-copy round-trip —
+        // enqueueMapBuffer returns a pointer into pinned memory (no copy on iGPU);
+        // enqueueUnmapMemObject signals that the host is done so the device can
+        // read safely.
+        void* mapped = prof_queue.enqueueMapBuffer(buf_in, CL_TRUE,
+                                                   CL_MAP_READ | CL_MAP_WRITE,
+                                                   0, static_cast<size_t>(size));
+        // WHY CL_CHECK on enqueueUnmapMemObject: it returns cl_int and is NOT
+        // covered by CL_HPP_ENABLE_EXCEPTIONS — silent failures must be caught.
+        CL_CHECK(prof_queue.enqueueUnmapMemObject(buf_in, mapped));
+        CL_CHECK(prof_queue.finish());
+
+        CL_CHECK(kernel.setArg(0, buf_in));
+        CL_CHECK(kernel.setArg(1, buf_out));
+        CL_CHECK(kernel.setArg(2, size));
+
+        cl::Event evt;
+        CL_CHECK(prof_queue.enqueueNDRangeKernel(
+            kernel, cl::NullRange,
+            cl::NDRange(static_cast<size_t>(size)),
+            cl::NullRange, nullptr, &evt));
+        CL_CHECK(prof_queue.finish());
+
+        result_map.output_pixels.resize(static_cast<size_t>(size));
+        CL_CHECK(prof_queue.enqueueReadBuffer(buf_out, CL_TRUE, 0,
+                                              static_cast<size_t>(size),
+                                              result_map.output_pixels.data()));
+        result_map.kernel_ms = duration_ms(evt);
+    }
+    verify("MAP_UNMAP", host_pixels, result_map.output_pixels);
+
     // ── Timing table ────────────────────────────────────────────────────────
     std::cout << "\n";
     std::cout << std::left << std::setw(22) << "Strategy"
@@ -241,6 +295,7 @@ int main(int argc, char** argv) {
     print_row("COPY_HOST_PTR",  result_copy.kernel_ms);
     print_row("ALLOC_HOST_PTR", result_alloc.kernel_ms);
     print_row("USE_HOST_PTR",   result_use.kernel_ms);
+    print_row("MAP_UNMAP",      result_map.kernel_ms);
 
     // ── Write output BMP ─────────────────────────────────────────────────────
     // Use ALLOC_HOST_PTR result as the canonical output image.

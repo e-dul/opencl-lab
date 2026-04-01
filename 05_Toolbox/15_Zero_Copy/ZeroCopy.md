@@ -15,9 +15,12 @@ cmake -B build && cmake --build build
 
 ## Verify
 ```
-[COPY_HOST_PTR  ] Upload: 8.4 ms   (pageable → GPU copy)
-[ALLOC_HOST_PTR ] Upload: 1.1 ms   (pinned memory, faster DMA)
-[USE_HOST_PTR   ] Upload: 0.0 ms   (iGPU: buffer is physically shared)
+Strategy              Kernel Time (ms)
+──────────────────────────────────────
+COPY_HOST_PTR            8.400        (pageable → GPU copy)
+ALLOC_HOST_PTR           1.100        (pinned memory, faster DMA)
+USE_HOST_PTR             0.000        (iGPU: buffer is physically shared)
+MAP_UNMAP               <varies>      (most portable zero-copy pattern)
 ```
 
 Run the demo. Once you see the timing difference, read the concept below.

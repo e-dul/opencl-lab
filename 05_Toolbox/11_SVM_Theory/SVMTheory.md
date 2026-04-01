@@ -11,6 +11,8 @@ See [main README](../../README.md) for base requirements (OpenCL 1.2+, CMake 3.1
 - OpenCL 2.0+ device for the SVM sections (AMD APU, Intel integrated, ARM Mali)
 
 ## Build & Run
+> **Build note:** Users with an OpenCL 1.2-only SDK compile in 1.2-only mode (no SVM symbols). Verify your device's OpenCL C version with `clinfo | grep 'Device OpenCL C Version'` — 2.0+ is required for the SVM modes.
+
 ```bash
 cd 05_Toolbox/11_SVM_Theory
 cmake -B build && cmake --build build
@@ -44,14 +46,7 @@ GPU=INTEL ./build/svm_theory --mode all
 | Fine SVM | `fine_svm` | 2.0+ | 0 ms (direct coherent write) | Fully coherent: CPU writes visible to GPU with no fence |
 
 ### `buffer_map` — the OpenCL 1.x baseline
-`buffer_map` is the educational starting point. It allocates a buffer with `CL_MEM_COPY_HOST_PTR`
-(driver copies at creation) and then exercises `enqueueMapBuffer` + `enqueueUnmapMemObject` to
-show the explicit synchronisation round-trip cost on OpenCL 1.x hardware.
-
-This path requires no OpenCL 2.0 features and runs on all supported devices. Compare its
-**Transfer** time against `coarse_svm` to see how much the map/unmap fence costs relative to
-SVM allocation overhead. On a UMA iGPU, both may converge near zero — on a discrete GPU over
-PCIe, `copy_host_ptr` and `buffer_map` will dominate.
+`buffer_map` is the universal baseline path: `CL_MEM_COPY_HOST_PTR` + explicit `enqueueMapBuffer`/`enqueueUnmapMemObject` fences — no OpenCL 2.0 features required. See the Modes table above for a full comparison of all five paths.
 
 ## Verify
 ```
@@ -65,6 +60,8 @@ Device: Intel(R) Iris(R) Xe Graphics
 ```
 
 ## Concept: Why UMA Changes Everything
+
+> **Data format note:** This module uses `uchar4` (RGBA pixels) as the benchmark data type. For why 4-channel aligned access matters for memory bandwidth, see [05_Toolbox/02_Coalesced_Access/CoalescedAccess.md](../02_Coalesced_Access/CoalescedAccess.md).
 
 **Discrete GPU (NUMA)**:
 ```

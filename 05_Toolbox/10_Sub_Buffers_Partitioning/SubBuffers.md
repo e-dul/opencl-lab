@@ -51,13 +51,6 @@ Output    : output.bmp
 
 Open `output.bmp` and confirm N horizontal color bands, each covering an equal image strip. The file is written to the directory from which you invoked the binary (i.e., `05_Toolbox/10_Sub_Buffers_Partitioning/output.bmp` when following the Build & Run commands above).
 
-Confirm zero data movement — only parent-level operations should appear:
-
-```bash
-grep -n enqueueWriteBuffer ./main.cpp
-# Expected: zero matches after initial parent buffer setup
-```
-
 ## Concept
 
 ### Parent buffer and sub-buffer aliasing
@@ -136,8 +129,11 @@ No `enqueueWriteBuffer` ever targets a sub-region after initial setup.
 1. Run `--strips 1`. What does `output.bmp` contain? Why is there only one sub-buffer? What does that tell you about the relationship between a sub-buffer and the parent when the sub-buffer spans the entire allocation?
 2. **Stretch:** Add a second kernel that reads back through a sub-buffer and inverts the colors. Confirm that the parent buffer reflects the inversion after the second dispatch — without any `enqueueWriteBuffer` call.
 
+**Natural next steps:** [08_Multi_GPU_Strategy](../08_Multi_GPU_Strategy/MultiGPUStrategy.md) shows how to partition work across multiple devices using the same slice-partitioning concept. [16_Async_Multi_Thread](../16_Async_Multi_Thread/AsyncMultiThread.md) shows how to pipeline overlapping transfers and kernel dispatches across sub-regions.
+
 ## Troubleshooting
 
+- **Confirm zero data movement:** `grep -n enqueueWriteBuffer ./main.cpp` should return zero matches after initial parent buffer setup — all writes go through sub-buffer kernel dispatches.
 - **`CL_MISALIGNED_SUB_BUFFER_OFFSET` on `createSubBuffer`:** The strip byte size was computed before alignment rounding. Check that `strip_bytes % align_bytes == 0` before calling `createSubBuffer`.
 - **Solid black output:** `enqueueReadBuffer` finished before all kernel dispatches. If adapting this pattern, ensure `queue.finish()` is called after the last `enqueueNDRangeKernel` and before `enqueueReadBuffer` (the demo already does this).
 - **Last strip is wrong color:** The strip count is larger than `height`, causing zero-pixel strips. Validate `strips <= height` on input.

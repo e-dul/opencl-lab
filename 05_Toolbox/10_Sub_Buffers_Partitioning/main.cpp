@@ -39,6 +39,10 @@
 // strip_color — return a visually distinct RGBA color for strip index i out
 // of total strips.  Uses evenly spaced hues on a simple 6-sector HSV wheel
 // converted to RGB.  Alpha is always 255.
+//
+// WHY custom HSV converter: the C++ stdlib has no HSV utility.  Full-saturation
+// (S=V=1) maximises visual contrast between adjacent strips so the sub-buffer
+// boundaries are immediately visible in the output BMP.
 // ---------------------------------------------------------------------------
 static std::array<uint8_t, 4> strip_color(int i, int total) {
     const float hue = (360.0f * static_cast<float>(i)) / static_cast<float>(total);
@@ -93,7 +97,10 @@ int main(int argc, char** argv) {
         throw std::runtime_error("--width, --height, and --strips must all be > 0");
     }
     if (strips > height) {
-        throw std::runtime_error("--strips cannot exceed --height");
+        throw std::runtime_error(
+            "--strips cannot exceed --height: a zero-height strip produces a "
+            "zero-size sub-buffer region, which is illegal per the OpenCL spec "
+            "(CL_INVALID_VALUE from clCreateSubBuffer when region.size == 0)");
     }
 
     // ── OpenCL context ──────────────────────────────────────────────────────
