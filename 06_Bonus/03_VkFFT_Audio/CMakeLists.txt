@@ -11,7 +11,7 @@ include(FetchContent)
 # WHY FetchContent: keeps the module self-contained; no system vkFFT install required.
 FetchContent_Declare(vkfft
   GIT_REPOSITORY https://github.com/DTolm/VkFFT.git
-  GIT_TAG        master
+  GIT_TAG        v1.3.4
 )
 FetchContent_MakeAvailable(vkfft)
 

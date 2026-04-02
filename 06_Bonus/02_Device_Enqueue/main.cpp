@@ -426,7 +426,10 @@ static std::vector<double> render_gpu_spawned(
     cl_command_queue raw_dev_queue = clCreateCommandQueueWithProperties(
         ctx(), dev(), dev_q_props, &dev_q_err);
     CL_CHECK(dev_q_err);
-    // Wrap in RAII: release when we exit scope
+    // WHY DevQueueGuard uses raw C API: cl::CommandQueue in cl.hpp 1.2 does not
+    // expose the CL_QUEUE_ON_DEVICE property — the CL_QUEUE_ON_DEVICE flag can only
+    // be set via clCreateCommandQueueWithProperties (OpenCL 2.0 C API). Wrapping the
+    // raw handle in a local RAII guard ensures release even on exception paths.
     struct DevQueueGuard {
         cl_command_queue q;
         ~DevQueueGuard() { if (q) clReleaseCommandQueue(q); }
@@ -527,7 +530,7 @@ int main(int argc, char* argv[]) {
         bool cl2_supported = false;
 #ifdef CL_VERSION_2_0
         {
-            std::string cl_c_ver = ocl.device.getInfo<CL_DEVICE_VERSION>();
+            std::string cl_c_ver = ocl.device.getInfo<CL_DEVICE_OPENCL_C_VERSION>();
             int major = parse_opencl_c_major(cl_c_ver);
             std::cout << "OpenCL C version: " << cl_c_ver << "\n";
             if (major >= 2) {

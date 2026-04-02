@@ -23,11 +23,30 @@ cmake -B build && cmake --build build
   CPU reference (FFTW):               18.4 ms   Speedup: 23x
   ```
 
-## Concept
+## Key Concepts
+
+### Why Libraries Win for FFT
 
 A naive DFT is O(N²). FFT is O(N log N) but the butterfly access pattern requires careful shared memory use, bit-reversal permutation, and multi-stage twiddle factor application. Implementing a performant FFT kernel from scratch is a multi-week project. vkFFT handles all of this and auto-tunes per device.
 
 **The rule**: reach for a library when the algorithm is well-defined and implementation complexity exceeds two days. Write custom kernels when the access pattern or data layout is non-standard.
+
+### Windowing and Spectral Leakage
+
+> **Callout — Rectangular Window Limitation:**
+> This module uses a rectangular (boxcar) window: the FFT sees a hard-cut segment of the audio signal. When the signal frequency is not an exact integer multiple of the bin spacing, the hard cut creates discontinuities at the frame boundaries that smear energy across many frequency bins — a phenomenon called *spectral leakage*. The standard fix is to multiply each frame by a Hann window before the FFT: `w[n] = 0.5 * (1 - cos(2π·n/N))`. Hann windowing reduces spectral leakage at the cost of widening the main lobe slightly. Implementing this as a short preprocessing kernel (one multiply per sample) is a good mini-challenge: compare the spectrogram of a pure 440 Hz tone with and without windowing.
+
+### Barrier-Bracketing the FFT Dispatch
+
+vkFFT internally manages synchronization, but the host must ensure the input buffer is fully written before the FFT starts and the output buffer is fully consumed after it completes. The timing includes both barrier waits:
+
+```
+|--start_barrier--|--vkFFT dispatch--|--end_barrier--|
+```
+
+The reported `FFT batch` time covers the full window from start to end barrier.
+
+## Integration
 
 vkFFT uses OpenCL (and Vulkan/CUDA/HIP) under the hood. Integration is a few lines:
 
@@ -51,7 +70,7 @@ Process a 10-second `.wav` file in real time using a sliding window. At what win
 
 ## Troubleshooting
 
-- **vkFFT not found**: fetched via CMake FetchContent — requires internet at configure time. Offline: set `-DCMAKE_PREFIX_PATH=/path/to/vkfft`.
+- **vkFFT not found**: fetched via CMake FetchContent — requires internet at configure time. Offline: set `-DFETCHCONTENT_SOURCE_DIR_VKFFT=/path/to/local/vkfft`.
 - **Wrong spectrogram orientation**: vkFFT output is interleaved complex (real, imag, real, imag...). Compute magnitude `sqrt(re² + im²)` before writing to BMP.
 
 ---

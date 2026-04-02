@@ -31,5 +31,7 @@ opencl_lab_target(clblast_matmul)
 
 target_link_libraries(clblast_matmul PRIVATE clblast)
 
+# WHY symlink_kernels: CLBlast uses its own built-in kernels compiled at runtime;
+# this symlink only serves naive_matmul.cl which is the project's custom kernel.
 symlink_kernels(clblast_matmul)
 symlink_assets(clblast_matmul)
