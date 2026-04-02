@@ -112,10 +112,6 @@ The filter kernel from `06_Smart_Webcam` runs unchanged — only the buffer sour
 
 Add a second effect (`--effect sepia`) using the [GenericKernelTemplates](../../05_Toolbox/06_Generic_Kernel_Templates/GenericKernelTemplates.md) pattern: both `blur` and `sepia` should share one `.cl` source file, built with `-D EFFECT_BLUR` and `-D EFFECT_SEPIA` respectively. No duplicate kernel code.
 
-## Build & Run Notes
-
-> **On NVIDIA:** the binary falls back to a GPU-assisted software path if the VA interop extension (`cl_intel_va_api_media_sharing`) is absent. NV12 planes are uploaded to OpenCL, colour-converted on the GPU, and encoded via libx264.
-
 ## Troubleshooting
 
 - **`clCreateFromVA_APIMediaSurfaceINTEL` not found**: requires `cl_intel_va_api_media_sharing` extension. Check: `clinfo | grep va_api`. Not available on Nvidia — the pipeline falls back to the GPU-assisted software path: NV12 planes (~3 MB) uploaded to OpenCL, colour-converted on the GPU, and encoded via VAAPI or libx264.

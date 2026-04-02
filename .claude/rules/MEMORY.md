@@ -12,8 +12,6 @@
 - Comments: Explain "WHY", not "WHAT".
 
 ## Known Issues
-- **02_Multimedia/05_OpenVINO_GPU** (): CMake configure fails — OpenVINO SDK not installed on this machine. Expected optional dependency.
-- **02_Multimedia/06_Smart_Webcam** (): CMake configure fails — OpenVINO SDK not installed. Expected optional dependency.
 - T057:  hyperlink in  retained — it is a correct relative markdown link to the assets README, not a runtime path.
 
 ## Discipline
@@ -34,7 +32,7 @@
 - No source files (.cpp, .cl, CMakeLists.txt) were modified.
 
 ### 2026-03-23 — Final Verification Session (Task T057)
-- Ran standalone build sweep across all 40+ modules; confirmed all pass except 05_OpenVINO_GPU and 06_Smart_Webcam (OpenVINO SDK not installed — expected).
+- Ran standalone build sweep across all 40+ modules; confirmed all pass except 05_OpenVINO_GPU and 06_Smart_Webcam (OpenVINO SDK not installed at that time — SDK has since been installed; both modules are now buildable).
 - Fixed depth-relative asset path in `06_Bonus/03_VkFFT_Audio/vkFFTAudio.md` (was three levels deep, now `assets/sample.wav`).
 - Fixed stale `cd` path and back-link target in `vkFFTAudio.md` (now points to `../Bonus.md`).
 - Added back-link to `00_Setup/01_Smoke_Test/SmokeTest.md`.

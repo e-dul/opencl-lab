@@ -32,6 +32,8 @@ cmake --build build
 
 Each run prints a one-row timing table. Reference numbers on NVIDIA RTX 4060 Laptop at 800×600, `bunny.obj` (~70k triangles), 60 frames:
 
+> **CPU/PoCL note**: CPU runtimes (PoCL) will show significantly higher BVH build times; render times are the meaningful comparison metric. The rebuild vs refit ratio is still observable on all hardware.
+
 ```
 Strategy | Depth     | BVH Build (ms) | Upload (ms) | Render (ms) | Total (ms) | FPS
 ---------|-----------|----------------|-------------|-------------|------------|----
@@ -52,6 +54,10 @@ static   | unlimited |           0.00 |        0.00 |        0.63 |       0.63 |
 **Refit** skips sorting entirely. It walks the flat `BvhNode[]` in reverse index order (leaves before parents, guaranteed by depth-first pre-order) and re-expands each AABB from its children. O(N). ~17× faster than rebuild on this scene, with negligible quality loss for rigid rotation.
 
 **Static** never touches the BVH. GPU traversal tests stale AABBs against moved triangles — rays skip subtrees whose AABBs no longer enclose the actual geometry. `render_static.bmp` shows exactly what this failure mode looks like in practice.
+
+### SoA Data Layout and Memory Coalescing
+
+Triangle vertex and normal data are stored as 18 separate float arrays (one per component: `v0x`, `v0y`, ... `n2z`). This SoA layout ensures that work-items in the same warp read consecutive memory addresses — see [Toolbox: Coalesced Access](../../05_Toolbox/02_Coalesced_Access/CoalescedAccess.md) for the full explanation.
 
 ### `--max-depth` and BVH Acceleration
 
@@ -75,7 +81,7 @@ Run `--strategy refit --max-depth 1` (3-node tree). Does refit still complete in
 
 ## Troubleshooting
 
-- **Black patches on rebuild/refit**: `miss_link` pointers are stale from a previous topology. Verify that refit only updates AABBs and never rewrites link pointers.
+- **Black patches or missing geometry**: see [GraphicsHPC.md Troubleshooting](../GraphicsHPC.md#troubleshooting) for BVH miss-link and GL interop issues.
 - **`--strategy static` renders correctly for the first few frames**: expected. BVH divergence accumulates gradually — run at least 60 frames to see the artifact clearly.
 
 ---

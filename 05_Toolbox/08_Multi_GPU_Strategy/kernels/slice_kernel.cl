@@ -2,10 +2,6 @@
 // WHY separate kernel file: loaded at runtime so it can be inspected and modified
 //   without recompiling host code (educational transparency).
 //
-// row_offset is currently unused at the kernel level because each device
-// allocates a buffer sized exactly to its slice — the kernel always operates
-// at local index 0..slice_pixels-1.  The parameter is kept in the signature
-// to document the logical partitioning and allow future sub-buffer variants.
 
 // WHY ITERATIONS=1001 (odd):
 //   The simple single-pass invert takes < 1 ms on a 4K image and is dominated
@@ -24,16 +20,10 @@ __kernel void process_slice(
     __global const uchar4* in,
     __global       uchar4* out,
     int width,
-    int height,
-    int row_offset)
+    int height)
 {
     size_t gid = get_global_id(0);
     size_t slice_pixels = (size_t)width * (size_t)height;
-
-    // row_offset documents the logical slice position in the full image.
-    // Each device receives a slice-local buffer so row_offset is always 0 here,
-    // but it is retained in the signature for future sub-buffer variants.
-    (void)row_offset;
 
     // Guard against over-dispatch on workgroup-aligned boundaries.
     if (gid >= slice_pixels) return;

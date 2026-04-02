@@ -8,7 +8,12 @@
 
 ## Build & Run
 
-Both terminals must source ROS 2 and export the RMW before running.
+Both terminals must source ROS 2 and export the RMW before running. Add these lines to `~/.bashrc` to avoid repeating them per session:
+
+```bash
+source /opt/ros/jazzy/setup.bash
+export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+```
 
 ```bash
 cd 03_Perception_Node
@@ -46,13 +51,13 @@ Rate check: `ros2 topic hz /filtered_points` — expect ~200 Hz.
 Console prints per-message stage breakdown:
 
 ```
-[RECV ] PointCloud2 deserialized:  0.400 ms
-[GPU  ] Upload (100k pts):         0.800 ms
-[GPU  ] Filter kernel:             1.100 ms
-[GPU  ] Feature extraction:        1.600 ms
-[GPU  ] Download results:          0.500 ms
-[SEND ] Publish filtered cloud:    0.300 ms
-Total:                             4.700 ms  <- must be < 5 ms to pass
+[perception_node] [RECV ] PointCloud2 deserialized:  0.400 ms
+[perception_node] [GPU  ] Upload:                    0.800 ms
+[perception_node] [GPU  ] Filter:                    1.100 ms
+[perception_node] [GPU  ] Features:                  1.600 ms
+[perception_node] [GPU  ] Download:                  0.500 ms
+[perception_node] [SEND ] Publish:                   0.300 ms
+[perception_node] [TOTAL] End-to-end:                4.700 ms  <- must be < 5 ms to pass
 ```
 
 **Performance gate**: total end-to-end < 5 ms at 100k points †.
@@ -79,19 +84,9 @@ ros2 param set /perception_node <param> <value>
 
 ### The Serialization Problem (Loaned Messages)
 
-A `sensor_msgs/PointCloud2` with 100k points (XYZ + intensity, float32) is 1.6 MB. The standard subscriber deserializes this into a `PointCloud2` struct, then you copy it to a `cl::Buffer` — two copies before the GPU sees a single point.
+A `sensor_msgs/PointCloud2` with 100k points (XYZ + intensity, float32) is 1.6 MB. The standard subscriber copies this into a `PointCloud2` struct, then you copy it to a `cl::Buffer` — two copies before the GPU sees a single point.
 
-**Loaned Messages** eliminate the first copy. The middleware loans a pre-allocated buffer directly in the publisher's shared memory region:
-
-```cpp
-// Loaned: one copy (shm -> cl::Buffer directly)
-sub_ = create_subscription<PointCloud2>("points", rclcpp::QoS(10),
-    [this](std::unique_ptr<PointCloud2> msg) {  // loaned unique_ptr
-        CL_CHECK(queue_.enqueueWriteBuffer(buf_, CL_FALSE, 0,
-            msg->data.size(), msg->data.data(), nullptr, &upload_event_));
-        // msg released back to middleware automatically
-    });
-```
+**Loaned Messages** eliminate the first copy using middleware-managed shared memory. The implementation is in `on_activate()` in `main.cpp` — see the `// WHY loaned` block comment there for the specific `create_subscription` signature and why `unique_ptr` ownership enables the zero-copy path.
 
 To reach < 5 ms you will likely need the loaned path. The standard path adds 0.8–1.5 ms on a 1.6 MB message. Same principle as [Toolbox: Zero-Copy](../../05_Toolbox/15_Zero_Copy/ZeroCopy.md).
 
@@ -143,6 +138,36 @@ Replace AoS (`XYZIXYZIXYZ...`) with SoA (`XXX...YYY...ZZZ...III...`) in the uplo
 - **`ros2 topic hz` shows half the expected rate**: node blocking on `clFinish()` inside callback. Use non-blocking enqueue + event callback.
 - **Double-buffer contention at nominal rate**: GPU pipeline > 5 ms. Break down per-stage times to find the bottleneck.
 - **PointCloud2 size unexpected**: compute as `msg->width * msg->height * msg->point_step`. Never hard-code 16 bytes.
+
+## Common Gotchas
+
+### Host/Device Struct Layout
+
+When sharing a C++ struct between host code and an OpenCL kernel, the device imposes its own
+alignment rules — which may differ from the host compiler's layout. Silent corruption results
+when the two disagree.
+
+Two mandatory defences:
+
+#### 1. Explicit padding fields
+
+```cpp
+struct PointCloud {
+    cl_float x, y, z;
+    cl_int   pad;     // satisfies 16-byte device alignment; never access on host
+};
+```
+
+#### 2. Compile-time size assertion
+
+```cpp
+static_assert(sizeof(PointCloud) == 16,
+    "PointCloud ABI mismatch — check device alignment");
+```
+
+The `static_assert` catches ABI drift at compile time, not at runtime with silent data
+corruption. Add one for every struct that crosses the host/device boundary. If the assertion
+fires after a refactor, fix the struct layout before touching any kernel code.
 
 ---
 

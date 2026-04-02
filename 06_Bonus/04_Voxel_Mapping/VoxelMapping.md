@@ -31,7 +31,7 @@ cmake -B build && cmake --build build
 
 # Dynamic scene (exercises flip-count filter):
 ./build/voxel_point_cloud_publisher --scene dynamic --hz 10 --frames 50 &
-./build/voxel_mapping --topic /points --resolution 0.1 --enable-flip-filter --flip-threshold 3 --move-speed 0.2
+./build/voxel_mapping --topic /points --resolution 0.1 --enable-flip-filter --flip-threshold 3 --move-speed 0.05
 ```
 
 **From a bag (any PointCloud2 bag, XYZI point_step=16):**
@@ -94,6 +94,8 @@ For each Lidar return:
 This is the 3D DDA (Digital Differential Analyzer) algorithm, run in parallel — one GPU work-item per Lidar point. The voxel grid lives in a `cl::Buffer` and cells are updated with `atomic_or` to avoid races. `atomic_or` sets individual bits without clearing others — same principle as `atomic_add` from Toolbox 12, applied to bitfield flags.
 
 **The knowledge transfer**: the ray-box intersection test from `02_Ray_Tracer_BVH` is reused here unchanged. Instead of testing against BVH node AABBs, you step through voxel grid cells. Same math, different context — this is why Track B teaches BVH before this finale.
+
+> **Ray–AABB intersection** (for students who skipped Track B): given a ray `origin + t * direction` and an axis-aligned bounding box defined by `box_min` and `box_max`, the intersection test computes the entry and exit distances `t_near` and `t_far` by slabbing — dividing the box into three pairs of infinite planes (one per axis) and finding where the ray enters and exits each slab. The ray hits the box when `t_near < t_far` and `t_far > 0`.
 
 ```cl
 // From B3: ray-AABB intersection (reused here)

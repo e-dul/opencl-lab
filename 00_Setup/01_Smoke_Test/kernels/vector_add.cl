@@ -6,11 +6,12 @@ __kernel void vector_add(__global const float* a,
                          __global const float* b, 
                          __global float* c, 
                          const int n) {
-    // Get the global thread ID (index in the vector)
-    int i = get_global_id(0);
+    // WHY size_t: get_global_id() returns size_t; assigning to int silently
+    // truncates on large NDRanges and produces signed/unsigned comparison warnings.
+    size_t i = get_global_id(0);
 
     // Boundary check to prevent out-of-bounds access
-    if (i < n) {
+    if (i < (size_t)n) {
         c[i] = a[i] + b[i];
     }
 }

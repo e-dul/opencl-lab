@@ -50,8 +50,6 @@ Map: 512x512, inflation radius: 10 cells
 
 ## Inspecting Parameters
 
-All tunable parameters are declared via `declare_parameter()` and inspectable at runtime without recompiling.
-
 ```bash
 # List all declared parameters
 ros2 param list /costmap_node
@@ -77,24 +75,29 @@ A robot is not a point — it has a body. A path passing 2 cm from a wall is geo
 A distance transform assigns to each free cell the Euclidean distance to the nearest obstacle cell, then maps that distance to a cost value. The naive CPU approach is O(N²). The GPU version parallelises this — each work item owns one cell:
 
 ```cl
-__kernel void inflate(__global const uchar* obstacles,
-                      __global uchar* costmap,
+__kernel void inflate(__global const uchar* input,
+                      __global uchar* output,
                       int width, int height,
-                      int radius, float decay) {
-    size_t x = get_global_id(0);
-    size_t y = get_global_id(1);
-    if (x >= (size_t)width || y >= (size_t)height) return;
-    float min_dist = (float)radius + 1.0f;
-    for (int dy = -radius; dy <= radius; dy++) {
-        for (int dx = -radius; dx <= radius; dx++) {
-            int nx = (int)x + dx, ny = (int)y + dy;
-            if (nx >= 0 && ny >= 0 && nx < width && ny < height)
-                if (obstacles[ny * width + nx] > 0)
-                    min_dist = fmin(min_dist, sqrt((float)(dx*dx + dy*dy)));
+                      int radius_px, float decay, float resolution) {
+    size_t gx = get_global_id(0);
+    size_t gy = get_global_id(1);
+    if (gx >= (size_t)width || gy >= (size_t)height) return;
+    int x = (int)gx, y = (int)gy;
+    // Accumulate squared distances to avoid sqrt inside the inner loop.
+    float min_dist_sq = (float)(radius_px + 1) * (float)(radius_px + 1);
+    for (int ny = max(0, y - radius_px); ny <= min(height - 1, y + radius_px); ++ny) {
+        for (int nx = max(0, x - radius_px); nx <= min(width - 1, x + radius_px); ++nx) {
+            if (input[(size_t)ny * width + nx] != 0) {
+                float dx = (float)(x - nx), dy = (float)(y - ny);
+                float dsq = dx * dx + dy * dy;
+                if (dsq < min_dist_sq) min_dist_sq = dsq;
+            }
         }
     }
-    costmap[y * width + x] = (min_dist <= (float)radius)
-        ? (uchar)(255.0f * exp(-decay * min_dist)) : 0;
+    // Single sqrt at the end — avoids N*radius_px^2 sqrt calls per cell.
+    float dist_m = sqrt(min_dist_sq) * resolution;
+    output[(size_t)y * width + x] = (min_dist_sq <= (float)radius_px * radius_px)
+        ? (uchar)(255.0f * exp(-decay * dist_m)) : 0;
 }
 ```
 
@@ -103,6 +106,8 @@ The inner loop reads `obstacles` at offsets scattered across a `2×radius` windo
 ## Mini-Challenge
 
 Write a second kernel that loads a tile of the obstacle map into `__local` memory before the inner loop. Profile naive vs tiled — at what tile size does the local-memory version peak? Does the crossover radius (below which local memory gives no benefit) match your expectation?
+
+See [Toolbox: Work-Group Sizing](../../05_Toolbox/14_Work_Group_Sizing/WorkGroupSizing.md) for guidance on choosing tile dimensions for your hardware.
 
 > **Local memory primer**: `__local` declares per-workgroup shared memory. Use `barrier(CLK_LOCAL_MEM_FENCE)` to synchronise before reading data filled by other work-items. See [Toolbox: Local Memory](../../05_Toolbox/01_Local_Memory/LocalMemory.md) for the full tiling pattern.
 

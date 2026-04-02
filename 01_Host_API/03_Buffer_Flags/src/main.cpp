@@ -39,7 +39,7 @@
 
 #include "image_utils.hpp"    // make_gradient(), save_bmp()
 #include "ocl_wrapper.hpp"    // create_context(), OclContext
-#include "opencl_utils.hpp"   // load_kernel_source(), duration_ms()
+#include "opencl_utils.hpp"   // load_kernel_source(), build_program(), CL_CHECK, duration_ms()
 
 #include <CLI/CLI.hpp>
 
@@ -95,21 +95,23 @@ static TimingResult run_strategy(
         cl::Buffer buf_src(ctx, CL_MEM_READ_ONLY, total_bytes);
 
         cl::Event ev_write;
-        queue.enqueueWriteBuffer(buf_src, CL_FALSE, 0, total_bytes,
-                                 src.data(), nullptr, &ev_write);
+        CL_CHECK(queue.enqueueWriteBuffer(buf_src, CL_FALSE, 0, total_bytes,
+                                          src.data(), nullptr, &ev_write));
 
         cl::Kernel kernel(program, "mad_kernel");
-        kernel.setArg(0, buf_src);
-        kernel.setArg(1, buf_dst);
-        kernel.setArg(2, contrast);
-        kernel.setArg(3, brightness);
+        CL_CHECK(kernel.setArg(0, buf_src));
+        CL_CHECK(kernel.setArg(1, buf_dst));
+        CL_CHECK(kernel.setArg(2, contrast));
+        CL_CHECK(kernel.setArg(3, brightness));
+        // WHY cast to cl_int: kernel parameter is declared as int.
+        CL_CHECK(kernel.setArg(4, static_cast<cl_int>(total_bytes)));
 
-        queue.enqueueNDRangeKernel(kernel, cl::NullRange,
-                                   cl::NDRange(total_bytes), cl::NullRange,
-                                   nullptr, &ev_kernel);
-        queue.enqueueReadBuffer(buf_dst, CL_FALSE, 0, total_bytes,
-                                dst.data(), nullptr, &ev_read);
-        queue.finish();
+        CL_CHECK(queue.enqueueNDRangeKernel(kernel, cl::NullRange,
+                                             cl::NDRange(total_bytes), cl::NullRange,
+                                             nullptr, &ev_kernel));
+        CL_CHECK(queue.enqueueReadBuffer(buf_dst, CL_FALSE, 0, total_bytes,
+                                         dst.data(), nullptr, &ev_read));
+        CL_CHECK(queue.finish());
 
         result.upload_ms      = duration_ms(ev_write);
         result.upload_tracked = true;
@@ -130,17 +132,19 @@ static TimingResult run_strategy(
                            const_cast<uint8_t*>(src.data()));
 
         cl::Kernel kernel(program, "mad_kernel");
-        kernel.setArg(0, buf_src);
-        kernel.setArg(1, buf_dst);
-        kernel.setArg(2, contrast);
-        kernel.setArg(3, brightness);
+        CL_CHECK(kernel.setArg(0, buf_src));
+        CL_CHECK(kernel.setArg(1, buf_dst));
+        CL_CHECK(kernel.setArg(2, contrast));
+        CL_CHECK(kernel.setArg(3, brightness));
+        // WHY cast to cl_int: kernel parameter is declared as int.
+        CL_CHECK(kernel.setArg(4, static_cast<cl_int>(total_bytes)));
 
-        queue.enqueueNDRangeKernel(kernel, cl::NullRange,
-                                   cl::NDRange(total_bytes), cl::NullRange,
-                                   nullptr, &ev_kernel);
-        queue.enqueueReadBuffer(buf_dst, CL_FALSE, 0, total_bytes,
-                                dst.data(), nullptr, &ev_read);
-        queue.finish();
+        CL_CHECK(queue.enqueueNDRangeKernel(kernel, cl::NullRange,
+                                             cl::NDRange(total_bytes), cl::NullRange,
+                                             nullptr, &ev_kernel));
+        CL_CHECK(queue.enqueueReadBuffer(buf_dst, CL_FALSE, 0, total_bytes,
+                                         dst.data(), nullptr, &ev_read));
+        CL_CHECK(queue.finish());
 
         result.upload_ms      = 0.0;    // hidden in constructor — not trackable
         result.upload_tracked = false;
@@ -167,17 +171,20 @@ static TimingResult run_strategy(
                            const_cast<uint8_t*>(src.data()));
 
         cl::Kernel kernel(program, "mad_kernel");
-        kernel.setArg(0, buf_src);
-        kernel.setArg(1, buf_dst);
-        kernel.setArg(2, contrast);
-        kernel.setArg(3, brightness);
+        CL_CHECK(kernel.setArg(0, buf_src));
+        CL_CHECK(kernel.setArg(1, buf_dst));
+        CL_CHECK(kernel.setArg(2, contrast));
+        CL_CHECK(kernel.setArg(3, brightness));
 
-        queue.enqueueNDRangeKernel(kernel, cl::NullRange,
-                                   cl::NDRange(total_bytes), cl::NullRange,
-                                   nullptr, &ev_kernel);
-        queue.enqueueReadBuffer(buf_dst, CL_FALSE, 0, total_bytes,
-                                dst.data(), nullptr, &ev_read);
-        queue.finish();
+        // WHY cast to cl_int: kernel parameter is declared as int.
+        CL_CHECK(kernel.setArg(4, static_cast<cl_int>(total_bytes)));
+
+        CL_CHECK(queue.enqueueNDRangeKernel(kernel, cl::NullRange,
+                                             cl::NDRange(total_bytes), cl::NullRange,
+                                             nullptr, &ev_kernel));
+        CL_CHECK(queue.enqueueReadBuffer(buf_dst, CL_FALSE, 0, total_bytes,
+                                         dst.data(), nullptr, &ev_read));
+        CL_CHECK(queue.finish());
 
         result.upload_ms      = 0.0;    // zero-copy or implicit copy by driver
         result.upload_tracked = false;
@@ -203,7 +210,7 @@ static void print_table(const std::vector<TimingResult>& results,
     const std::string sep(W + N * 4 + 3, '-');
 
     std::cout << "\nBuffer Strategy Comparison — "
-              << width << "×" << height << " RGB"
+              << width << "x" << height << " RGB"
               << "  (contrast=" << contrast
               << ", brightness=" << brightness << ")\n"
               << sep << "\n"
@@ -263,11 +270,14 @@ int main(int argc, char* argv[]) {
         // 1. Synthetic source image
         int width = 0, height = 0, channels = 0;
         const std::vector<uint8_t> src = make_gradient(width, height, channels);
-        const size_t total_bytes = static_cast<size_t>(width * height * channels);
+
+        // WHY promote width first: width * height * channels as plain int
+        // multiplication overflows before the cast on large images (e.g. 4K).
+        const size_t total_bytes = static_cast<size_t>(width) * height * channels;
 
         std::vector<uint8_t> dst(total_bytes);
 
-        std::cout << "Generated " << width << "×" << height
+        std::cout << "Generated " << width << "x" << height
                   << " RGB gradient (" << total_bytes << " bytes).\n";
 
         // 2. OpenCL setup
@@ -279,19 +289,9 @@ int main(int argc, char* argv[]) {
         cl::CommandQueue queue(ocl.context, ocl.device, CL_QUEUE_PROFILING_ENABLE);
 
         // 3. Build program once; all strategies share the same compiled kernel.
-        const std::string source = load_kernel_source("kernels/mad.cl");
-        cl::Program::Sources sources;
-        sources.push_back({source.c_str(), source.size()});
-
-        cl::Program program(ocl.context, sources);
-        try {
-            program.build({ocl.device});
-        } catch (const cl::Error&) {
-            std::cerr << "Build log:\n"
-                      << program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(ocl.device)
-                      << "\n";
-            throw;
-        }
+        // WHY build_program(): centralises the try/catch + getBuildInfo log so every
+        // module surfaces the same diagnostic on kernel compile errors.
+        cl::Program program = build_program(ocl.context, ocl.device, "kernels/mad.cl");
 
         // 4. Run all three strategies
         std::vector<TimingResult> results;

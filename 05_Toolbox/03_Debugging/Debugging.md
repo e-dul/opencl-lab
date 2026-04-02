@@ -16,6 +16,7 @@ cd 05_Toolbox/03_Debugging
 cmake -B build && cmake --build build
 
 # Run kernel under Oclgrind (memory safety checker)
+# See "Oclgrind — Memory Safety" section below for flag details and use-cases
 oclgrind ./build/debugging --test out_of_bounds
 oclgrind --data-races --uniform-writes ./build/debugging --test race_condition
 ```
@@ -38,10 +39,7 @@ Oclgrind is a CPU-based OpenCL simulator that instruments every memory access. I
 - Uninitialized memory reads
 
 ```bash
-# Install
-sudo apt install oclgrind
-
-# Run any OpenCL binary under Oclgrind
+# Run any OpenCL binary under Oclgrind (see Prerequisites for install)
 oclgrind ./build/your_kernel_demo
 
 # Detect write-write data races between work-items
@@ -73,6 +71,11 @@ vtune-gui
 # AMD: rocprof (OpenCL via ROCm)
 rocprof --opencl-trace ./build/your_demo
 ```
+
+**External resources:**
+- [Nsight Systems documentation](https://docs.nvidia.com/nsight-systems/)
+- [Intel VTune Profiler documentation](https://www.intel.com/content/www/us/en/docs/vtune-profiler/)
+- [AMD ROCm rocprof documentation](https://rocm.docs.amd.com/projects/rocprofiler/)
 
 Look for:
 - **Gaps between kernels**: CPU is blocking between launches — use [Async Pipelines](../16_Async_Multi_Thread/AsyncMultiThread.md)

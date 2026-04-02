@@ -11,6 +11,9 @@ You are encouraged to treat the provided code as one possible solution and then 
 **Key topics**: Zero-copy interop with OpenCV/FFmpeg/ROS2, SoftISP debayering, BVH ray tracing, ROS2 perception nodes, and an optimization toolbox covering memory coalescing, thread divergence, occupancy, and device enqueue.
 
 
+> **🤖 Built with Strategy \& Tactics**
+> This repository is the reference implementation for the [Strategy \& Tactics AI Workflow](https://github.com/e-dul/strategy-tactics-workflow-template). Explore the `workflow/` and `.claude/` directories to see the exact LLM prompts, architectural constraints, and historical execution logs used to generate this project without context collapse.
+
 ---
 
 ## 📚 Table of Contents
@@ -98,6 +101,7 @@ A collection of "on-demand" optimization techniques. Projects link here when the
 *   [07_Global_Work_Offset](05_Toolbox/07_Global_Work_Offset/) - Global work offset for sub-region dispatch.
 *   [08_Multi_GPU_Strategy](05_Toolbox/08_Multi_GPU_Strategy/) - Multi-GPU distribution strategies.
 *   [09_OpenCL_vs_CUDA](05_Toolbox/09_OpenCL_vs_CUDA/) - Performance and portability comparison.
+*   [10_Sub_Buffers_Partitioning](05_Toolbox/10_Sub_Buffers_Partitioning/) - Buffer partitioning via sub-buffers for zero-copy segmented processing.
 *   [11_SVM_Theory](05_Toolbox/11_SVM_Theory/) - Shared Virtual Memory deep dive.
 *   [12_Sync_Atomics](05_Toolbox/12_Sync_Atomics/) - Atomic operations and synchronization.
 *   [13_Thread_Divergence](05_Toolbox/13_Thread_Divergence/) - Reducing warp/wavefront divergence.
@@ -162,8 +166,7 @@ This repository is optimized for collaboration with AI assistants.
 ## TODO
 
 - Add links to external resources for more in depth information
-- **[Feature] `cl::Buffer` sub-buffers — parallel band processing**: Slice a large frame into N horizontal bands; each band is a sub-buffer aliasing the same allocation, dispatched independently (separate queues for parallel execution). Natural motivation for work partitioning and memory aliasing without copies. Precursor to multi-GPU distribution. Candidate exercise: 4 horizontal strips on a 1080p image, benchmark vs. single full-frame dispatch.
 - **[Feature] GPU-built BVH (LBVH via Morton codes)**: After B3's CPU SAH-BVH, add a challenge variant that constructs the BVH entirely on the GPU using Morton-code sorting + radix sort → parallel hierarchy build. Enables per-frame rebuild for dynamic scenes without CPU round-trip. Natural follow-on to B3 Challenge (Phase 4).= {W/2, H/2}`. Compare against single dispatch with explicit offset arithmetic inside the kernel body.
 - Consider ROS2 related examples to integrate with ROS world better(launch files, service to restart static publisher, parameters handling, loaned messages runtime setup and verification etc.)
 - Work on setup with docker
-- Explore AMD specific SDK features
+- Code quality improvements

@@ -2,12 +2,11 @@
 
 **Goal**: Run the same segmentation model via OpenVINO GPU plugin, passing a `cl::Buffer` directly as an input tensor — the inference engine reads from and writes to your OpenCL-managed memory with no host round-trip. Intel iGPU required.
 
-> **Requires:** Intel iGPU + Intel OpenVINO SDK (`libopenvino-dev`). Run `source /opt/intel/openvino/setupvars.sh` before building. See [SETUP.md](SETUP.md) for full installation steps.
+> **Requires:** Intel iGPU + Intel OpenVINO SDK (`libopenvino-dev`). See [SETUP.md](SETUP.md) for full installation steps.
 
 ## Prerequisites (delta from module index)
 
 - **Intel iGPU required**: `clinfo | grep -i intel` must show a GPU device.
-- OpenVINO runtime: `source /opt/intel/openvino/setupvars.sh` — run once per shell session.
 - Install: `sudo apt install libopenvino-dev`
 - Verify GPU device visible: `python3 -c "from openvino import Core; print(Core().available_devices)"` — expect `GPU` in the list.
 - Assets: `assets/face.png`, `assets/selfie_segmentation.onnx` — included in the repository.
@@ -15,7 +14,6 @@
 ## Build & Run
 
 ```bash
-source /opt/intel/openvino/setupvars.sh   # once per shell session
 cd 05_OpenVINO_GPU
 cmake -B build
 cmake --build build

@@ -6,7 +6,7 @@
 //   Live (--live):      shares the framebuffer with OpenGL via cl_khr_gl_sharing
 //
 // Build: cmake -B build && cmake --build build
-// Run:   ./build/b2_ray_tracer [--width W] [--height H] [--output FILE] [--live]
+// Run:   ./build/ray_tracer [--width W] [--height H] [--output FILE] [--live]
 
 // WHY CLI11 first: X11/Xlib.h (pulled in by glfw3native.h) defines
 // `#define Success 0` as a C macro, which collides with CLI11's
@@ -137,24 +137,26 @@ static void render_headless(int width, int height,
     std::cout << std::fixed << std::setprecision(3)
               << "Frame kernel time: " << ms << " ms\n";
 
-    // Read back: origin (0,0,0), region covers exact image dimensions (not padded).
+    // Read back the Image2D to a host buffer and tonemap float→uint8.
+    // WHY inline here rather than a shared helper: the headless path uses
+    // cl::Image2D (required so the same framebuffer can be handed to GL in
+    // live mode), while the shared save_framebuffer helper in
+    // graphics_hpc_utils.hpp accepts a flat cl::Buffer. Inlining the three
+    // lines avoids adding an Image2D overload to the shared header.
     std::array<size_t, 3> origin = {0, 0, 0};
     std::array<size_t, 3> region = {static_cast<size_t>(width),
                                     static_cast<size_t>(height), 1};
-    // 4 floats per pixel (RGBA)
+    // §7.1: promote to size_t before multiply to avoid signed overflow
     std::vector<float> pixel_f(static_cast<size_t>(width) * height * 4);
     CL_CHECK(queue.enqueueReadImage(framebuffer, CL_TRUE,
-                                    origin, region,
-                                    0, 0,
+                                    origin, region, 0, 0,
                                     pixel_f.data()));
 
-    // Convert float [0,1] → uint8 for BMP output.
     std::vector<uint8_t> pixel_u8(pixel_f.size());
     for (size_t i = 0; i < pixel_f.size(); ++i) {
-        float clamped = pixel_f[i] < 0.0f ? 0.0f : (pixel_f[i] > 1.0f ? 1.0f : pixel_f[i]);
-        pixel_u8[i]  = static_cast<uint8_t>(clamped * 255.0f + 0.5f);
+        float c = pixel_f[i] < 0.0f ? 0.0f : (pixel_f[i] > 1.0f ? 1.0f : pixel_f[i]);
+        pixel_u8[i] = static_cast<uint8_t>(c * 255.0f + 0.5f);
     }
-
     save_bmp(output_path, pixel_u8, width, height, 4);
     std::cout << "Saved: " << output_path << "\n";
 }

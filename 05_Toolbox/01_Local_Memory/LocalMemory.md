@@ -9,7 +9,7 @@ Prerequisites: OpenCL 1.2+, CMake 3.18+, `clinfo` installed. See [main README](.
 ```bash
 cd 05_Toolbox/01_Local_Memory
 cmake -B build && cmake --build build
-./build/local_memory --kernel blur --radius 5 --width 1920 --height 1080
+./build/local_memory --radius 5 --width 1920 --height 1080
 ```
 
 ## Verify
@@ -19,6 +19,10 @@ cmake -B build && cmake --build build
 ```
 
 Run the demo first. Note the speedup at radius 5. Then increase the radius and observe the crossover point where local memory pressure limits gains.
+
+> **Note:** Numbers are indicative for a discrete GPU; iGPU or CPU devices will show smaller ratios.
+
+For the underlying cause of LDS bank conflicts and how to fix them, see the [Advanced Challenge: Bank Conflicts in LDS](#advanced-challenge-bank-conflicts-in-lds) section below.
 
 ## Concept
 
@@ -64,6 +68,45 @@ Increase `--radius` from 5 to 15. At what radius does the local memory variant s
 - [Track A — 02_YUV_Pipeline](../../02_Multimedia/02_YUV_Pipeline/YUVPipeline.md)
 - [Track C — 02_Costmap_Inflation](../../04_Robotics/02_Costmap_Inflation/CostmapInflation.md)
 - [Track A — 09 SoftISP](../../02_Multimedia/09_SoftISP/SoftISP.md)
+
+---
+
+## Advanced Challenge: Bank Conflicts in LDS
+
+Local Data Store (LDS) on modern GPUs is divided into **32 banks** (Nvidia, AMD GCN/RDNA). Each bank is an independent memory module — when all work-items in a warp/wavefront access *different* banks simultaneously, the hardware serves all requests in one cycle. That is the goal.
+
+**The problem — stride-32 access:**
+
+```cl
+__local float tile[ROWS][COLS];
+
+// Thread i reads tile[0][i * 32]
+// Every thread maps to bank (i * 32) % 32 == 0 — the SAME bank.
+// Result: 32 serialized accesses instead of 1 parallel read. 32× slowdown.
+float val = tile[0][get_local_id(0) * 32];
+```
+
+The bank index for element `e` is `(e % 32)`. A stride of 32 means every thread hits bank 0, causing a **32-way bank conflict** — all reads are serialized.
+
+**The fix — +1 column padding:**
+
+```cl
+// Add one padding element per row to shift each row's bank alignment
+__local float tile[ROWS][COLS + 1];
+
+// Thread i now reads tile[0][i * 32], but the row stride is COLS+1, not COLS.
+// Element address = row * (COLS+1) + col → bank = (row*(COLS+1) + col) % 32
+// The +1 offsets each row's start by one bank, spreading accesses across banks.
+float val = tile[0][get_local_id(0) * 32];  // now conflict-free
+```
+
+The extra element costs `ROWS * sizeof(float)` bytes — a small price for conflict-free access. This is the same tile array used in the box-blur kernel above: replacing `tile[TILE][TILE]` with `tile[TILE][TILE + 1]` eliminates bank conflicts in the halo load phase without changing any other logic.
+
+**When does this matter in practice?**
+
+The tile-based convolution kernel in this module loads halo rows cooperatively. If `TILE` happens to be a multiple of 32 (common: 32, 64), the column indices align to the same bank for every row-boundary thread. Add the `+1` pad whenever `COLS % 32 == 0`.
+
+**How to detect conflicts:** Run with Nvidia Nsight or AMD Radeon GPU Profiler (RGP) and inspect the `LDS bank conflicts` counter. A non-zero value on the tile-load barrier confirms the problem.
 
 ---
 

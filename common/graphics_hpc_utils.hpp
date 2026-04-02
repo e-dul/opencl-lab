@@ -51,3 +51,4 @@ inline void save_framebuffer(const cl::CommandQueue& queue,
     save_bmp(output_path, pixel_u8, width, height, 4);
     std::cout << "Saved: " << output_path << "\n";
 }
+

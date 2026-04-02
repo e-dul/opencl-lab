@@ -34,14 +34,16 @@ int main(int argc, char* argv[]) {
     CLI::App app{"A2b YUYV Extension — YUYV 4:2:2 to RGBA via OpenCL (single-pass and two-pass)"};
 
     std::string input_path;
-    int         width  = 0;
-    int         height = 0;
+    int         width  = 64;
+    int         height = 64;
     std::string output_single = "output_rgba_singlepass.bmp";
     std::string output_two    = "output_rgba_twopass.bmp";
 
-    app.add_option("--input",         input_path,    "Path to raw YUYV .yuv file")->required();
-    app.add_option("--width",         width,         "Frame width in pixels (must be even)")->required();
-    app.add_option("--height",        height,        "Frame height in pixels")->required();
+    // WHY not required(): omitting --input triggers synthetic data fallback so
+    // the binary satisfies master-spec DoD §8 "runs without arguments".
+    app.add_option("--input",         input_path,    "Path to raw YUYV .yuv file (omit to use synthetic 64×64 gradient)");
+    app.add_option("--width",         width,         "Frame width in pixels (must be even)")->default_val(64);
+    app.add_option("--height",        height,        "Frame height in pixels")->default_val(64);
     app.add_option("--output-single", output_single, "Single-pass output BMP path")
        ->default_val("output_rgba_singlepass.bmp");
     app.add_option("--output-two",    output_two,    "Two-pass output BMP path")
@@ -66,11 +68,21 @@ int main(int argc, char* argv[]) {
     // cl_int is required by kernel setArg — safe after the overflow guard above.
     const cl_int pixel_count = static_cast<cl_int>(pixel_count_sz);
 
-    // ── Load raw YUYV file ────────────────────────────────────────────────────
+    // ── Load or synthesize YUYV data ──────────────────────────────────────────
     // YUYV: 2 bytes per pixel (4 bytes per 2-pixel macropixel).
     const size_t yuyv_bytes = pixel_count_sz * 2;
+    std::vector<uint8_t> yuyv_data;
 
-    std::vector<uint8_t> yuyv_data = load_raw_binary(input_path, yuyv_bytes);
+    if (input_path.empty()) {
+        // Synthetic path: generate a 64×64 luma gradient with neutral chroma.
+        // WHY: enables "runs without arguments" per DoD §8.
+        std::cout << "[synthetic] No --input provided; using 64×64 gradient YUYV.\n";
+        width  = 64;
+        height = 64;
+        yuyv_data = make_synthetic_yuyv(width, height);
+    } else {
+        yuyv_data = load_raw_binary(input_path, yuyv_bytes);
+    }
 
     // ── CPU path: OpenCV cvtColor (reference timing) ─────────────────────────
     // cv::Mat with CV_8UC2 maps directly onto the 2-bytes-per-pixel YUYV layout.
@@ -103,7 +115,7 @@ int main(int argc, char* argv[]) {
     cl::Program prog_twopass(ocl.context, src_twopass);
 
     // Build programs; on error capture and print the build log before re-throwing.
-    auto build_program = [&](cl::Program& prog, const char* name) {
+    auto build_prog = [&](cl::Program& prog, const char* name) {
         try {
             prog.build();
         } catch (const cl::Error&) {
@@ -115,12 +127,17 @@ int main(int argc, char* argv[]) {
             throw;
         }
     };
-    build_program(prog_single,  "yuyv_to_rgba");
-    build_program(prog_twopass, "yuyv_to_rgba_twopass");
+    build_prog(prog_single,  "yuyv_to_rgba");
+    build_prog(prog_twopass, "yuyv_to_rgba_twopass");
 
     cl::Kernel kernel_single(prog_single,  "yuyv_to_rgba");
     cl::Kernel kernel_pass1 (prog_twopass, "extract_y_from_yuyv");
     cl::Kernel kernel_pass2 (prog_twopass, "reconstruct_rgba_twopass");
+
+    // Recompute pixel_count_sz and yuyv_bytes after possible synthetic override.
+    const size_t pix_sz   = static_cast<size_t>(width) * height;
+    const size_t yuv_sz   = pix_sz * 2;
+    const cl_int pix_cl   = static_cast<cl_int>(pix_sz);
 
     // ── Buffers ───────────────────────────────────────────────────────────────
     // WHY CL_MEM_COPY_HOST_PTR (not CL_MEM_USE_HOST_PTR):
@@ -129,21 +146,21 @@ int main(int argc, char* argv[]) {
     //   CL_MEM_COPY_HOST_PTR takes a safe snapshot into a device buffer immediately.
     cl::Buffer buf_yuyv(ocl.context,
                         CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                        yuyv_bytes,
+                        yuv_sz,
                         yuyv_data.data());
 
     cl::Buffer buf_rgba_single(ocl.context,
                                CL_MEM_WRITE_ONLY,
-                               pixel_count_sz * 4);
+                               pix_sz * 4);
 
     cl::Buffer buf_rgba_two(ocl.context,
                             CL_MEM_WRITE_ONLY,
-                            pixel_count_sz * 4);
+                            pix_sz * 4);
 
     // Intermediate Y-plane buffer used only by the two-pass path.
     cl::Buffer buf_y_tmp(ocl.context,
                          CL_MEM_READ_WRITE,
-                         pixel_count_sz);
+                         pix_sz);
 
     // ── GPU: Single-pass ─────────────────────────────────────────────────────
     CL_CHECK(kernel_single.setArg(0, buf_yuyv));
@@ -154,7 +171,7 @@ int main(int argc, char* argv[]) {
     cl::Event ev_single;
     CL_CHECK(queue.enqueueNDRangeKernel(kernel_single,
                                         cl::NullRange,
-                                        cl::NDRange(pixel_count_sz),
+                                        cl::NDRange(pix_sz),
                                         cl::NullRange,
                                         nullptr,
                                         &ev_single));
@@ -170,7 +187,7 @@ int main(int argc, char* argv[]) {
     cl::Event ev_pass1;
     CL_CHECK(queue.enqueueNDRangeKernel(kernel_pass1,
                                         cl::NullRange,
-                                        cl::NDRange(pixel_count_sz),
+                                        cl::NDRange(pix_sz),
                                         cl::NullRange,
                                         nullptr,
                                         &ev_pass1));
@@ -187,7 +204,7 @@ int main(int argc, char* argv[]) {
     cl::Event ev_pass2;
     CL_CHECK(queue.enqueueNDRangeKernel(kernel_pass2,
                                         cl::NullRange,
-                                        cl::NDRange(pixel_count_sz),
+                                        cl::NDRange(pix_sz),
                                         cl::NullRange,
                                         nullptr,
                                         &ev_pass2));
@@ -197,12 +214,12 @@ int main(int argc, char* argv[]) {
     const double gpu_twopass_ms = gpu_pass1_ms + gpu_pass2_ms;
 
     // ── Read back results ────────────────────────────────────────────────────
-    std::vector<uint8_t> rgba_single_host(pixel_count_sz * 4);
+    std::vector<uint8_t> rgba_single_host(pix_sz * 4);
     CL_CHECK(queue.enqueueReadBuffer(buf_rgba_single, CL_TRUE, 0,
                                      rgba_single_host.size(),
                                      rgba_single_host.data()));
 
-    std::vector<uint8_t> rgba_two_host(pixel_count_sz * 4);
+    std::vector<uint8_t> rgba_two_host(pix_sz * 4);
     CL_CHECK(queue.enqueueReadBuffer(buf_rgba_two, CL_TRUE, 0,
                                      rgba_two_host.size(),
                                      rgba_two_host.data()));
@@ -221,7 +238,7 @@ int main(int argc, char* argv[]) {
         (gpu_twopass_ms > 0.0) ? (gpu_twopass_ms / gpu_single_ms) : 0.0;
 
     std::cout << "=== A2b YUYV Extension Benchmark ===\n";
-    std::cout << "Input:  " << input_path
+    std::cout << "Input:  " << (input_path.empty() ? "[synthetic 64x64]" : input_path)
               << "  (" << width << "x" << height << " YUYV 4:2:2)\n\n";
 
     std::cout << std::left  << std::setw(30) << "Stage"

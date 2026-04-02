@@ -34,7 +34,7 @@ Scene: bunny.obj (~70k triangles), BVH depth: 16
 BVH speedup: 147x
 ```
 
-The BVH gate passes at ≥ 60 FPS measured via `cl::Event` on the traversal kernel.
+The BVH gate passes at ≥ 60 FPS measured via `cl::Event` on the traversal kernel (reference: RTX 3060; AMD RX 6600 passes at ~72 FPS). Hardware waiver applies for iGPU and CPU-fallback devices.
 
 ## Key Concepts
 
@@ -63,9 +63,15 @@ while (node != MISS) {
 
 ### BVH Build on CPU (SAH)
 
-For a deeper treatment of SAH and BVH construction, see PBRT §4.3 (free online at [pbr-book.org](https://www.pbr-book.org/3ed-2018/Primitives_and_Intersection_Acceleration/Bounding_Volume_Hierarchies)) — it covers the same algorithm used here.
+SAH (Surface Area Heuristic) estimates split cost by weighting the probability of a ray hitting a child node by its surface area:
 
-SAH (Surface Area Heuristic) estimates split cost by weighting the probability of a ray hitting a child node by its surface area. The BVH is built on the CPU once and uploaded as a flat array. The kernel only traverses — it never modifies the structure:
+```
+C = C_aabb + (SA_left / SA_parent) * N_left + (SA_right / SA_parent) * N_right
+```
+
+Where `C_aabb` is the cost of testing the parent AABB, `SA_x` is the surface area of each child's bounding box, and `N_x` is the triangle count. A split is accepted when `C_split < C_leaf`. For a deeper treatment see PBRT §4.3 ([pbr-book.org](https://www.pbr-book.org/3ed-2018/Primitives_and_Intersection_Acceleration/Bounding_Volume_Hierarchies)).
+
+The BVH is built on the CPU once and uploaded as a flat array. The kernel only traverses — it never modifies the structure:
 
 ```
 CPU: build SAH-BVH → flatten to array → cl::Buffer upload (once at load)
@@ -74,7 +80,7 @@ GPU: per-ray stackless traversal (every frame, read-only)
 
 ### Thread Divergence
 
-Rays in the same warp follow different tree paths through the BVH. This is inevitable — the profiler will show it after you hit the gate. See [Toolbox: Thread Divergence](../../05_Toolbox/13_Thread_Divergence/ThreadDivergence.md) for mitigation strategies.
+Rays in the same warp follow different tree paths through the BVH. This is inevitable — see [Toolbox: Thread Divergence](../../05_Toolbox/13_Thread_Divergence/ThreadDivergence.md) for divergence-reduction strategies such as coherent ray sorting and wavefront scheduling.
 
 ## Mini-Challenge
 
@@ -82,9 +88,36 @@ Visualize BVH depth per pixel: color each pixel by the number of nodes the ray v
 
 ## Troubleshooting
 
-- **Under 60 FPS**: profile with `cl::Event` on the traversal kernel and identify which stage dominates — traversal, triangle intersection, or memory reads. Then see [Optimization Toolbox](../../05_Toolbox/Toolbox.md).
+- **Under 60 FPS**: profile with `cl::Event` on the traversal kernel and identify which stage dominates — traversal, triangle intersection, or memory reads. Then see [Optimization Toolbox](../../05_Toolbox/Toolbox.md) and [Thread Divergence](../../05_Toolbox/13_Thread_Divergence/ThreadDivergence.md).
 - **Wrong GPU**: `GPU=NVIDIA ./build/ray_tracer_bvh` or `GPU=AMD ./build/ray_tracer_bvh`.
 - **tinyobjloader not found at configure time**: requires network access. Offline: `-DCMAKE_PREFIX_PATH=/path/to/tinyobjloader`.
+
+## Common Gotchas
+
+### The float3 Alignment Trap
+
+OpenCL aligns `float3` to **16 bytes** — the same as `float4`. A struct with a `float3` member
+therefore contains an invisible 4-byte padding hole after it:
+
+```c
+// Host C++ struct — appears to be 12 bytes, is actually 16
+typedef struct { float x, y, z; } Ray;  // + 4 bytes silent padding
+```
+
+This matters because a `float3` array on the host (`std::vector<cl_float3>`) lays out elements
+at 16-byte strides, not 12. If you pack ray data as `float x, y, z` with no padding field, the
+host and device see different memory layouts — producing corrupted ray directions with zero
+symptoms at launch.
+
+**Rule:** Either use `float4` (explicit `w = 0`) or add an explicit `float pad` field and verify
+with `static_assert(sizeof(Ray) == 16, "Ray struct ABI mismatch")`.
+
+**AMD-specific reality:** On some AMD drivers, calling `normalize()` on a zero-length `float3`
+(e.g., a miss ray hitting the background) silently produces `NaN` components rather than an
+implementation-defined result. This causes `NaN` to propagate through shading and surface as
+black or corrupted pixels. Defensive fix: replace `dot(a, b)` with an explicit
+`dot3(a, b) = a.x*b.x + a.y*b.y + a.z*b.z` helper for `float3` operands, and guard
+`normalize()` calls with a length check.
 
 ---
 

@@ -25,8 +25,8 @@ cmake -B build && cmake --build build
 # Step 2 — macro-generic (uchar / float variants from one source)
 ./build/02_generic_mad --width 1920 --height 1080
 
-# Step 3 — runtime autotuning across all types
-./build/03_autotune --width 1920 --height 1080 --autotune
+# Step 3 — runtime autotuning across all types (autotuner always runs)
+./build/03_autotune --width 1920 --height 1080
 ```
 
 ## Verify
@@ -37,9 +37,13 @@ cmake -B build && cmake --build build
 Autotuner selected: uchar for this device
 ```
 
-Run with `--autotune` first. See which type wins on your hardware before reading the concept.
+Run `03_autotune` first. See which type wins on your hardware before reading the concept.
+
+> **Note:** The `half` row shows `N/A` on devices without `cl_khr_fp16`; use `clinfo | grep fp16` to diagnose.
 
 ## Concept
+
+> If curious why one `.cl` source compiles to multiple type specialisations, read on:
 
 OpenCL's `clBuildProgram` accepts a `-D` options string, identical to `gcc -D`. One `.cl` source file can be compiled into multiple variants at runtime:
 

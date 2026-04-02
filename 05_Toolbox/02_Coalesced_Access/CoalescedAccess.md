@@ -73,7 +73,7 @@ The coalescing penalty is not a fixed multiplier — it is proportional to **mem
 
 ## Mini-Challenge
 
-Add a fourth variant that reads every 4th element (stride=4). Measure whether it is slower or faster than stride=width. Explain the result in terms of cache-line transactions.
+Add a fourth variant that reads every 4th element (stride=4). Measure whether it is slower or faster than stride=width. Explain the result in terms of cache-line transactions. Reuse the `run_kernel` helper already defined in `main.cpp` — it handles NDRange construction and event readback for you.
 
 ## Troubleshooting
 
@@ -84,6 +84,57 @@ Add a fourth variant that reads every 4th element (stride=4). Measure whether it
 ## Used In
 - [Track B — 02_Ray_Tracer_BVH](../../03_GraphicsHPC/02_Ray_Tracer_BVH/RayTracerBVH.md) (triangle data AoS vs SoA)
 - [Track C — 03_Perception_Node](../../04_Robotics/03_Perception_Node/PerceptionNode.md) (point cloud layout)
+
+---
+
+## Advanced Challenge: AoS vs. SoA Data Layout
+
+The coalescing principle extends beyond simple row/column access — it also governs how you lay out compound data structures. Two competing layouts expose the difference starkly.
+
+**Array-of-Structures (AoS) — the intuitive C++ default:**
+
+```cpp
+struct Particle { float x, y, z, w; };
+Particle particles[N];  // [x0 y0 z0 w0 | x1 y1 z1 w1 | x2 y2 z2 w2 ...]
+```
+
+In a kernel, thread `N` reads only `particles[N].x`. The memory layout forces **stride-4** access:
+
+```cl
+__kernel void update_x(__global Particle* particles, int n) {
+    int id = get_global_id(0);
+    if (id >= n) return;
+    // Thread 0 reads byte  0, thread 1 reads byte 16, thread 2 reads byte 32...
+    // Stride = sizeof(Particle) = 16 bytes. Only 4 of every 16 bytes are used.
+    float x = particles[id].x;   // 25% cache-line utilization — 75% wasted
+}
+```
+
+A 128-byte cache line holds 32 floats but only 8 `Particle` structs. When 32 threads each read `.x`, the hardware loads 32 separate cache lines instead of 1 — a **32× transaction overhead**.
+
+**Structure-of-Arrays (SoA) — the GPU-friendly layout:**
+
+```cpp
+// SoA: one contiguous array per field
+float* xs;  // [x0 x1 x2 x3 x4 ...]
+float* ys;  // [y0 y1 y2 y3 y4 ...]
+float* zs;
+float* ws;
+```
+
+```cl
+__kernel void update_x(__global float* xs, int n) {
+    int id = get_global_id(0);
+    if (id >= n) return;
+    // Thread 0 reads byte 0, thread 1 reads byte 4, thread 2 reads byte 8...
+    // Stride = 4 bytes (one float). All 32 threads satisfied by a single cache line.
+    float x = xs[id];   // 100% cache-line utilization
+}
+```
+
+**Benchmark note:** Measure both layouts using `cl::Event` timing on the same arithmetic kernel. On a bandwidth-bound workload (particle integration, point cloud processing), SoA typically delivers **2–4× higher throughput** versus AoS on GPUs. The exact ratio depends on struct size and your GPU's L2 cache capacity — use `--width 8192 --height 8192` in this module to push past L2 and measure raw DRAM bandwidth.
+
+AoS is convenient for CPU-side logic (one pointer, natural indexing). SoA is required for GPU-side throughput. A common pattern: keep AoS on the CPU, convert to SoA on upload using a scatter kernel or CPU transpose loop.
 
 ---
 

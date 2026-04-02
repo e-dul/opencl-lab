@@ -32,6 +32,8 @@ Copy on Create        ...           ...           ...             ...
 Use Host Ptr          ...           ...           ...             ...
 ```
 
+Rows marked with `*` carry a hidden cost that does not appear in the Upload column: `CL_MEM_COPY_HOST_PTR` triggers an immediate DMA upload at buffer-creation time (inside the `cl::Buffer()` constructor), before any command is enqueued — so this transfer cannot be captured by a `cl::Event`. The Total column for those rows is therefore lower than the true wall-clock cost.
+
 Look for which strategy shows the lowest total time. The winner depends on your GPU architecture.
 
 ## Key Concepts

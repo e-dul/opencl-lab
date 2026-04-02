@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# common.cmake is two levels up from 99_Toolbox/SyncAtomics/
+# common.cmake is two levels up from 05_Toolbox/12_Sync_Atomics/
 include(${CMAKE_CURRENT_SOURCE_DIR}/../../common/common.cmake)
 
 add_executable(sync_atomics main.cpp)

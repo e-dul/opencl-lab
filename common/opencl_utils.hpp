@@ -105,3 +105,76 @@ inline cl::Program build_program(const cl::Context& ctx,
     }
     return prog;
 }
+
+// ---------------------------------------------------------------------------
+// build_program_from_source — compile a cl::Program from a source string.
+//
+// WHY separate from build_program: source is a runtime-generated template string
+// (e.g., with a type #define injected), not a .cl file path. This is the
+// canonical helper for generic kernel templates that compile the same source
+// multiple times with different -D flags.
+//
+// Parameters:
+//   ctx      — OpenCL context
+//   dev      — target device (used for build log on failure)
+//   src      — kernel source string
+//   opts     — compiler options string (e.g. "-D TYPE=float")
+// ---------------------------------------------------------------------------
+inline cl::Program build_program_from_source(const cl::Context& ctx,
+                                              const cl::Device&  dev,
+                                              const std::string& src,
+                                              const std::string& opts = "")
+{
+    cl::Program prog(ctx, cl::Program::Sources{src});
+    try {
+        prog.build({dev}, opts.c_str());
+    } catch (const cl::Error&) {
+        // Surface the full compiler error — essential for kernel debugging.
+        std::string log = prog.getBuildInfo<CL_PROGRAM_BUILD_LOG>(dev);
+        throw std::runtime_error("Kernel build failed (" + opts + "):\n" + log);
+    }
+    return prog;
+}
+
+// ---------------------------------------------------------------------------
+// run_kernel — dispatch mad_kernel once and return kernel time in ms.
+//
+// WHY in common: both 02_Generic_MAD and 03_AutoTune dispatch the same
+// mad_kernel with identical arg layout; sharing eliminates copy-paste.
+//
+// Parameters:
+//   queue      — profiling-enabled command queue
+//   prog       — compiled cl::Program containing "mad_kernel"
+//   buf_out    — output buffer (arg 0 in kernel)
+//   buf_in     — input buffer  (arg 1 in kernel)
+//   contrast   — contrast multiplier (arg 2)
+//   brightness — brightness addend   (arg 3)
+//   n_elements — total element count  (arg 4)
+// ---------------------------------------------------------------------------
+inline double run_kernel(cl::CommandQueue& queue,
+                         cl::Program&      prog,
+                         cl::Buffer&       buf_out,
+                         cl::Buffer&       buf_in,
+                         float             contrast,
+                         float             brightness,
+                         cl_uint           n_elements)
+{
+    cl::Kernel kernel(prog, "mad_kernel");
+    CL_CHECK(kernel.setArg(0, buf_out));
+    CL_CHECK(kernel.setArg(1, buf_in));
+    CL_CHECK(kernel.setArg(2, contrast));
+    CL_CHECK(kernel.setArg(3, brightness));
+    CL_CHECK(kernel.setArg(4, n_elements));
+
+    cl::Event evt;
+    CL_CHECK(queue.enqueueNDRangeKernel(
+        kernel,
+        cl::NullRange,
+        cl::NDRange(static_cast<size_t>(n_elements)),
+        cl::NullRange,
+        nullptr,
+        &evt));
+    CL_CHECK(queue.finish());
+
+    return duration_ms(evt);
+}

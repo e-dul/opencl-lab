@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 # Pull in stb, CLI11 and the common INTERFACE target.
-# WHY ../../common: this module sits 2 levels deep (99_Toolbox/ZeroCopy/).
+# WHY ../../common: this module sits 2 levels deep (05_Toolbox/15_Zero_Copy/).
 include(${CMAKE_CURRENT_SOURCE_DIR}/../../common/common.cmake)
 
 add_executable(zero_copy main.cpp)

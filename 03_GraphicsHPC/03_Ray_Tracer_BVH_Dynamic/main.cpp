@@ -190,6 +190,17 @@ static SoaBuffers upload_soa(const cl::Context& ctx, const TriangleSoa& soa) {
 // Returns upload time in ms measured via cl::Event (GPU profiling).
 // WHY only positions: normals also rotate, so all 18 channels are re-uploaded.
 // WHY enqueueWriteBuffer with events: satisfies §6 timing instrumentation.
+//
+// WHY 18 sequential enqueueWriteBuffer + finish calls (not batched):
+//   Each channel is an independent std::vector<float> in host memory, so there
+//   is no single contiguous source pointer for a batched transfer. Batching would
+//   require either interleaving the SoA data into AoS layout (defeating the
+//   coalescing benefit) or adding a staging buffer and an additional copy per
+//   frame. The 18-call serialisation is a deliberate trade-off: it keeps the
+//   host-side SoA layout simple and the per-channel events individually
+//   profileable, at the cost of 18× queue-submission overhead (~0.01 ms each
+//   on discrete GPU). For scenes where upload dominates, a single pinned staging
+//   buffer with one enqueueWriteBuffer call would reduce that overhead.
 // ---------------------------------------------------------------------------
 static double reupload_soa(cl::CommandQueue& q,
                             SoaBuffers& bufs,

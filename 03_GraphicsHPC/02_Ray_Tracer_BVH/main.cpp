@@ -191,7 +191,7 @@ static SoaBuffers upload_soa(const cl::Context& ctx, const TriangleSoa& soa) {
 // Returns arg index after the last argument set.
 // ---------------------------------------------------------------------------
 static void set_bvh_kernel_args(cl::Kernel& k,
-                                 cl::Image2D& fb,   // or ImageGL, same base
+                                 cl::Image& fb,   // accepts Image2D or ImageGL (both inherit Image)
                                  const cl::Buffer& nodes_buf,
                                  const SoaBuffers& soa,
                                  int num_tris,
@@ -641,39 +641,27 @@ static void render_live(const std::string& scene_path,
         while (!glfwWindowShouldClose(window)) {
             if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) break;
 
-            // Upload camera per-frame (interactive state changes each frame).
-            cl::Image2D* active_fb = egl_path ? &cl_plain_img : nullptr;
+            // Acquire GL texture ownership (GLX path only) before dispatching the kernel.
             if (!egl_path) {
-                // Use a temporary Image2D reference from ImageGL base class.
-                // We rely on ImageGL being layout-compatible with Image2D for setArg.
-                // WHY: the kernel signature takes image2d_t; cl::ImageGL inherits from
-                // cl::Image2D so passing cl_gl_img as the arg is type-safe.
-                // We can't easily cast here, so we use a cast via Memory base.
                 CL_CHECK(queue.enqueueAcquireGLObjects(&gl_objects));
-                CL_CHECK(bvh_kernel.setArg(0, cl_gl_img));
-            } else {
-                CL_CHECK(bvh_kernel.setArg(0, cl_plain_img));
             }
 
-            // Set remaining args (camera may change each frame)
-            {
-                float px, py, pz;
-                cam.get_pos(px, py, pz);
-                int a = 1;
-                CL_CHECK(bvh_kernel.setArg(a++, nodes_buf));
-                CL_CHECK(bvh_kernel.setArg(a++, soa_bufs.v0x)); CL_CHECK(bvh_kernel.setArg(a++, soa_bufs.v0y)); CL_CHECK(bvh_kernel.setArg(a++, soa_bufs.v0z));
-                CL_CHECK(bvh_kernel.setArg(a++, soa_bufs.v1x)); CL_CHECK(bvh_kernel.setArg(a++, soa_bufs.v1y)); CL_CHECK(bvh_kernel.setArg(a++, soa_bufs.v1z));
-                CL_CHECK(bvh_kernel.setArg(a++, soa_bufs.v2x)); CL_CHECK(bvh_kernel.setArg(a++, soa_bufs.v2y)); CL_CHECK(bvh_kernel.setArg(a++, soa_bufs.v2z));
-                CL_CHECK(bvh_kernel.setArg(a++, soa_bufs.n0x)); CL_CHECK(bvh_kernel.setArg(a++, soa_bufs.n0y)); CL_CHECK(bvh_kernel.setArg(a++, soa_bufs.n0z));
-                CL_CHECK(bvh_kernel.setArg(a++, soa_bufs.n1x)); CL_CHECK(bvh_kernel.setArg(a++, soa_bufs.n1y)); CL_CHECK(bvh_kernel.setArg(a++, soa_bufs.n1z));
-                CL_CHECK(bvh_kernel.setArg(a++, soa_bufs.n2x)); CL_CHECK(bvh_kernel.setArg(a++, soa_bufs.n2y)); CL_CHECK(bvh_kernel.setArg(a++, soa_bufs.n2z));
-                CL_CHECK(bvh_kernel.setArg(a++, soa.count));
-                CL_CHECK(bvh_kernel.setArg(a++, static_cast<int>(tree.nodes.size())));
-                CL_CHECK(bvh_kernel.setArg(a++, width));
-                CL_CHECK(bvh_kernel.setArg(a++, height));
-                CL_CHECK(bvh_kernel.setArg(a++, px));  CL_CHECK(bvh_kernel.setArg(a++, py));  CL_CHECK(bvh_kernel.setArg(a++, pz));
-                CL_CHECK(bvh_kernel.setArg(a++, cam.target[0])); CL_CHECK(bvh_kernel.setArg(a++, cam.target[1])); CL_CHECK(bvh_kernel.setArg(a++, cam.target[2]));
-                CL_CHECK(bvh_kernel.setArg(a++, cam.fov_deg));
+            // Set all kernel args via helper — camera may change each frame.
+            // WHY call set_bvh_kernel_args with the active framebuffer: the helper
+            // sets arg 0 (the image) plus all 28 remaining args in one call,
+            // eliminating the risk of silent arg-index drift if the kernel signature
+            // ever changes. cl::ImageGL inherits from cl::Image2D so passing it as
+            // Image2D& is type-safe (§7.6 GL teardown ordering still applies).
+            // Both cl::ImageGL and cl::Image2D inherit from cl::Image,
+            // so set_bvh_kernel_args accepts either without a cast.
+            if (!egl_path) {
+                set_bvh_kernel_args(bvh_kernel, cl_gl_img,
+                    nodes_buf, soa_bufs, soa.count,
+                    static_cast<int>(tree.nodes.size()), width, height, cam);
+            } else {
+                set_bvh_kernel_args(bvh_kernel, cl_plain_img,
+                    nodes_buf, soa_bufs, soa.count,
+                    static_cast<int>(tree.nodes.size()), width, height, cam);
             }
 
             cl::Event ev;

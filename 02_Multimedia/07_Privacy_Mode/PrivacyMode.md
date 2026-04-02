@@ -7,10 +7,10 @@
 ## Prerequisites (delta from module index)
 
 - [A.3.1 — OpenCV DNN](../04_OpenCV_DNN/OpenCVDNN.md) completed (DNN_TARGET_OPENCL, T-API concepts).
-- YuNet face detector model (`assets/yunet.onnx`) — included in the repo. If missing, download from the OpenCV model zoo:
+- YuNet face detector model (`assets/face_detection_yunet_2022mar.onnx`) — included in the repo. If missing, download from the OpenCV model zoo:
   ```bash
-  wget -q https://raw.githubusercontent.com/opencv/opencv_zoo/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx \
-      -O assets/yunet.onnx
+  wget -q https://raw.githubusercontent.com/opencv/opencv_zoo/main/models/face_detection_yunet/face_detection_yunet_2022mar.onnx \
+      -O assets/face_detection_yunet_2022mar.onnx
   ```
 
 ## Build & Run
@@ -19,8 +19,8 @@
 cd 07_Privacy_Mode
 cmake -B build
 cmake --build build
-./build/privacy_mode --input assets/face.png --model assets/yunet.onnx
-# GPU=NVIDIA ./build/privacy_mode --input assets/face.png --model assets/yunet.onnx
+./build/privacy_mode --input assets/face.png --model assets/face_detection_yunet_2022mar.onnx
+# GPU=NVIDIA ./build/privacy_mode --input assets/face.png --model assets/face_detection_yunet_2022mar.onnx
 ```
 
 ## Verify

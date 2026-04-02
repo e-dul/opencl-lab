@@ -82,7 +82,9 @@ public:
         program_naive_  = build_program(ocl_.context, ocl_.device,
                                         (kdir / "inflate.cl").string());
         program_tiled_  = build_program(ocl_.context, ocl_.device,
-                                        (kdir / "inflate_tiled.cl").string());
+                                        (kdir / "inflate_tiled.cl").string(),
+                                        "-cl-std=CL1.2 -D TILE_W=" + std::to_string(TILE_W)
+                                        + " -D TILE_H=" + std::to_string(TILE_H));
 
         inflate_kernel_       = cl::Kernel(program_naive_, "inflate");
         inflate_tiled_kernel_ = cl::Kernel(program_tiled_, "inflate_tiled");
@@ -175,11 +177,8 @@ private:
             radius_px, decay_f, resolution_f);
 
         // ── GPU tiled inflate ────────────────────────────────────────────────
-        // TILE_W/TILE_H: 16×16 is the de-facto starting point on discrete GPUs
-        // (matches common SIMD width and LDS bank counts).
-        static constexpr int TILE_W = 16;
-        static constexpr int TILE_H = 16;
-
+        // TILE_W/TILE_H: class-level constants (also passed as -D macros to the
+        // tiled kernel at compile time in on_configure()).
         std::vector<uint8_t> gpu_tiled_result(total, 0);
         double gpu_tiled_ms = -1.0;  // sentinel: -1.0 = skipped
 
@@ -506,6 +505,12 @@ private:
         RCLCPP_INFO(rclcpp::get_logger("costmap_node"),
                     "[BMP] Saved output_costmap.bmp (%dx%d).", W, H);
     }
+
+    // ── Tile dimensions — must match kernel -D macros passed in on_configure ───
+    // WHY class-level: shared between on_configure (build_program -D flags) and
+    // on_map_received (local-mem guard and NDRange sizing).
+    static constexpr int TILE_W = 16;
+    static constexpr int TILE_H = 16;
 
     // ── OpenCL members (valid between on_configure and on_cleanup) ────────────
     OclContext       ocl_;

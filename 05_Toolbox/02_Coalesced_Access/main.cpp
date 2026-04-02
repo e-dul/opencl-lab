@@ -141,6 +141,10 @@ int main(int argc, char** argv) {
     // ── Buffers ───────────────────────────────────────────────────────────────
     // Input is uploaded once; each kernel variant writes to its own output so
     // we can read all three back independently for correctness verification.
+    // WHY CL_MEM_COPY_HOST_PTR: uploads host_input immediately at buffer creation time;
+    // the host vector is safe to modify or destroy after this call returns.
+    // WHY CL_MEM_READ_ONLY: restricts device writes to this buffer, allowing the driver
+    // to place it in read-only cache paths on hardware that benefits from the hint.
     cl::Buffer buf_in(ocl.context,
                       CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
                       byte_size,

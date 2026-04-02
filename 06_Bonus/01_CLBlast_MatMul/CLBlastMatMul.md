@@ -20,11 +20,13 @@ See [Bonus.md](../Bonus.md) for base requirements (OpenCL 1.2+, CMake 3.18+).
 - Module 1 (`01_Host_API/`) complete — no further prerequisites.
 - **CLBlast**: fetched automatically by CMake at configure time (requires internet). Offline: `-DCMAKE_PREFIX_PATH=/path/to/clblast/install`.
 
+> **Note:** The first build compiles CLBlast from source, which takes approximately 1–3 minutes. Use parallel compilation to reduce wait time: `cmake --build build -- -j$(nproc)`
+
 ## Build & Run
 
 ```bash
 cd 06_Bonus/01_CLBlast_MatMul
-cmake -B build && cmake --build build
+cmake -B build && cmake --build build -- -j$(nproc)
 ./build/clblast_matmul
 # Override matrix size:
 ./build/clblast_matmul --size 2048
@@ -66,6 +68,10 @@ Reproducing this in a custom kernel requires hundreds of lines of tile-loading c
 ### CLBlast vs cuBLAS
 
 CLBlast is vendor-agnostic — it targets any OpenCL device (AMD, Intel, Nvidia, embedded). cuBLAS is Nvidia-only and ships with the CUDA SDK. If you are writing cross-vendor code or targeting non-Nvidia hardware, CLBlast is the right choice.
+
+### Next Step: Avoiding the Host Round-Trip
+
+After the benchmark, `d_C` (the result buffer) lives on the GPU. In a real pipeline — for example, using the result as input to a ray tracer or zero-copy display — you can pass `d_C` directly to a downstream kernel without reading it back to the host. See the zero-copy modules (`02_Multimedia/`) or the ray tracer (`03_GraphicsHPC/02_Ray_Tracer_BVH/`) for concrete examples of passing a `cl::Buffer` between kernels in sequence.
 
 ### Mini-Challenge
 

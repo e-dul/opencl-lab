@@ -77,11 +77,7 @@ Setting `global_work_offset = {offset_x, offset_y}` tells the runtime to dispatc
 
 **Critical subtlety (OpenCL 1.2 spec §6.12.1):** `get_global_id()` returns the *absolute* global work-item ID, which **includes** the `global_work_offset`. A work-item launched at absolute position `(offset_x + 3, offset_y + 7)` sees `gx = offset_x + 3`, `gy = offset_y + 7` — not `gx = 3, gy = 7`. The IDs are already image coordinates and are used directly as buffer indices:
 
-```c
-size_t gx  = get_global_id(0);   // absolute column in the full image
-size_t gy  = get_global_id(1);   // absolute row    in the full image
-size_t idx = gy * (size_t)width + gx;
-```
+> The full coordinate walk-through with annotated examples is in `kernels/global_work_offset.cl` — see the comments at the top of that file for exact `get_global_id()` behaviour under `global_work_offset`.
 
 The stride is `width` (the full image row width), not `tile_x`. This is the pitch formula — you are indexing into a flat buffer that represents the entire frame. No manual offset addition is needed or correct; adding `offset_x`/`offset_y` again would double-offset every pixel access.
 

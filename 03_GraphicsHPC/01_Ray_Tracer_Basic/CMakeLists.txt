@@ -8,7 +8,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # double-definition warnings; explicit flags keep IDE tooling aware.
 add_definitions(-DCL_HPP_ENABLE_EXCEPTIONS -DCL_HPP_TARGET_OPENCL_VERSION=120)
 
-# Module is 2 levels deep: 03_GraphicsHPC/B2_Ray_Tracer_Basic/
+# Module is 2 levels deep: 03_GraphicsHPC/01_Ray_Tracer_Basic/
 # common.cmake already calls find_package(OpenCL REQUIRED) and FetchContent for CLI11.
 include(${CMAKE_CURRENT_SOURCE_DIR}/../../common/common.cmake)
 

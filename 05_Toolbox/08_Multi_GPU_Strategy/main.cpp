@@ -143,25 +143,10 @@ static std::vector<cl_uchar> generate_gradient(int width, int height) {
     return data;
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
-// build_program_from_source — compile the slice kernel for a given device/context pair
-// WHY separate from common build_program: this module pre-loads the source once
-// and distributes it across multiple device contexts; the common helper takes a
-// file path and re-reads it each call, which would be wasteful here.
-// ──────────────────────────────────────────────────────────────────────────────
-static cl::Program build_program_from_source(const cl::Context& ctx,
-                                              const cl::Device&  dev,
-                                              const std::string& source) {
-    cl::Program prog(ctx, source);
-    try {
-        prog.build({dev});
-    } catch (const cl::Error& e) {
-        // Surface the compiler log so a developer can debug kernel issues.
-        std::string log = prog.getBuildInfo<CL_PROGRAM_BUILD_LOG>(dev);
-        throw std::runtime_error("Kernel build failed:\n" + log);
-    }
-    return prog;
-}
+// build_program_from_source is provided by common/opencl_utils.hpp
+// WHY common version used here: pre-loaded source string distributed across
+// multiple device contexts; the common helper accepts an optional opts string
+// and surfaces build log on failure.
 
 // ──────────────────────────────────────────────────────────────────────────────
 // run_single_gpu — baseline leg using device[0] for the full image.
@@ -193,7 +178,6 @@ static double run_single_gpu(const DeviceEntry&           dev_entry,
     CL_CHECK(kernel.setArg(1, buf_out));
     CL_CHECK(kernel.setArg(2, width));
     CL_CHECK(kernel.setArg(3, height));
-    CL_CHECK(kernel.setArg(4, static_cast<int>(0)));  // row_offset = 0 (full image)
 
     size_t global_size = static_cast<size_t>(width) * height;
     std::vector<cl::Event> wait_write = {ev_write};
@@ -282,7 +266,6 @@ static double run_n_gpu(const std::vector<DeviceEntry>&  devices,
         CL_CHECK(kernel.setArg(1, ds.buf_out));
         CL_CHECK(kernel.setArg(2, width));
         CL_CHECK(kernel.setArg(3, slice_rows));
-        CL_CHECK(kernel.setArg(4, row_start));
 
         size_t global_size = static_cast<size_t>(width) * slice_rows;
         std::vector<cl::Event> wait_write = {ds.ev_write};
@@ -379,7 +362,7 @@ int main(int argc, char* argv[]) {
     app.add_option("--width",  width,  "Image width  (default 3840)");
     app.add_option("--height", height, "Image height (default 2160)");
     app.add_option("--gpus",   n_gpus, "Max devices to use, 0 = all (default 0)");
-    app.add_option("--image",  image_path, "Optional path to BMP/PNG source image (unused: benchmark uses synthetic data)");
+    app.add_option("--image",  image_path, "Optional path to BMP/PNG source image (RGBA; overrides synthetic gradient)");
 
     CLI11_PARSE(app, argc, argv);
 

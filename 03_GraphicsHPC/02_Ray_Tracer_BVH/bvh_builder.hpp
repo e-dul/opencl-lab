@@ -14,6 +14,12 @@
 
 #include "bvh_utils.hpp"
 
+// WHY this assert: BvhNode crosses the host/device boundary. If float[3] padding
+// ever changes (e.g., a compiler adds trailing padding), the kernel sees a
+// different struct layout — silent data corruption, not a compile error.
+// This assert catches the drift at compile time rather than at runtime.
+static_assert(sizeof(BvhNode) == 48, "BvhNode ABI mismatch — check float[3] padding");
+
 #include <algorithm>
 #include <numeric>
 #include <stdexcept>

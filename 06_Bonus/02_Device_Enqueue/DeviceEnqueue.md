@@ -32,8 +32,8 @@ cmake -B build && cmake --build build
 # Explicit mode comparison:
 ./build/device_enqueue --mode cpu --bounces 3
 ./build/device_enqueue --mode gpu --bounces 3
-# Load an OBJ scene (assets/ is at repo root, two levels up):
-./build/device_enqueue --scene ../../assets/cornell_box.obj --output render.bmp
+# Load an OBJ scene (assets/ is symlinked under build/ by CMake POST_BUILD):
+./build/device_enqueue --scene assets/cornell_box.obj --output render.bmp
 # Select GPU vendor:
 GPU=AMD ./build/device_enqueue --mode gpu --width 1920 --height 1080
 ```
@@ -49,9 +49,9 @@ GPU=AMD ./build/device_enqueue --mode gpu --width 1920 --height 1080
 
 ## Expected Output
 
-The binary saves `render.bmp` and prints a per-bounce timing table followed by a summary:
-
 > Device enqueue overhead can exceed the per-bounce savings for small scenes — the speedup is scene and device dependent. The goal is to observe and understand the tradeoff, not to hit a fixed ratio.
+
+The binary saves `render.bmp` and prints a per-bounce timing table followed by a summary:
 
 ```text
 OpenCL C version: OpenCL C 2.0 AMD-APP (3513.0)
@@ -110,6 +110,10 @@ __kernel void primary_ray(__write_only queue_t dev_q, ...) {
 ```
 
 This is an OpenCL 2.0 feature. Devices that report OpenCL 3.0 but do not implement the optional device-enqueue extension will have `CL_DEVICE_QUEUE_ON_DEVICE_PROPERTIES == 0` — the binary detects this and falls back cleanly.
+
+### Kernel Code Duplication
+
+> **Note:** OpenCL C has no `#include` directive. BVH traversal and shading helpers (~125 lines) are duplicated verbatim between `primary_ray.cl` and `reflection_ray.cl`. This is a known limitation of OpenCL C 1.2 kernel compilation. One workaround (mini-challenge): pass `-cl-std=CL2.0 -include kernels/shared_helpers.cl` as the build options to have the runtime prepend a shared header — this is a compiler extension, not a language feature, but it is supported on most implementations.
 
 ### When to Use Device Enqueue
 

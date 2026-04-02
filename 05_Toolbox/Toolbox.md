@@ -24,10 +24,10 @@ Each tool is a standalone project with a measurable before/after. The workflow:
 | Tool | Symptom | Folder |
 |:-----|:--------|:-------|
 | [Zero-Copy](15_Zero_Copy/ZeroCopy.md) | Upload time dominates frame budget | `15_Zero_Copy/` |
-| [Coalesced Access](02_Coalesced_Access/CoalescedAccess.md) | Kernel slow despite simple logic | `02_Coalesced_Access/` |
-| [Work-Group Sizing](14_Work_Group_Sizing/WorkGroupSizing.md) | GPU underutilized, low occupancy | `14_Work_Group_Sizing/` |
+| [Coalesced Access](02_Coalesced_Access/CoalescedAccess.md) | Kernel slow despite simple logic (Incl. AoS vs. SoA) | `02_Coalesced_Access/` |
+| [Work-Group Sizing](14_Work_Group_Sizing/WorkGroupSizing.md) | GPU underutilized, low occupancy (Incl. Register Pressure) | `14_Work_Group_Sizing/` |
 | [Thread Divergence](13_Thread_Divergence/ThreadDivergence.md) | Kernel slower than expected with conditionals | `13_Thread_Divergence/` |
-| [Local Memory](01_Local_Memory/LocalMemory.md) | Kernel re-reads same global data repeatedly | `01_Local_Memory/` |
+| [Local Memory](01_Local_Memory/LocalMemory.md) | Kernel re-reads same global data repeatedly (Incl. Bank Conflicts) | `01_Local_Memory/` |
 | [Debugging](03_Debugging/Debugging.md) | Crash / wrong output / silent slowdown | `03_Debugging/` |
 | [Kernel Templates](06_Generic_Kernel_Templates/GenericKernelTemplates.md) | Duplicate `.cl` files for each data type | `06_Generic_Kernel_Templates/` |
 | [Async Pipelines](16_Async_Multi_Thread/AsyncMultiThread.md) | CPU blocks on GPU between stages | `16_Async_Multi_Thread/` |
@@ -36,6 +36,7 @@ Each tool is a standalone project with a measurable before/after. The workflow:
 | [Sync & Atomics](12_Sync_Atomics/SyncAtomics.md) | Incorrect results with concurrent writes (histograms, counters, reductions) | `12_Sync_Atomics/` |
 | [Global Work Offset](07_Global_Work_Offset/GlobalWorkOffset.md) | Full-frame dispatch wastes threads when only a small ROI needs work | `07_Global_Work_Offset/` |
 | [OpenCL vs CUDA](09_OpenCL_vs_CUDA/OpenCLvsCUDA.md) | Choosing a GPU compute API for a new project *(NVIDIA GPU + CUDA)* | `09_OpenCL_vs_CUDA/` |
+| [Sub-Buffers](10_Sub_Buffers_Partitioning/SubBuffers.md) | VRAM limits exceeded from manual buffer chunking / Redundant `enqueueWriteBuffer` calls between kernel dispatches | `10_Sub_Buffers_Partitioning/` |
 | [SVM Theory](11_SVM_Theory/SVMTheory.md) | Zero-Copy wasn't enough — need the hardware-level theory behind SVM *(OpenCL 2.0)* | `11_SVM_Theory/` |
 | [Deployment](04_Deployment/Deployment.md) | Packaging and shipping an OpenCL application | `04_Deployment/` |
 

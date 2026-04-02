@@ -7,11 +7,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 # ── common.cmake: CLI11, stb, OpenCL, include dirs ────────────────────────────
-# Module is 2 levels deep: 04_Robotics/C3_Perception_Node/
+# Module is 2 levels deep: 04_Robotics/03_Perception_Node/
 include(${CMAKE_CURRENT_SOURCE_DIR}/../../common/common.cmake)
 
 # ── ROS 2 environment guard — must precede find_package ──────────────────────
-# LOANED_MESSAGES: also emit the RMW warning since C3 uses zero-copy upload.
+# LOANED_MESSAGES: also emit the RMW warning since 03 uses zero-copy upload.
 opencl_lab_ros2_guard(LOANED_MESSAGES)
 
 # ── ROS 2 packages ────────────────────────────────────────────────────────────
@@ -51,5 +51,3 @@ target_include_directories(point_cloud_publisher PRIVATE
 # point_cloud_publisher does not call any CL API, but linking is harmless —
 # the shared library is loaded lazily and no CL symbols are referenced.
 opencl_lab_ros2_target(point_cloud_publisher rclcpp sensor_msgs)
-
-symlink_kernels(point_cloud_publisher)

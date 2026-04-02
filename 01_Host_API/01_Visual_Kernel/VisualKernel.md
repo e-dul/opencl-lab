@@ -33,13 +33,13 @@ To run the vectorized variant (processes all three RGB channels in a single `flo
 
 Every OpenCL program on the host follows the same seven steps. After this sub-module you will have seen each one in `src/main.cpp`:
 
-1. **Platform** — query available OpenCL platforms
-2. **Device** — select a GPU (or CPU fallback)
-3. **Context** — logical container binding device to host program
-4. **Queue** — ordered stream of commands sent to the device
-5. **Build Program** — compile `.cl` source at runtime (`cl::Program`)
-6. **Kernel** — a named entry point in the compiled program
-7. **Buffer → Enqueue → Read** — allocate device memory, dispatch the kernel, copy results back
+1. **Platform** — query available OpenCL platforms (see `main.cpp` Step 1, ~line 30)
+2. **Device** — select a GPU (or CPU fallback) (see `ocl_wrapper.hpp::create_context()`)
+3. **Context** — logical container binding device to host program (see `main.cpp` Step 3, ~line 65)
+4. **Queue** — ordered stream of commands sent to the device (see `main.cpp` Step 3, ~line 65)
+5. **Build Program** — compile `.cl` source at runtime via `build_program()` (see `main.cpp` Step 5, ~line 80)
+6. **Kernel** — a named entry point in the compiled program (see `main.cpp` Step 6, ~line 90)
+7. **Buffer → Enqueue → Read** — allocate device memory, dispatch the kernel, copy results back (see `main.cpp` Step 4 & Step 7, ~lines 65–120)
 
 The full round-trip:
 

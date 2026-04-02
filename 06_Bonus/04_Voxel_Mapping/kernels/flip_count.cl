@@ -30,10 +30,11 @@ __kernel void count_flips(
     uint curr_occ = curr_grid[gid] & OCCUPIED_BIT;
 
     if (prev_occ != curr_occ) {
-        // WHY atomic_add: work-items are one-to-one with voxels in this
-        // dispatch, so no race exists by design. atomic_add is used here
-        // because this header must remain safe if the buffer is ever written
-        // from multiple sources (e.g. multi-queue or multi-kernel scenarios).
+        // WHY atomic_add: although this dispatch is strictly one work-item per
+        // voxel (no intra-dispatch race), using atomic_add future-proofs the
+        // counter buffer. In multi-queue or concurrent-kernel scenarios —
+        // e.g., a second queue incrementing flip counts from a different sensor
+        // stream — the atomic ensures correctness without changing this kernel.
         atomic_add(&flip_counts[gid], 1u);
     }
 }
