@@ -141,7 +141,7 @@ Task-specific outcomes:
 [100%] Built target A1_OpenCV_Interop
 # Zero errors, zero warnings.
 
-# 2. ./build/A1_OpenCV_Interop --input /home/emil/Projects/opencl-lab/01_Host_API/01_Visual_Kernel/gradient_input.bmp
+# 2. ./build/A1_OpenCV_Interop --input <repo>/01_Host_API/01_Visual_Kernel/gradient_input.bmp
 pci id for fd 10: 10de:28e0, driver (null)
 pci id for fd 11: 10de:28e0, driver (null)
 Platform : NVIDIA CUDA

@@ -94,7 +94,7 @@ $ cmake -B build && cmake --build build
 -- oclgrind found: /usr/bin/oclgrind
 -- Configuring done (1.0s)
 -- Generating done (0.0s)
--- Build files have been written to: /home/emil/Projects/opencl-lab/99_Toolbox/Debugging/build
+-- Build files have been written to: <repo>/99_Toolbox/Debugging/build
 [  0%] Built target CLI11
 [ 50%] Building CXX object CMakeFiles/debug_demo.dir/main.cpp.o
 [100%] Linking CXX executable debug_demo

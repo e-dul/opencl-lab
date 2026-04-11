@@ -141,7 +141,7 @@ Times are `cl::Event` profiling in ms to 3 decimal places. Outer total is `std::
 $ cmake -B build && cmake --build build
 -- Configuring done (0.8s)
 -- Generating done (0.0s)
--- Build files have been written to: /home/emil/Projects/opencl-lab/99_Toolbox/AsyncMultiThread/build
+-- Build files have been written to: <repo>/99_Toolbox/AsyncMultiThread/build
 [  0%] Built target CLI11
 [100%] Built target async_demo
 

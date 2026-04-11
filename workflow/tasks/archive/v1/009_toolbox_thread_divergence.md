@@ -112,7 +112,7 @@ Implement the ThreadDivergence tool: a standalone C++17 executable that benchmar
 ### Validation
 ```
 # 1. Build from scratch
-$ cd /home/emil/Projects/opencl-lab/99_Toolbox/ThreadDivergence && rm -rf build && cmake -B build && cmake --build build 2>&1
+$ cd <repo>/99_Toolbox/ThreadDivergence && rm -rf build && cmake -B build && cmake --build build 2>&1
 -- Found OpenCL: /usr/lib/x86_64-linux-gnu/libOpenCL.so (found version "3.0")
 [ 50%] Building CXX object CMakeFiles/divergence_demo.dir/main.cpp.o
 [100%] Linking CXX executable divergence_demo

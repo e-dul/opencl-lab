@@ -99,7 +99,7 @@ cmake --build build
 
 -- Configuring done (0.9s)
 -- Generating done (0.0s)
--- Build files have been written to: /home/emil/Projects/opencl-lab/99_Toolbox/FastMath/build
+-- Build files have been written to: <repo>/99_Toolbox/FastMath/build
 [  0%] Built target CLI11
 [100%] Built target fast_math
 ```

@@ -109,7 +109,7 @@ Implement the LocalMemory tool: a standalone C++17 executable that benchmarks a 
 === Step 1: cmake -B build && cmake --build build ===
 -- Configuring done (0.9s)
 -- Generating done (0.0s)
--- Build files have been written to: /home/emil/Projects/opencl-lab/99_Toolbox/LocalMemory/build
+-- Build files have been written to: <repo>/99_Toolbox/LocalMemory/build
 [  0%] Built target CLI11
 [100%] Built target local_mem_demo
 Result: PASS — zero errors, zero warnings.

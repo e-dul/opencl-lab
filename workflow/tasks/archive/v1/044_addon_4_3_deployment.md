@@ -134,7 +134,7 @@ Error: input file not found: ../../../../assets/gradient_input.bmp
 Exit: 0
 
 # 3b. --input with existing asset (functional verification)
-$ ./build/deployment_demo --input /home/emil/Projects/opencl-lab/assets/sample.bmp
+$ ./build/deployment_demo --input <repo>/assets/sample.bmp
 pci id for fd 10: 10de:28e0, driver (null)
 Loaded: .../assets/sample.bmp (256x256)
 Platform : NVIDIA CUDA

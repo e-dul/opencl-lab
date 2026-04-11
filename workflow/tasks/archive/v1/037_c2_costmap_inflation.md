@@ -303,7 +303,7 @@ Device   : NVIDIA GeForce RTX 4060 Laptop GPU
 Exit code: 0
 
 # output_costmap.bmp
--rw-rw-r-- 1 emil emil 1048698 Mar 17 17:43 /home/emil/Projects/opencl-lab/output_costmap.bmp
+-rw-rw-r-- 1 emil emil 1048698 Mar 17 17:43 <repo>/output_costmap.bmp
 ```
 
 ### Changed Files

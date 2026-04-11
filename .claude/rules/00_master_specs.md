@@ -31,7 +31,7 @@
 - **Snapshots over Branches**: Code evolves in sequential folders (`01_Basic/`, `02_Optimized/`).
 - **Dependencies**:
   - `common/`: Header-only shared utilities (Platform selection, IO).
-  - `vendor/`: Third-party header-only libs (`stb_image`, `cl.hpp`).
+  - Third-party header-only libs (`stb_image`, `cl.hpp`, `CLI11`) are fetched via CMake FetchContent at configure time — no `vendor/` directory.
   - **Rule**: No complex linking. User must be able to copy-paste code easily.
 
 ### Naming Conventions

@@ -199,7 +199,7 @@ Standard items from `.claude/rules/00_master_specs.md §8` apply.
 $ cd 05_Toolbox/GlobalWorkOffset && cmake -B build && cmake --build build
 -- Configuring done (1.3s)
 -- Generating done (0.0s)
--- Build files have been written to: /home/emil/opencl-lab/05_Toolbox/GlobalWorkOffset/build
+-- Build files have been written to: <repo>/05_Toolbox/GlobalWorkOffset/build
 [  0%] Built target CLI11
 [ 50%] Building CXX object CMakeFiles/global_work_offset.dir/main.cpp.o
 [100%] Linking CXX executable global_work_offset
@@ -252,7 +252,7 @@ Full frame 4K            1.058       0.744       1.427
 Speedup:         92.37x  (tile vs full frame)
 
 $ ls -la build/assets
-lrwxrwxrwx 1 emil emil 62 mar 23 09:22 build/assets -> /home/emil/opencl-lab/05_Toolbox/GlobalWorkOffset/../../assets
+lrwxrwxrwx 1 emil emil 62 mar 23 09:22 build/assets -> <repo>/05_Toolbox/GlobalWorkOffset/../../assets
 ```
 
 ### Changed Files

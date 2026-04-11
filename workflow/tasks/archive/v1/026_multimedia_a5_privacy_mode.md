@@ -240,8 +240,8 @@ All flags present. PASS.
 
 Command:
 ```
-./build/privacy_mode --input /home/emil/opencl-lab/assets/face.png \
-  --face-model /home/emil/opencl-lab/assets/face_detection_yunet_2022mar.onnx \
+./build/privacy_mode --input <repo>/assets/face.png \
+  --face-model <repo>/assets/face_detection_yunet_2022mar.onnx \
   --output output.bmp
 ```
 

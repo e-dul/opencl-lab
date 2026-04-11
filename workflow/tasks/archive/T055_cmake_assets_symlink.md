@@ -198,17 +198,17 @@ $ grep -rl "create_symlink\|symlink_assets" <all module CMakeLists.txt> | wc -l
 $ cmake -B build && cmake --build build  [01_Host_API/01_Visual_Kernel]
 [100%] Built target visual_kernel  ✓
 $ readlink -f 01_Host_API/01_Visual_Kernel/build/assets
-/home/emil/opencl-lab/assets  ✓
+<repo>/assets  ✓
 
 $ cmake -B build && cmake --build build  [02_Multimedia/A1_OpenCV_Interop]
 [100%] Built target A1_OpenCV_Interop  ✓
 $ readlink -f 02_Multimedia/A1_OpenCV_Interop/build/assets
-/home/emil/opencl-lab/assets  ✓
+<repo>/assets  ✓
 
 $ cmake -B build && cmake --build build  [03_GraphicsHPC/B2_Ray_Tracer_Basic]
 [100%] Built target b2_ray_tracer  ✓
 $ readlink -f 03_GraphicsHPC/B2_Ray_Tracer_Basic/build/assets
-/home/emil/opencl-lab/assets  ✓
+<repo>/assets  ✓
 
 $ cmake -B build && cmake --build build  [04_Robotics/C1_Node_Acceleration]
 SKIPPED — ROS_DISTRO not set (pre-existing condition, unrelated to this task)
@@ -216,12 +216,12 @@ SKIPPED — ROS_DISTRO not set (pre-existing condition, unrelated to this task)
 $ cmake -B build && cmake --build build  [05_Toolbox/LocalMemory]
 [100%] Built target local_memory  ✓
 $ readlink -f 05_Toolbox/LocalMemory/build/assets
-/home/emil/opencl-lab/assets  ✓
+<repo>/assets  ✓
 
 $ cmake -B build && cmake --build build  [06_Bonus/CLBlast_MatMul]
 [100%] Built target clblast_tuner_routine_xtrsv  ✓
 $ readlink -f 06_Bonus/CLBlast_MatMul/build/assets
-/home/emil/opencl-lab/assets  ✓
+<repo>/assets  ✓
 
 # DoD item 5: no .cpp / .cl files changed
 $ git diff HEAD --name-only | grep -E "\.(cpp|cl)$"

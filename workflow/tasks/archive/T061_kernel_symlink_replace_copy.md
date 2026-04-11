@@ -115,7 +115,7 @@ Replace the `copy_directory` block (lines 34–39) with `create_symlink`, follow
 
 ### Validation
 ```
-DoD item 1: grep -r "copy_kernels\|copy_directory" --include="CMakeLists.txt" /home/emil/opencl-lab
+DoD item 1: grep -r "copy_kernels\|copy_directory" --include="CMakeLists.txt" <repo>
 → EXIT:1 (zero matches — PASS)
 
 DoD item 2: common/common.cmake
@@ -139,12 +139,12 @@ Build 05_Toolbox/10_SVM:
   [100%] Built target svm — PASS (zero errors, zero warnings)
 
 Symlink verification:
-  lrwxrwxrwx /home/emil/opencl-lab/01_Host_API/01_Visual_Kernel/build/kernels
-      -> /home/emil/opencl-lab/01_Host_API/01_Visual_Kernel/kernels  — PASS
-  lrwxrwxrwx /home/emil/opencl-lab/05_Toolbox/06_Generic_Kernel_Templates/build/kernels
-      -> /home/emil/opencl-lab/05_Toolbox/06_Generic_Kernel_Templates/kernels  — PASS
-  lrwxrwxrwx /home/emil/opencl-lab/05_Toolbox/10_SVM/build/kernels
-      -> /home/emil/opencl-lab/05_Toolbox/10_SVM/kernels  — PASS
+  lrwxrwxrwx <repo>/01_Host_API/01_Visual_Kernel/build/kernels
+      -> <repo>/01_Host_API/01_Visual_Kernel/kernels  — PASS
+  lrwxrwxrwx <repo>/05_Toolbox/06_Generic_Kernel_Templates/build/kernels
+      -> <repo>/05_Toolbox/06_Generic_Kernel_Templates/kernels  — PASS
+  lrwxrwxrwx <repo>/05_Toolbox/10_SVM/build/kernels
+      -> <repo>/05_Toolbox/10_SVM/kernels  — PASS
 
 git diff --name-only: only CMakeLists.txt files, common/common.cmake,
   README.md, and workflow/design/D10_v2_improvements.md modified.
