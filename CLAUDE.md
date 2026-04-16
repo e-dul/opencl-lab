@@ -6,26 +6,20 @@
 3. **Education First:** Code must be readable by Mid-level engineers.
 4. **Performance:** Always profile (Events) before optimizing.
 
-## Architecture
-- `common/` contains helper functions (error handling, image IO).
-- Kernels (`.cl`) are separate files, loaded at runtime.
-- Build system is CMake (standalone per module).
-- Use RAII wrappers for OpenCL resources.
-
-## Code Conventions
-- Variables: `snake_case`
-- Classes: `PascalCase`
-- Constants: `UPPER_CASE`
-- Always check OpenCL return codes.
-
 ## Communication Style
 - Terse: No filler phrases.
 - Diff-Driven: Show code changes.
 - Direct: Start with the answer.
 
 ## Other
-- When asked to plan a task, write the plan and store in `workflow/tasks/`. Never implement unless explicitly told to proceed.
 - Consider task completed only after explicitly told.
+
+## OpenSpec Workflow
+- Use `/opsx:new` to propose any new feature or significant change before writing code.
+- Specs live in `openspec/specs/`; active changes in `openspec/changes/`.
+- State machine: proposal → specs → design → tasks → archive (`/opsx:archive`).
+- Never skip the proposal phase for non-trivial work.
+- Never implement unless explicitly told to proceed after proposal is approved.
 
 ## Discipline
 - NEVER use sed or custom python scripts for file modifications

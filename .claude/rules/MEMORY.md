@@ -15,13 +15,11 @@
 - T057:  hyperlink in  retained — it is a correct relative markdown link to the assets README, not a runtime path.
 
 ## Discipline
-- When asked to **plan a task**, act as **@architect only**: read design doc → identify next step → write task file in `workflow/tasks/`. Do NOT design implementation details (code structure, CMake, buffer strategies) — that is @coder work.
-- The task file is the handoff artifact. @coder reads it to implement.
 - Never use sed or custom python scripts for file modifications
 - ALWAYS show a clear diff before applying any change
 - Use str_replace with explicit before/after blocks
 - Wait for approval before writing to disk
-- **Agent output passthrough:** When a subagent (e.g., @evaluator) uses a Strict Output Template, reproduce its output verbatim — do not reformat or summarize. Applies to `/grade-module` and any skill with a defined template.
+- **Agent output passthrough:** When a subagent (e.g., @evaluator) uses a Strict Output Template, reproduce its output verbatim — do not reformat or summarize.
 
 ## Session Notes
 
