@@ -11,8 +11,8 @@ All modules use CLI11 v2.4.2 for argument parsing. Hand-rolled parsers are forbi
 #### Scenario: CLI11 used for all argument parsing
 
 WHEN a module needs command-line arguments
-THEN CLI11 (v2.4.2, header-only, via FetchContent) is used
-AND it is linked as `CLI11::CLI11` via `common/common.cmake`
+THEN CLI11 is used (header-only, via FetchContent)
+AND it is linked as `CLI11::CLI11`
 
 #### Scenario: Hand-rolled parsers forbidden
 

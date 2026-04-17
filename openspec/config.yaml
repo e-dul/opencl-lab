@@ -1,3 +1,58 @@
 schema: spec-driven
 version: "1.0"
 project: opencl-lab
+
+context:
+  principles:
+    - "Code-First: code is the primary knowledge carrier"
+    - "Just-in-Time Learning: theory on demand, not upfront"
+    - "Education First: code must be readable by mid-level engineers"
+    - "Performance: always profile via cl::Event before optimizing"
+
+  stack:
+    cxx_standard: "17"
+    opencl_version_min: "1.2"
+    opencl_version_extended: "2.0 (SVM, Device Enqueue — guarded by macros, graceful fallback required)"
+    cmake_min_version: "3.18"
+    cli11_version: "2.4.2"
+    ocl_wrapper: "cl.hpp (C++ bindings, v1.2)"
+    gpu_env_var: "GPU"
+
+  paths:
+    common_cmake: "common/common.cmake"
+    ocl_wrapper_header: "common/ocl_wrapper.hpp"
+    image_utils_header: "common/image_utils.hpp"
+    assets_dir: "assets/"
+
+  naming:
+    variables: "snake_case"
+    classes: "PascalCase"
+    constants: "UPPER_CASE"
+    cmake_project: "PascalCase (strip numeric prefix)"
+    executables: "snake_case (no module prefix, no _demo suffix)"
+    acronyms: "ALLCAPS for known initialisms (SVM, BVH, YUV); preserve upstream spelling for libraries (OpenCV, CLBlast)"
+    submodule_dirs: "NN_Title_Snake_Case (two-digit prefix, scoped per parent)"
+
+  conventions:
+    snapshot_evolution: "New optimized variants go in a new numbered subdirectory; originals are never modified"
+    common_cmake_preference: "Helpers in common/common.cmake must be reused; reimplementing at module level is forbidden"
+
+  constraints:
+    platform: "Linux"
+    tested_os: "Ubuntu 24.04"
+    cxx20: "forbidden (embedded compatibility)"
+    vendor_dir: "forbidden — use FetchContent"
+
+  dod:
+    - "cmake -B build && cmake --build build: zero errors, zero warnings"
+    - "Binary runs without arguments and completes without error"
+    - "--help prints CLI11-generated usage including all defined flags"
+    - "GPU=<vendor> ./build/<bin> selects correct device without crashing"
+
+  ai_behavior:
+    - "Read any referenced file before assuming its contents"
+    - "Ask clarifying questions when requirements are ambiguous"
+    - "Before generating code: restate problem, identify risks, outline steps"
+    - "After generating code: verify compile, deps declared, edge cases, API contract"
+    - "If task contradicts an approved spec: stop and report conflict before proceeding"
+    - "Do not assume existence of libraries not in provided context or std C++ docs"
