@@ -32,7 +32,7 @@
 - **Dependencies**:
   - `common/`: Header-only shared utilities (Platform selection, IO).
   - Third-party header-only libs (`stb_image`, `cl.hpp`, `CLI11`) are fetched via CMake FetchContent at configure time — no `vendor/` directory.
-  - **Rule**: No complex linking. User must be able to copy-paste code easily.
+  - **Rule**: No compiled shared libraries (`SHARED` targets, `.so`). Algorithm and kernel code lives in the module; infrastructure boilerplate lives in `common/`.
 
 ### Naming Conventions
 - **Executable names (`add_executable` target):** `snake_case`. No module prefix (`A1_`, `b2_`, `c3_`). No `_demo` suffix.

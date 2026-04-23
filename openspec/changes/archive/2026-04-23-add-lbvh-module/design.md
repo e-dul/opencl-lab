@@ -14,8 +14,9 @@ Constraints inherited from project standards: OpenCL 1.2 baseline, no device-sid
 
 **Non-Goals:**
 - SAH tree quality parity — LBVH is Morton-order, render time may be slightly higher than `02_Ray_Tracer_BVH`/`03_Ray_Tracer_BVH_Dynamic` SAH traversal.
-- GL interop live window — `--live` flag may be added if time allows; headless `--output` is the primary mode.
+- GL interop live window — `--live` flag intentionally omitted; headless `--output` is the only output mode.
 - Deduplication with `02_Ray_Tracer_BVH`/`03_Ray_Tracer_BVH_Dynamic` traversal kernels — `04_Ray_Tracer_LBVH` uses its own stack-based kernel; no shared kernel files.
+- Copy-pasting shared host types — `TriangleCpu`, `TriangleSoa`, math helpers, and framebuffer save all come from `common/`; B4 does not maintain local copies.
 - 64-bit Morton codes — OpenCL 1.2 `ulong` is optional on some devices; 30-bit codes (10 bits/axis) are sufficient for bunny.obj.
 
 ## Decisions

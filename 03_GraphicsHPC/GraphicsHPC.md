@@ -6,7 +6,7 @@ Build a ray tracer from scratch and make it fast enough to render complex triang
 
 - Base requirements: see [main README](../README.md) (OpenCL, CMake 3.18+).
 - OpenGL + GLFW (live window in 01/02): `sudo apt install libglfw3-dev libgl-dev` — optional; headless `--output render.bmp` works without it.
-- tinyobjloader (02/03 Dynamic): fetched automatically by CMake at configure time. Offline: pass `-DCMAKE_PREFIX_PATH=/path/to/install` as a `cmake -B build` argument.
+- tinyobjloader (02/03/04 Dynamic): fetched automatically by CMake at configure time. Offline: pass `-DCMAKE_PREFIX_PATH=/path/to/install` as a `cmake -B build` argument.
 - Assets: `assets/bunny.obj` (Stanford Bunny, ~70k triangles), `assets/cornell_box.obj`.
 - CLBlast and Device Enqueue have moved to [06_Bonus/](../06_Bonus/Bonus.md).
 
@@ -17,6 +17,7 @@ Build a ray tracer from scratch and make it fast enough to render complex triang
 | 01 — Ray Tracer Basic | Minimal ray tracer + OpenGL interop (no CPU copies) *(cl_khr_gl_sharing)* | [RayTracerBasic.md](01_Ray_Tracer_Basic/RayTracerBasic.md) |
 | 02 — Ray Tracer BVH | Flagship: stackless BVH for 100k-triangle scenes at 60 FPS *(cl_khr_gl_sharing)* | [RayTracerBVH.md](02_Ray_Tracer_BVH/RayTracerBVH.md) |
 | 03 — Ray Tracer BVH Dynamic | BVH rebuild vs refit vs static on a moving scene *(cl_khr_gl_sharing)* | [RayTracerBVHDynamic.md](03_Ray_Tracer_BVH_Dynamic/RayTracerBVHDynamic.md) |
+| 04 — Ray Tracer LBVH | Full GPU BVH pipeline: Morton codes, radix sort, Karras 2012, atomic AABB fitting | [RayTracerLBVH.md](04_Ray_Tracer_LBVH/RayTracerLBVH.md) |
 
 ## Performance Gates
 
@@ -25,6 +26,7 @@ Build a ray tracer from scratch and make it fast enough to render complex triang
 | 02 Ray Tracer BVH | Render time (`cl::Event`) | ≥ 60 FPS @ bunny.obj (~70k triangles), 1920×1080 |
 | 03 Dynamic — refit | BVH build time | Measurably less than rebuild (~1 ms vs ~16 ms) |
 | 03 Dynamic | `--max-depth 1` render time | Measurably higher than `--max-depth 0` (~85 ms vs ~0.6 ms) |
+| 04 LBVH | GPU LBVH total frame time | ≤ 03 Dynamic CPU SAH rebuild total frame time (~17 ms); hardware waiver: if not met on default GPU, try `GPU=AMD` and document actual timing in README |
 
 **Measure with `cl::Event` profiling.** Requires `CL_QUEUE_PROFILING_ENABLE` at queue creation — without it, timestamps return zero.
 

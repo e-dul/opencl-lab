@@ -400,42 +400,4 @@ inline void bvh_refit_self_test() {
     }
 }
 
-// ---------------------------------------------------------------------------
-// GPU SoA buffers packed from a BvhTree.
-// WHY SoA: coalesced reads — when all threads in a warp read v0x for different
-// triangles, a single cache line fetch covers 16 consecutive float values.
-// AoS would interleave v0x, v0y, v0z, v1x, ... forcing 3× more cache lines.
-// ---------------------------------------------------------------------------
-struct TriangleSoa {
-    // Vertex positions (9 floats × N triangles in SoA)
-    std::vector<float> v0x, v0y, v0z;
-    std::vector<float> v1x, v1y, v1z;
-    std::vector<float> v2x, v2y, v2z;
-    // Per-vertex normals (9 floats × N)
-    std::vector<float> n0x, n0y, n0z;
-    std::vector<float> n1x, n1y, n1z;
-    std::vector<float> n2x, n2y, n2z;
-
-    int count = 0;
-};
-
-inline TriangleSoa build_triangle_soa(const std::vector<TriangleCpu>& tris) {
-    TriangleSoa soa;
-    soa.count = static_cast<int>(tris.size());
-    soa.v0x.reserve(soa.count); soa.v0y.reserve(soa.count); soa.v0z.reserve(soa.count);
-    soa.v1x.reserve(soa.count); soa.v1y.reserve(soa.count); soa.v1z.reserve(soa.count);
-    soa.v2x.reserve(soa.count); soa.v2y.reserve(soa.count); soa.v2z.reserve(soa.count);
-    soa.n0x.reserve(soa.count); soa.n0y.reserve(soa.count); soa.n0z.reserve(soa.count);
-    soa.n1x.reserve(soa.count); soa.n1y.reserve(soa.count); soa.n1z.reserve(soa.count);
-    soa.n2x.reserve(soa.count); soa.n2y.reserve(soa.count); soa.n2z.reserve(soa.count);
-
-    for (const auto& t : tris) {
-        soa.v0x.push_back(t.v[0][0]); soa.v0y.push_back(t.v[0][1]); soa.v0z.push_back(t.v[0][2]);
-        soa.v1x.push_back(t.v[1][0]); soa.v1y.push_back(t.v[1][1]); soa.v1z.push_back(t.v[1][2]);
-        soa.v2x.push_back(t.v[2][0]); soa.v2y.push_back(t.v[2][1]); soa.v2z.push_back(t.v[2][2]);
-        soa.n0x.push_back(t.n[0][0]); soa.n0y.push_back(t.n[0][1]); soa.n0z.push_back(t.n[0][2]);
-        soa.n1x.push_back(t.n[1][0]); soa.n1y.push_back(t.n[1][1]); soa.n1z.push_back(t.n[1][2]);
-        soa.n2x.push_back(t.n[2][0]); soa.n2y.push_back(t.n[2][1]); soa.n2z.push_back(t.n[2][2]);
-    }
-    return soa;
-}
+// TriangleSoa and build_triangle_soa live in common/bvh_utils.hpp

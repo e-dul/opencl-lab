@@ -1,4 +1,9 @@
-## ADDED Requirements
+# Spec: LBVH Traversal
+
+## Purpose
+Defines requirements for the OpenCL ray-traversal kernel over a Karras LBVH: stack-based traversal in local memory, runtime stack sizing via CLI args, visual correctness validation, and mandatory `cl::Event` profiling.
+
+## Requirements
 
 ### Requirement: Stack-based ray traversal over Karras tree
 The traversal kernel SHALL traverse the LBVH using a per-work-item stack allocated in local memory. The stack SHALL hold up to 32 node indices. Each work-item SHALL push child nodes when a ray hits an internal node's AABB and pop the next candidate when it misses or finishes a leaf.
@@ -18,7 +23,7 @@ The traversal kernel SHALL traverse the LBVH using a per-work-item stack allocat
 ---
 
 ### Requirement: Local memory stack sizing
-The stack SHALL be declared as `__local int stack[WG_SIZE][STACK_DEPTH]` with `STACK_DEPTH = 32`. Work-group size SHALL be a compile-time constant (default 64) passed as a CMake define to allow tuning without source edits.
+The stack SHALL be declared as `__local int stack[WG_SIZE][STACK_DEPTH]`. Both constants SHALL be injected at `clBuildProgram` time as `-D` flags whose values come from CLI11 args `--wg-size` (default 64) and `--stack-depth` (default 32). No `target_compile_definitions` in CMake; the binary determines values at startup.
 
 #### Scenario: Local memory budget check
 - **WHEN** the traversal kernel is compiled
