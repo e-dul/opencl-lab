@@ -9,7 +9,7 @@
 //  - Sensor pose is STATIC (no odometry): all frames accumulate in sensor frame.
 //  - OpenCL cl::Event profiling is mandatory; report ms to 3 decimal places.
 //  - Total pipeline must be < 5 ms @ 100k points; print [WARN] if exceeded.
-//  - All paths via CLI args — no hardcoded paths.
+//  - Parameters via --ros-args -p <name>:=<value> (ros2 param set / ros2 param list).
 
 // stb must be defined before image_utils.hpp (see image_utils.hpp header comment).
 #define STB_IMAGE_IMPLEMENTATION
@@ -18,11 +18,10 @@
 #include <stb_image_write.h>
 #include "image_utils.hpp"
 
-#include "opencl_utils.hpp"   // CL_CHECK, load_kernel_source
+#include "opencl_utils.hpp"   // CL_CHECK, load_kernel_source, get_binary_dir
 #include "ocl_wrapper.hpp"    // create_context, OclContext
 
-#include <CLI/CLI.hpp>
-
+#include <rcl_interfaces/msg/parameter_descriptor.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <sensor_msgs/msg/image.hpp>
@@ -71,15 +70,75 @@ struct GridDims {
 // ─────────────────────────────────────────────────────────────────────────────
 class VoxelMappingNode : public rclcpp::Node {
 public:
-    VoxelMappingNode(const std::string& topic, float resolution,
-                     const std::string& output, bool enable_flip_filter,
-                     uint32_t flip_threshold, const std::string& kernel_dir)
-        : rclcpp::Node("voxel_mapping")
-        , output_path_(output)
-        , enable_flip_(enable_flip_filter)
-        , flip_threshold_(flip_threshold)
+    explicit VoxelMappingNode(const rclcpp::NodeOptions& opts = rclcpp::NodeOptions{})
+        : rclcpp::Node("voxel_mapping", opts)
         , first_message_(true)
     {
+        // ── Declare parameters with descriptors ───────────────────────────────
+        {
+            rcl_interfaces::msg::ParameterDescriptor d;
+            d.description = "PointCloud2 topic to subscribe to";
+            declare_parameter("topic", std::string("/points"), d);
+        }
+        {
+            rcl_interfaces::msg::ParameterDescriptor d;
+            d.description = "Voxel size in metres";
+            rcl_interfaces::msg::FloatingPointRange r;
+            r.from_value = 0.01; r.to_value = 5.0; r.step = 0.0;
+            d.floating_point_range.push_back(r);
+            declare_parameter("resolution", 0.1, d);
+        }
+        {
+            rcl_interfaces::msg::ParameterDescriptor d;
+            d.description = "Output BMP file path for the top-down voxel slice";
+            declare_parameter("output", std::string("output_voxel_slice.bmp"), d);
+        }
+        {
+            rcl_interfaces::msg::ParameterDescriptor d;
+            d.description = "Enable dynamic-object flip-count filter";
+            declare_parameter("enable_flip_filter", false, d);
+        }
+        {
+            rcl_interfaces::msg::ParameterDescriptor d;
+            d.description = "Flip count threshold: voxels with count > N are erased";
+            rcl_interfaces::msg::IntegerRange r;
+            r.from_value = 1;
+            r.to_value   = static_cast<int64_t>(std::numeric_limits<uint32_t>::max());
+            r.step       = 0;
+            d.integer_range.push_back(r);
+            declare_parameter("flip_threshold", int64_t(5), d);
+        }
+
+        // Validation callback: reject flip_threshold > UINT32_MAX and resolution <= 0.
+        param_cb_handle_ = add_on_set_parameters_callback(
+            [this](const std::vector<rclcpp::Parameter>& params)
+            -> rcl_interfaces::msg::SetParametersResult {
+                rcl_interfaces::msg::SetParametersResult result;
+                result.successful = true;
+                for (const auto& p : params) {
+                    if (p.get_name() == "flip_threshold" &&
+                        p.as_int() > static_cast<int64_t>(std::numeric_limits<uint32_t>::max())) {
+                        result.successful = false;
+                        result.reason = "flip_threshold exceeds UINT32_MAX";
+                        return result;
+                    }
+                    if (p.get_name() == "resolution" && p.as_double() <= 0.0) {
+                        result.successful = false;
+                        result.reason = "resolution must be > 0";
+                        return result;
+                    }
+                }
+                return result;
+            });
+
+        // ── Read params and assign to members ─────────────────────────────────
+        const std::string topic    = get_parameter("topic").as_string();
+        const float resolution     = static_cast<float>(get_parameter("resolution").as_double());
+        output_path_               = get_parameter("output").as_string();
+        enable_flip_               = get_parameter("enable_flip_filter").as_bool();
+        const int64_t ft_val       = get_parameter("flip_threshold").as_int();
+        flip_threshold_            = static_cast<uint32_t>(ft_val);
+
         // ── Grid dimensions: 20m × 20m × 5m ──────────────────────────────────
         // WHY these world extents: covers typical indoor/outdoor LiDAR range
         // while staying within fast GPU memory limits at 0.1m resolution.
@@ -118,8 +177,11 @@ public:
         CL_CHECK(profiling_queue_.finish());
 
         // ── Build DDA kernel ──────────────────────────────────────────────────
+        // WHY get_binary_dir(): idiomatic helper reused across C1/C2/C3; avoids
+        // the /proc/self/exe symlink read and its error-prone try/catch wrapper.
+        const fs::path kdir = get_binary_dir() / "kernels";
         const std::string dda_src = load_kernel_source(
-            (fs::path(kernel_dir) / "dda_cast.cl").string());
+            (kdir / "dda_cast.cl").string());
         cl::Program::Sources dda_sources{{dda_src.c_str(), dda_src.size()}};
         dda_program_ = cl::Program(ocl_.context, dda_sources);
         dda_program_.build({ocl_.device});
@@ -128,14 +190,14 @@ public:
         // ── Build flip-count + clear-occupied kernels (only when requested) ─────
         if (enable_flip_) {
             const std::string fc_src = load_kernel_source(
-                (fs::path(kernel_dir) / "flip_count.cl").string());
+                (kdir / "flip_count.cl").string());
             cl::Program::Sources fc_sources{{fc_src.c_str(), fc_src.size()}};
             flip_program_ = cl::Program(ocl_.context, fc_sources);
             flip_program_.build({ocl_.device});
             flip_kernel_ = cl::Kernel(flip_program_, "count_flips");
 
             const std::string co_src = load_kernel_source(
-                (fs::path(kernel_dir) / "clear_occupied.cl").string());
+                (kdir / "clear_occupied.cl").string());
             cl::Program::Sources co_sources{{co_src.c_str(), co_src.size()}};
             clear_occ_program_ = cl::Program(ocl_.context, co_sources);
             clear_occ_program_.build({ocl_.device});
@@ -539,6 +601,9 @@ private:
     uint32_t     flip_threshold_;
     bool         first_message_;
 
+    // Param callback handle — must outlive the node.
+    rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr param_cb_handle_;
+
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr voxel_map_pub_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr       voxel_slice_pub_;
 
@@ -550,43 +615,11 @@ private:
 // ─────────────────────────────────────────────────────────────────────────────
 int main(int argc, char* argv[])
 {
-    // Parse CLI before rclcpp::init so --help works without a running ROS daemon.
-    CLI::App app{"4.5 Voxel Mapping — GPU DDA ray casting on PointCloud2"};
-
-    std::string topic          = "/points";
-    float       resolution     = 0.1f;
-    std::string output         = "output_voxel_slice.bmp";
-    bool        enable_flip    = false;
-    uint32_t    flip_threshold = 5;
-
-    app.add_option("--topic",          topic,          "PointCloud2 topic to subscribe to")->default_str(topic);
-    app.add_option("--resolution",     resolution,     "Voxel size in metres")->default_val(resolution);
-    app.add_option("--output",         output,         "Output BMP path")->default_str(output);
-    app.add_flag  ("--enable-flip-filter", enable_flip,"Enable dynamic-object flip-count filter");
-    app.add_option("--flip-threshold", flip_threshold, "Flip count threshold (voxels > N are erased)")->default_val(flip_threshold);
-
-    CLI11_PARSE(app, argc, argv);
-
-    // Kernel dir = directory of this binary + /kernels
-    // WHY /proc/self/exe: works inside AppImage squashfs mounts too.
-    std::string kernel_dir;
-    try {
-        kernel_dir = (fs::read_symlink("/proc/self/exe").parent_path() / "kernels").string();
-    } catch (...) {
-        kernel_dir = "kernels";
-    }
-
+    // WHY init before node construction: declare_parameter is called in the
+    // constructor, which requires the ROS 2 context to be active.
     rclcpp::init(argc, argv);
 
-    std::shared_ptr<VoxelMappingNode> node;
-    try {
-        node = std::make_shared<VoxelMappingNode>(
-            topic, resolution, output, enable_flip, flip_threshold, kernel_dir);
-    } catch (const std::exception& e) {
-        std::cerr << "[ERROR] " << e.what() << "\n";
-        rclcpp::shutdown();
-        return 1;
-    }
+    auto node = std::make_shared<VoxelMappingNode>();
 
     // WHY spin in a try-catch: SIGINT on spin raises rclcpp::exceptions::RCLError
     // on some distributions; we still want to write the BMP slice on exit.

@@ -14,6 +14,7 @@
 
 #include <lifecycle_msgs/msg/state.hpp>
 #include <lifecycle_msgs/msg/transition.hpp>
+#include <rcl_interfaces/msg/parameter_descriptor.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_lifecycle/lifecycle_node.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
@@ -59,12 +60,43 @@ public:
     // One-time cost: OpenCL context init, kernel compilation, buffer allocation.
     CallbackReturn on_configure(const rclcpp_lifecycle::State&) override
     {
-        // Declare node parameters (introspectable via ros2 param list).
-        declare_parameter("topic",             std::string("/points"));
-        declare_parameter("ground_z",          0.2);
-        declare_parameter("min_intensity",     10.0);
-        declare_parameter("max_points",        int64_t(100000));
-        declare_parameter("use_double_buffer", false);
+        // Declare node parameters with descriptors (introspectable via ros2 param describe).
+        {
+            rcl_interfaces::msg::ParameterDescriptor d;
+            d.description = "PointCloud2 topic to subscribe to";
+            declare_parameter("topic", std::string("/points"), d);
+        }
+        {
+            rcl_interfaces::msg::ParameterDescriptor d;
+            d.description = "Ground-plane Z threshold: points below this are filtered";
+            rcl_interfaces::msg::FloatingPointRange r;
+            r.from_value = -10.0; r.to_value = 50.0; r.step = 0.0;
+            d.floating_point_range.push_back(r);
+            declare_parameter("ground_z", 0.2, d);
+        }
+        {
+            rcl_interfaces::msg::ParameterDescriptor d;
+            d.description = "Minimum intensity threshold; points below are filtered";
+            rcl_interfaces::msg::FloatingPointRange r;
+            r.from_value = 0.0; r.to_value = 65535.0; r.step = 0.0;
+            d.floating_point_range.push_back(r);
+            declare_parameter("min_intensity", 10.0, d);
+        }
+        {
+            rcl_interfaces::msg::ParameterDescriptor d;
+            d.description = "Maximum number of points per message; sets pre-allocated buffer size";
+            rcl_interfaces::msg::IntegerRange r;
+            r.from_value = 1;
+            r.to_value   = static_cast<int64_t>(std::numeric_limits<int>::max());
+            r.step       = 0;
+            d.integer_range.push_back(r);
+            declare_parameter("max_points", int64_t(100000), d);
+        }
+        {
+            rcl_interfaces::msg::ParameterDescriptor d;
+            d.description = "Enable non-blocking double-buffer pipeline (configure-time only)";
+            declare_parameter("use_double_buffer", false, d);
+        }
 
         topic_             = get_parameter("topic").as_string();
         ground_z_          = static_cast<float>(get_parameter("ground_z").as_double());
@@ -76,6 +108,29 @@ public:
             throw std::runtime_error("max_points exceeds INT_MAX");
         }
         max_points_ = static_cast<int>(max_pts_val);
+
+        // Live-update callback: ground_z and min_intensity update immediately;
+        // max_points, use_double_buffer, and topic require restart.
+        // WHY no mutex: SingleThreadedExecutor serialises both this param callback
+        // and the subscription callback on the same thread — concurrent access to
+        // ground_z_ / min_intensity_ is impossible without a separate thread.
+        param_cb_handle_ = add_on_set_parameters_callback(
+            [this](const std::vector<rclcpp::Parameter>& params)
+            -> rcl_interfaces::msg::SetParametersResult {
+                rcl_interfaces::msg::SetParametersResult result;
+                result.successful = true;
+                for (const auto& p : params) {
+                    const auto& name = p.get_name();
+                    if (name == "max_points" || name == "use_double_buffer" || name == "topic") {
+                        result.successful = false;
+                        result.reason = name + " is only configurable at configure time (restart required)";
+                        return result;
+                    }
+                    if (name == "ground_z")      ground_z_      = static_cast<float>(p.as_double());
+                    if (name == "min_intensity") min_intensity_ = static_cast<float>(p.as_double());
+                }
+                return result;
+            });
 
         auto t0 = Clock::now();
         try {
@@ -172,6 +227,17 @@ public:
         filtered_pub_->on_activate();
         features_pub_->on_activate();
 
+        // Report active RMW implementation; warn if loaned messages are unlikely.
+        const char* rmw_env = std::getenv("RMW_IMPLEMENTATION");
+        const std::string rmw_name = rmw_env ? rmw_env : "(unset — default RMW)";
+        RCLCPP_INFO(get_logger(), "RMW_IMPLEMENTATION: %s", rmw_name.c_str());
+        if (rmw_name.find("rmw_fastrtps_cpp") == std::string::npos &&
+            rmw_name.find("rmw_iceoryx_cpp") == std::string::npos) {
+            RCLCPP_WARN(get_logger(),
+                "Active RMW (%s) may not support loaned messages — "
+                "zero-copy path unavailable", rmw_name.c_str());
+        }
+
         // Try loaned message subscription first; fall back to copy-based.
         // WHY warn-and-continue: loaned messages depend on RMW support.
         // Crashing here would break all non-fastrtps environments.
@@ -181,7 +247,7 @@ public:
                 [this](PointCloud2::UniquePtr msg) {
                     this->process_callback_loaned(std::move(msg));
                 });
-            RCLCPP_INFO(get_logger(), "[INIT] Subscribed to %s (loaned path)",
+            RCLCPP_INFO(get_logger(), "Transport: loaned (zero-copy) on %s",
                         topic_.c_str());
         } catch (const std::exception& e) {
             RCLCPP_WARN(get_logger(),
@@ -192,7 +258,7 @@ public:
                 [this](PointCloud2::ConstSharedPtr msg) {
                     this->process_callback(msg);
                 });
-            RCLCPP_INFO(get_logger(), "[INIT] Subscribed to %s (copy-based path)",
+            RCLCPP_INFO(get_logger(), "Transport: copy-based (reason: loaned subscription failed) on %s",
                         topic_.c_str());
         }
 
@@ -673,6 +739,9 @@ private:
     float       min_intensity_     = 10.0f;
     int         max_points_        = 100000;
     bool        use_double_buffer_ = false;
+
+    // Param callback handle — must outlive the node.
+    rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr param_cb_handle_;
 
     // ── Double-buffer state ───────────────────────────────────────────────────
     // active_buf_ is flipped by the CL event callback in the driver thread.

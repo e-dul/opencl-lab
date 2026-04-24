@@ -14,6 +14,7 @@
 #include <lifecycle_msgs/msg/state.hpp>
 #include <lifecycle_msgs/msg/transition.hpp>
 #include <nav_msgs/msg/occupancy_grid.hpp>
+#include <rcl_interfaces/msg/parameter_descriptor.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_lifecycle/lifecycle_node.hpp>
 
@@ -53,15 +54,71 @@ public:
     // Declare + read params, init OpenCL context, compile both kernels.
     CallbackReturn on_configure(const rclcpp_lifecycle::State&) override
     {
-        declare_parameter("map_path",        std::string(""));
-        declare_parameter("inflation_radius", 0.5);
-        declare_parameter("resolution",       0.05);
-        declare_parameter("decay",            3.0);
+        {
+            rcl_interfaces::msg::ParameterDescriptor d;
+            d.description = "Path to .pgm occupancy grid file";
+            declare_parameter("map_path", std::string(""), d);
+        }
+        {
+            rcl_interfaces::msg::ParameterDescriptor d;
+            d.description = "Obstacle inflation radius in metres";
+            rcl_interfaces::msg::FloatingPointRange r;
+            r.from_value = 0.01; r.to_value = 10.0; r.step = 0.0;
+            d.floating_point_range.push_back(r);
+            declare_parameter("inflation_radius", 0.5, d);
+        }
+        {
+            rcl_interfaces::msg::ParameterDescriptor d;
+            d.description = "Metres per cell";
+            rcl_interfaces::msg::FloatingPointRange r;
+            // Exclusive lower bound: smallest positive step value used as from_value
+            // to convey "greater than 0"; the callback enforces > 0 explicitly.
+            r.from_value = 0.001; r.to_value = 1.0; r.step = 0.0;
+            d.floating_point_range.push_back(r);
+            declare_parameter("resolution", 0.05, d);
+        }
+        {
+            rcl_interfaces::msg::ParameterDescriptor d;
+            d.description = "Exponential cost decay rate";
+            rcl_interfaces::msg::FloatingPointRange r;
+            r.from_value = 0.001; r.to_value = 100.0; r.step = 0.0;
+            d.floating_point_range.push_back(r);
+            declare_parameter("decay", 3.0, d);
+        }
 
         map_path_        = get_parameter("map_path").as_string();
         inflation_radius_ = get_parameter("inflation_radius").as_double();
         resolution_       = get_parameter("resolution").as_double();
         decay_            = get_parameter("decay").as_double();
+
+        // Validation callback: reject out-of-range values at runtime.
+        // WHY register here (not constructor): member variables don't exist until
+        // on_configure(); the callback reads them via get_parameter() so it is safe
+        // to register at any point after declare_parameter.
+        param_cb_handle_ = add_on_set_parameters_callback(
+            [this](const std::vector<rclcpp::Parameter>& params)
+            -> rcl_interfaces::msg::SetParametersResult {
+                rcl_interfaces::msg::SetParametersResult result;
+                result.successful = true;
+                for (const auto& p : params) {
+                    if (p.get_name() == "inflation_radius" && p.as_double() <= 0.0) {
+                        result.successful = false;
+                        result.reason = "inflation_radius must be > 0";
+                        return result;
+                    }
+                    if (p.get_name() == "resolution" && p.as_double() <= 0.0) {
+                        result.successful = false;
+                        result.reason = "resolution must be > 0";
+                        return result;
+                    }
+                    if (p.get_name() == "decay" && p.as_double() <= 0.0) {
+                        result.successful = false;
+                        result.reason = "decay must be > 0";
+                        return result;
+                    }
+                }
+                return result;
+            });
 
         auto t0 = Clock::now();
         try {
@@ -532,6 +589,9 @@ private:
 
     // One-shot timer for out-of-band state transition (avoids mutex deadlock).
     rclcpp::TimerBase::SharedPtr shutdown_timer_;
+
+    // Param validation callback handle — must outlive the node.
+    rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr param_cb_handle_;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

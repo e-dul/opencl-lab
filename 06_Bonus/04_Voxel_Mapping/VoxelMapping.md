@@ -26,18 +26,18 @@ cmake -B build && cmake --build build
 ./build/voxel_point_cloud_publisher --scene static --hz 10 --frames 10
 
 # Terminal 2:
-./build/voxel_mapping --topic /points --resolution 0.1
+./build/voxel_mapping --ros-args -p topic:=/points -p resolution:=0.1
 # Ctrl-C to stop → output_voxel_slice.bmp written
 
 # Dynamic scene (exercises flip-count filter):
 ./build/voxel_point_cloud_publisher --scene dynamic --hz 10 --frames 50 &
-./build/voxel_mapping --topic /points --resolution 0.1 --enable-flip-filter --flip-threshold 3 --move-speed 0.05
+./build/voxel_mapping --ros-args -p topic:=/points -p resolution:=0.1 -p enable_flip_filter:=true -p flip_threshold:=3
 ```
 
 **From a bag (any PointCloud2 bag, XYZI point_step=16):**
 
 ```bash
-./build/voxel_mapping --topic /points --resolution 0.1 &
+./build/voxel_mapping --ros-args -p topic:=/points -p resolution:=0.1 &
 ros2 bag play <path/to/bag>
 ```
 
@@ -49,7 +49,7 @@ ros2 bag play <path/to/bag>
   [INFO] Voxel grid: 200x200x50 @ 0.10m resolution (3 MB)
     [GPU] Upload     : 0.312 ms
     [GPU] DDA cast   : 1.847 ms
-    [GPU] Flip filter: 0.211 ms   ← only when --enable-flip-filter
+    [GPU] Flip filter: 0.211 ms   ← only when enable_flip_filter:=true
     Total pipeline   : 2.370 ms (10000 pts)
   ```
   Total must remain < 5 ms @ 100k points (C3 performance gate). A `[WARN]` line is printed if the gate is exceeded.
@@ -111,7 +111,7 @@ void trace_ray(__global uint* grid, int3 grid_dims, float3 origin, float3 endpoi
 Three kernels drive the pipeline:
 - `dda_cast.cl` — marks FREE bits along each ray and sets `OCCUPIED_BIT` at the endpoint.
 - `flip_count.cl` — increments a per-voxel counter on every FREE/OCCUPIED transition.
-- `clear_occupied.cl` — clears only `OCCUPIED_BIT` per frame (preserving accumulated `FREE_BIT`) when `--enable-flip-filter` is active, so dynamic voxels are suppressed without erasing free-space history.
+- `clear_occupied.cl` — clears only `OCCUPIED_BIT` per frame (preserving accumulated `FREE_BIT`) when `enable_flip_filter:=true`, so dynamic voxels are suppressed without erasing free-space history.
 
 ## Challenge: Dynamic Object Filter
 
@@ -125,9 +125,9 @@ If a voxel flips between OCCUPIED and FREE more than N times per second, classif
 
 ## Troubleshooting
 
-- **Voxel slice shows all grey (unknown)**: check that the publisher or `ros2 bag play` is running and publishing on the same topic as `--topic`. Default is `/points`.
+- **Voxel slice shows all grey (unknown)**: check that the publisher or `ros2 bag play` is running and publishing on the same topic (`ros2 param list /voxel_mapping` to inspect). Default is `/points`.
 - **Map drifts over time**: sensor pose is assumed static. For a moving robot, integrate odometry into the origin parameter per frame.
-- **Pipeline exceeds 5 ms**: the voxel update step uses global atomics. If this dominates, reduce grid resolution (`--resolution 0.2`) or use a hierarchical update (only mark changed voxels).
+- **Pipeline exceeds 5 ms**: the voxel update step uses global atomics. If this dominates, reduce grid resolution (`--ros-args -p resolution:=0.2`) or use a hierarchical update (only mark changed voxels).
 - **Dynamic objects never re-appear after filtering**: flip counts must be reset to 0 after each threshold crossing. If objects are permanently absent, verify that `clear_occupied.cl` is dispatched each frame and that the host-side reset pass runs before the next DDA cast.
 - **`/voxel_slice` missing ground detail**: the projection starts at `z = gz/2 + 1` to exclude ground-level voxels. Lower this offset if your sensor is mounted near the bottom half of the grid.
 
