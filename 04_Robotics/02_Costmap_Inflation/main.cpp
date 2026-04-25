@@ -8,14 +8,14 @@
 //   5. BMP colorization: obstacles=black, inflated=red gradient, free=white.
 
 #include "ocl_wrapper.hpp"    // create_context(), OclContext
-#include "opencl_utils.hpp"   // CL_CHECK, build_program, duration_ms, get_binary_dir
-#include "map_publisher.hpp"  // MapPublisher
+#include "opencl_utils.hpp"   // CL_CHECK, build_program, duration_ms, get_kernels_dir
 
 #include <lifecycle_msgs/msg/state.hpp>
 #include <lifecycle_msgs/msg/transition.hpp>
 #include <nav_msgs/msg/occupancy_grid.hpp>
 #include <rcl_interfaces/msg/parameter_descriptor.hpp>
 #include <rclcpp/rclcpp.hpp>
+#include <rclcpp_components/register_node_macro.hpp>
 #include <rclcpp_lifecycle/lifecycle_node.hpp>
 
 // stb_image_write: implementation defined in map_publisher.cpp (STB_IMAGE_WRITE_IMPLEMENTATION)
@@ -38,6 +38,8 @@ using Clock           = std::chrono::steady_clock;
 using CallbackReturn  = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn;
 using OccupancyGrid   = nav_msgs::msg::OccupancyGrid;
 
+namespace costmap_inflation {
+
 // ─────────────────────────────────────────────────────────────────────────────
 // CostmapNode
 // ─────────────────────────────────────────────────────────────────────────────
@@ -45,15 +47,30 @@ class CostmapNode : public rclcpp_lifecycle::LifecycleNode {
 public:
     explicit CostmapNode(const rclcpp::NodeOptions& opts)
         : rclcpp_lifecycle::LifecycleNode("costmap_node", opts)
-    {}
-
-    // Expose map_path so main() can forward it to MapPublisher.
-    const std::string& map_path() const { return map_path_; }
+    {
+        configure_timer_ = create_wall_timer(
+            std::chrono::milliseconds(0), [this]() {
+                configure_timer_->cancel();
+                trigger_transition(
+                    lifecycle_msgs::msg::Transition::TRANSITION_CONFIGURE);
+            });
+    }
 
     // ── on_configure ─────────────────────────────────────────────────────────
     // Declare + read params, init OpenCL context, compile both kernels.
     CallbackReturn on_configure(const rclcpp_lifecycle::State&) override
     {
+        // D5: auto_activate — self-transition to ACTIVE after configure when true.
+        declare_parameter("auto_activate", true);
+        if (get_parameter("auto_activate").as_bool()) {
+            activate_timer_ = create_wall_timer(
+                std::chrono::milliseconds(0), [this]() {
+                    activate_timer_->cancel();
+                    trigger_transition(
+                        lifecycle_msgs::msg::Transition::TRANSITION_ACTIVATE);
+                });
+        }
+
         {
             rcl_interfaces::msg::ParameterDescriptor d;
             d.description = "Path to .pgm occupancy grid file";
@@ -135,7 +152,7 @@ public:
                                   CL_QUEUE_PROFILING_ENABLE, &err);
         CL_CHECK(err);
 
-        fs::path kdir = get_binary_dir() / "kernels";
+        fs::path kdir = get_kernels_dir("costmap_inflation");
         program_naive_  = build_program(ocl_.context, ocl_.device,
                                         (kdir / "inflate.cl").string());
         program_tiled_  = build_program(ocl_.context, ocl_.device,
@@ -589,61 +606,14 @@ private:
 
     // One-shot timer for out-of-band state transition (avoids mutex deadlock).
     rclcpp::TimerBase::SharedPtr shutdown_timer_;
+    // One-shot timers for self-configure and self-activate (D5 pattern).
+    rclcpp::TimerBase::SharedPtr configure_timer_;
+    rclcpp::TimerBase::SharedPtr activate_timer_;
 
     // Param validation callback handle — must outlive the node.
     rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr param_cb_handle_;
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// main
-// ─────────────────────────────────────────────────────────────────────────────
-int main(int argc, char* argv[])
-{
-    rclcpp::init(argc, argv);
+}  // namespace costmap_inflation
 
-    // WHY use_intra_process_comms(true) on both nodes: intra-process delivery
-    // routes the OccupancyGrid as a shared_ptr with zero DDS serialization.
-    // Both nodes must opt in — one opting out forces the full serialization path.
-    rclcpp::NodeOptions node_opts;
-    node_opts.use_intra_process_comms(true);
-
-    auto executor = std::make_shared<rclcpp::executors::SingleThreadedExecutor>();
-
-    // Create CostmapNode first so we can read map_path after on_configure().
-    auto costmap_node = std::make_shared<CostmapNode>(node_opts);
-    executor->add_node(costmap_node->get_node_base_interface());
-
-    // Drive to INACTIVE (on_configure runs synchronously inside trigger_transition).
-    costmap_node->trigger_transition(
-        lifecycle_msgs::msg::Transition::TRANSITION_CONFIGURE);
-    executor->spin_some(std::chrono::milliseconds(10));
-
-    if (costmap_node->get_current_state().id() !=
-            lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE) {
-        throw std::runtime_error(
-            "CostmapNode did not reach INACTIVE after TRANSITION_CONFIGURE");
-    }
-
-    // Drive to ACTIVE (on_activate creates sub + pub).
-    costmap_node->trigger_transition(
-        lifecycle_msgs::msg::Transition::TRANSITION_ACTIVATE);
-    executor->spin_some(std::chrono::milliseconds(10));
-
-    if (costmap_node->get_current_state().id() !=
-            lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE) {
-        throw std::runtime_error(
-            "CostmapNode did not reach ACTIVE after TRANSITION_ACTIVATE");
-    }
-
-    // Now that CostmapNode's subscription is live, add MapPublisher.
-    // It fires its one-shot timer 10 ms after construction, which gives the
-    // executor time to process the subscription registration first.
-    auto pub_node = std::make_shared<MapPublisher>(
-        costmap_node->map_path(), node_opts);
-    executor->add_node(pub_node);
-
-    // Runs until rclcpp::shutdown() is called from CostmapNode's shutdown timer.
-    executor->spin();
-
-    return 0;
-}
+RCLCPP_COMPONENTS_REGISTER_NODE(costmap_inflation::CostmapNode)

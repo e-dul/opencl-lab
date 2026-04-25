@@ -10,27 +10,42 @@
 ## Build & Run
 
 ```bash
-cd 02_Costmap_Inflation
 source /opt/ros/jazzy/setup.bash
-cmake -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build
-./build/costmap_inflation --ros-args -p map_path:=assets/warehouse.pgm
-# Full parameter override:
-# GPU=NVIDIA ./build/costmap_inflation --ros-args \
-#     -p map_path:=assets/warehouse.pgm \
-#     -p inflation_radius:=0.5 \
-#     -p resolution:=0.05 \
-#     -p decay:=3.0
+cd 04_Robotics/02_Costmap_Inflation
+colcon build
+source install/setup.bash
+ros2 launch costmap_inflation costmap_inflation.launch.py \
+    map_path:=../../assets/warehouse.pgm
 ```
 
-Parameters:
+GPU selection and parameter overrides:
 
-| Parameter | Type | Default | Description |
-| :-------- | :--- | :------ | :---------- |
-| `map_path` | string | required | Path to `.pgm` occupancy grid |
-| `inflation_radius` | double | `0.5` | Inflation radius in metres |
-| `resolution` | double | `0.05` | Metres per cell |
-| `decay` | double | `3.0` | Cost decay rate |
+```bash
+# Select GPU vendor and override parameters
+ros2 launch costmap_inflation costmap_inflation.launch.py \
+    map_path:=../../assets/warehouse.pgm \
+    inflation_radius:=0.5 \
+    resolution:=0.05 \
+    decay:=3.0 \
+    gpu:=NVIDIA
+
+# Keep node INACTIVE after configure (manual lifecycle control):
+ros2 launch costmap_inflation costmap_inflation.launch.py \
+    map_path:=../../assets/warehouse.pgm auto_activate:=false
+# Then in a second terminal:
+ros2 lifecycle set /costmap_node activate
+```
+
+Launch arguments:
+
+| Argument | Default | Description |
+| :------- | :------ | :---------- |
+| `map_path` | `` | Path to `.pgm` occupancy grid (required) |
+| `inflation_radius` | `0.5` | Inflation radius in metres |
+| `resolution` | `0.05` | Metres per cell |
+| `decay` | `3.0` | Cost decay rate |
+| `auto_activate` | `true` | Self-activate after configure |
+| `gpu` | `` | GPU vendor substring (e.g. `NVIDIA`, `AMD`) |
 
 ## Verify
 
@@ -113,8 +128,9 @@ See [Toolbox: Work-Group Sizing](../../05_Toolbox/14_Work_Group_Sizing/WorkGroup
 
 ## Troubleshooting
 
-- **`source /opt/ros/jazzy/setup.bash` must run before CMake**: without it, `find_package(rclcpp REQUIRED)` fails.
-- **Wrong GPU**: `GPU=NVIDIA ./build/costmap_inflation`, `GPU=AMD ./build/costmap_inflation`.
+- **`source /opt/ros/jazzy/setup.bash` must run before `colcon build`**: without it, `find_package(rclcpp REQUIRED)` fails.
+- **`source install/setup.bash` must run before `ros2 launch`**: without it, the package is not on the ROS 2 package path.
+- **Wrong GPU**: pass `gpu:=NVIDIA` or `gpu:=AMD` as a launch argument.
 
 ---
 

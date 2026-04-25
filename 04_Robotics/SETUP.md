@@ -26,7 +26,8 @@ sudo apt update
 ```bash
 sudo apt install -y ros-jazzy-desktop \
     ros-jazzy-rclcpp ros-jazzy-sensor-msgs ros-jazzy-nav-msgs \
-    ros-jazzy-rmw-fastrtps-cpp ros-jazzy-demo-nodes-cpp
+    ros-jazzy-rmw-fastrtps-cpp ros-jazzy-demo-nodes-cpp \
+    python3-colcon-common-extensions
 ```
 
 ---
@@ -76,8 +77,19 @@ ros2 doctor
 
 ## Notes
 
-- **C1, C2, and C3** all require a sourced ROS 2 workspace before `cmake -B build`. C1 and C2 use `rclcpp_lifecycle::LifecycleNode` and therefore depend on `find_package(rclcpp_lifecycle REQUIRED)`.
+- **C1, C2, C3, and 4.5 Voxel Mapping** all require a sourced ROS 2 workspace before `colcon build`. C1 and C2 use `rclcpp_lifecycle::LifecycleNode` and therefore depend on `find_package(rclcpp_lifecycle REQUIRED)`.
 - RMW fallback is explicit and logged — never a silent failure or crash.
+- **`colcon build` working directory**: run from within the package directory, or from a parent directory with `--packages-select`. Do **not** run from the repo root — old `build/` subdirectories left by standalone cmake builds contain `AMENT_IGNORE` files that prevent colcon from discovering the packages.
+
+  ```bash
+  # All C-track packages at once:
+  cd ~/opencl-lab/04_Robotics
+  colcon build --packages-select node_acceleration costmap_inflation perception_node
+
+  # Voxel Mapping:
+  cd ~/opencl-lab/06_Bonus/04_Voxel_Mapping
+  colcon build
+  ```
 
 ---
 

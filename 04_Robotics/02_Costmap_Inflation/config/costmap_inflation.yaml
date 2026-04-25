@@ -1,0 +1,14 @@
+# C2 Costmap Inflation — parameter defaults
+# Override at launch: ros2 launch costmap_inflation costmap_inflation.launch.py inflation_radius:=1.0
+
+costmap_node:
+  ros__parameters:
+    map_path: ""
+    inflation_radius: 0.5
+    resolution: 0.05
+    decay: 3.0
+    auto_activate: true
+
+map_publisher:
+  ros__parameters:
+    map_path: ""

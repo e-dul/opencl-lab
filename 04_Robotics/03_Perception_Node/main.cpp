@@ -10,12 +10,13 @@
 //   6. (Challenge) Non-blocking double-buffer path via use_double_buffer:=true.
 
 #include "ocl_wrapper.hpp"   // create_context(), OclContext
-#include "opencl_utils.hpp"  // CL_CHECK, build_program, duration_ms, get_binary_dir
+#include "opencl_utils.hpp"  // CL_CHECK, build_program, duration_ms, get_kernels_dir
 
 #include <lifecycle_msgs/msg/state.hpp>
 #include <lifecycle_msgs/msg/transition.hpp>
 #include <rcl_interfaces/msg/parameter_descriptor.hpp>
 #include <rclcpp/rclcpp.hpp>
+#include <rclcpp_components/register_node_macro.hpp>
 #include <rclcpp_lifecycle/lifecycle_node.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <sensor_msgs/msg/point_field.hpp>
@@ -47,6 +48,8 @@ static constexpr float FEATURE_SCALE = 1000.0f;
 // Blelloch prefix-sum kernel local size (must match LOCAL_SIZE in prefix_sum.cl).
 static constexpr int PREFIX_LOCAL_SIZE = 128;
 
+namespace perception_node {
+
 // ─────────────────────────────────────────────────────────────────────────────
 // PerceptionNode
 // ─────────────────────────────────────────────────────────────────────────────
@@ -54,7 +57,14 @@ class PerceptionNode : public rclcpp_lifecycle::LifecycleNode {
 public:
     explicit PerceptionNode(const rclcpp::NodeOptions& opts)
         : rclcpp_lifecycle::LifecycleNode("perception_node", opts)
-    {}
+    {
+        configure_timer_ = create_wall_timer(
+            std::chrono::milliseconds(0), [this]() {
+                configure_timer_->cancel();
+                trigger_transition(
+                    lifecycle_msgs::msg::Transition::TRANSITION_CONFIGURE);
+            });
+    }
 
     // ── on_configure ──────────────────────────────────────────────────────────
     // One-time cost: OpenCL context init, kernel compilation, buffer allocation.
@@ -103,6 +113,17 @@ public:
         min_intensity_     = static_cast<float>(get_parameter("min_intensity").as_double());
         use_double_buffer_ = get_parameter("use_double_buffer").as_bool();
 
+        // D5: auto_activate — self-transition to ACTIVE after configure when true.
+        declare_parameter("auto_activate", true);
+        if (get_parameter("auto_activate").as_bool()) {
+            activate_timer_ = create_wall_timer(
+                std::chrono::milliseconds(0), [this]() {
+                    activate_timer_->cancel();
+                    trigger_transition(
+                        lifecycle_msgs::msg::Transition::TRANSITION_ACTIVATE);
+                });
+        }
+
         const int64_t max_pts_val = get_parameter("max_points").as_int();
         if (max_pts_val > static_cast<int64_t>(std::numeric_limits<int>::max())) {
             throw std::runtime_error("max_points exceeds INT_MAX");
@@ -147,7 +168,7 @@ public:
                                   CL_QUEUE_PROFILING_ENABLE, &err);
         CL_CHECK(err);
 
-        fs::path kdir = get_binary_dir() / "kernels";
+        fs::path kdir = get_kernels_dir("perception_node");
 
         prog_filter_  = build_program(ocl_.context, ocl_.device,
                                       (kdir / "filter.cl").string());
@@ -756,53 +777,12 @@ private:
     rclcpp_lifecycle::LifecyclePublisher<PointCloud2>::SharedPtr features_pub_;
 
     int msg_count_ = 0;
+
+    // One-shot timers for self-configure and self-activate (D5 pattern).
+    rclcpp::TimerBase::SharedPtr configure_timer_;
+    rclcpp::TimerBase::SharedPtr activate_timer_;
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// main
-// ─────────────────────────────────────────────────────────────────────────────
-int main(int argc, char* argv[])
-{
-    rclcpp::init(argc, argv);
+}  // namespace perception_node
 
-    // WHY default NodeOptions (not intra-process): perception_node is designed
-    // to receive PointCloud2 from an external process (point_cloud_publisher or
-    // a real sensor driver). Intra-process comms only help when both nodes run
-    // in the same executor. Here we use DDS for realistic latency measurement.
-    rclcpp::NodeOptions node_opts;
-
-    auto executor = std::make_shared<rclcpp::executors::SingleThreadedExecutor>();
-    auto node     = std::make_shared<PerceptionNode>(node_opts);
-    executor->add_node(node->get_node_base_interface());
-
-    // Drive lifecycle: configure → activate.
-    node->trigger_transition(
-        lifecycle_msgs::msg::Transition::TRANSITION_CONFIGURE);
-    executor->spin_some(std::chrono::milliseconds(10));
-
-    if (node->get_current_state().id() !=
-            lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE) {
-        throw std::runtime_error(
-            "PerceptionNode did not reach INACTIVE after TRANSITION_CONFIGURE");
-    }
-
-    node->trigger_transition(
-        lifecycle_msgs::msg::Transition::TRANSITION_ACTIVATE);
-    executor->spin_some(std::chrono::milliseconds(10));
-
-    if (node->get_current_state().id() !=
-            lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE) {
-        throw std::runtime_error(
-            "PerceptionNode did not reach ACTIVE after TRANSITION_ACTIVATE");
-    }
-
-    RCLCPP_INFO(node->get_logger(),
-        "PerceptionNode ACTIVE — waiting for PointCloud2 on %s",
-        node->get_parameter("topic").as_string().c_str());
-
-    // Runs until Ctrl-C.
-    executor->spin();
-
-    rclcpp::shutdown();
-    return 0;
-}
+RCLCPP_COMPONENTS_REGISTER_NODE(perception_node::PerceptionNode)

@@ -156,6 +156,11 @@ macro(opencl_lab_ros2_guard)
             "ROS_DISTRO is not set. Run: source /opt/ros/jazzy/setup.bash")
     endif()
 
+    # WHY find_package here: all ROS 2 modules use ament_index_cpp for the
+    # installed-tree kernel path fallback in get_kernels_dir(). Adding it to
+    # the guard keeps every module's CMakeLists thin.
+    find_package(ament_index_cpp REQUIRED)
+
     if(_ROS2_GUARD_LOANED_MESSAGES)
         # Loaned messages require rmw_fastrtps_cpp or Iceoryx.
         # This is a warning (not fatal) — the node falls back to copy-based transport.
@@ -184,19 +189,24 @@ endmacro()
 # the relative depth to common/ and vendor/ differs per module.
 macro(opencl_lab_ros2_target TARGET_NAME)
     # WHY variadic: the ament packages differ per module (rclcpp, nav_msgs, etc.).
-    set(_ROS2_TARGET_AMENT_PKGS ${ARGN})
+    # WHY ament_index_cpp prepended: all ROS 2 composable nodes use get_kernels_dir()
+    # from opencl_utils.hpp which requires ament_index_cpp as a fallback for the
+    # installed-tree kernel path.  Prepending keeps each CMakeLists.txt thin.
+    set(_ROS2_TARGET_AMENT_PKGS ament_index_cpp ${ARGN})
 
     # Step 1: ament linking (plain form — must precede target_link_libraries).
     ament_target_dependencies(${TARGET_NAME} ${_ROS2_TARGET_AMENT_PKGS})
 
     # Step 2: OpenCL version flags — must be set explicitly so opencl_utils.hpp
     # guards work regardless of include order.
+    # WHY HAVE_AMENT_INDEX_CPP: opencl_utils.hpp guards get_kernels_dir() behind
+    # this macro so non-ROS2 modules that include the header are unaffected.
     target_compile_definitions(${TARGET_NAME} PRIVATE
         CL_HPP_ENABLE_EXCEPTIONS
         CL_HPP_TARGET_OPENCL_VERSION=120
         CL_HPP_MINIMUM_OPENCL_VERSION=120
+        HAVE_AMENT_INDEX_CPP
     )
-
 
     # Step 3: Non-ament libs (plain form — must stay consistent with ament's
     # plain-form call above; mixing keyword and plain signatures on the same
@@ -206,4 +216,41 @@ macro(opencl_lab_ros2_target TARGET_NAME)
         OpenCL::OpenCL
         CLI11::CLI11
     )
+endmacro()
+
+# ── opencl_lab_ros2_install(<target>) ─────────────────────────────────────────
+# Installs a composable-node shared library and its supporting files, then
+# calls ament_package() exactly once per CMakeLists.txt.
+#
+# WHY macro: ament_package() must run in the caller's scope after all install()
+# calls are in place.  The _AMENT_PACKAGE_CALLED guard allows a second target
+# (e.g. perception_node + point_cloud_publisher) to call this macro without
+# triggering a second ament_package() invocation, which would error.
+macro(opencl_lab_ros2_install TARGET_NAME)
+    install(TARGETS ${TARGET_NAME}
+        ARCHIVE DESTINATION lib
+        LIBRARY DESTINATION lib
+        RUNTIME DESTINATION lib/${PROJECT_NAME})
+
+    # WHY kernels guard: only the first call installs kernels/ — subsequent
+    # calls (second target in the same package) skip it to avoid duplicate rules.
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/kernels" AND NOT _AMENT_KERNELS_INSTALLED)
+        set(_AMENT_KERNELS_INSTALLED TRUE)
+        install(DIRECTORY kernels/
+            DESTINATION share/${PROJECT_NAME}/kernels)
+    endif()
+
+    if(NOT _AMENT_PACKAGE_CALLED)
+        set(_AMENT_PACKAGE_CALLED TRUE)
+        if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/launch")
+            install(DIRECTORY launch/
+                DESTINATION share/${PROJECT_NAME}/launch)
+        endif()
+        if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/config")
+            install(DIRECTORY config/
+                DESTINATION share/${PROJECT_NAME}/config)
+        endif()
+        message(STATUS "${PROJECT_NAME}: built. Source install/setup.bash, then: ros2 launch ${PROJECT_NAME} ${PROJECT_NAME}.launch.py")
+        ament_package()
+    endif()
 endmacro()

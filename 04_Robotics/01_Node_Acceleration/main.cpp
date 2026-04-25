@@ -5,19 +5,18 @@
 //      and released in on_cleanup() — the same pattern C3 inherits for real
 //      sensor-driven subscribers.
 //   2. Intra-process pub/sub: SyntheticPublisher and AccelNode share the same
-//      SingleThreadedExecutor with use_intra_process_comms(true), so the
+//      ComposableNodeContainer with use_intra_process_comms(true), so the
 //      Float32MultiArray is delivered as a shared_ptr with zero serialization.
 
 #include "ocl_wrapper.hpp"   // create_context(), OclContext
-#include "opencl_utils.hpp"  // CL_CHECK, build_program, duration_ms, get_binary_dir
+#include "opencl_utils.hpp"  // CL_CHECK, build_program, duration_ms, get_kernels_dir
 
 #include <lifecycle_msgs/msg/state.hpp>
 #include <lifecycle_msgs/msg/transition.hpp>
 #include <rclcpp/rclcpp.hpp>
+#include <rclcpp_components/register_node_macro.hpp>
 #include <rclcpp_lifecycle/lifecycle_node.hpp>
 #include <std_msgs/msg/float32_multi_array.hpp>
-
-#include "synthetic_publisher.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -33,6 +32,8 @@ using Clock  = std::chrono::steady_clock;
 using CallbackReturn = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn;
 using Float32MultiArray = std_msgs::msg::Float32MultiArray;
 
+namespace node_acceleration {
+
 // ─────────────────────────────────────────────────────────────────────────────
 // AccelNode
 // ─────────────────────────────────────────────────────────────────────────────
@@ -41,13 +42,20 @@ using Float32MultiArray = std_msgs::msg::Float32MultiArray;
 // the constructor/destructor.
 class AccelNode : public rclcpp_lifecycle::LifecycleNode {
 public:
-    // Exposed so main() can read them before constructing SyntheticPublisher.
-    int iterations_  = 10;
-    int buffer_size_ = 1'048'576;
-
     explicit AccelNode(const rclcpp::NodeOptions& opts)
         : rclcpp_lifecycle::LifecycleNode("accel_node", opts)
-    {}
+    {
+        // WHY zero-delay timer (not direct trigger_transition): calling
+        // trigger_transition from a constructor deadlocks on some executors
+        // because the node base is not yet registered.  A 0ms timer fires on
+        // the first executor spin after construction, when it is safe.
+        configure_timer_ = create_wall_timer(
+            std::chrono::milliseconds(0), [this]() {
+                configure_timer_->cancel();
+                trigger_transition(
+                    lifecycle_msgs::msg::Transition::TRANSITION_CONFIGURE);
+            });
+    }
 
     // ── on_configure ─────────────────────────────────────────────────────────
     // One-time cost: OpenCL context + queue + kernel + pre-allocated buffers.
@@ -56,9 +64,9 @@ public:
     // acquired (e.g., after param server sync in a real system).
     CallbackReturn on_configure(const rclcpp_lifecycle::State&) override
     {
-        // Read node parameters (set via CLI: --ros-args -p iterations:=20).
-        declare_parameter("iterations",  iterations_);
-        declare_parameter("buffer_size", buffer_size_);
+        // Read node parameters (set via launch args or ros2 param set).
+        declare_parameter("iterations",  10);
+        declare_parameter("buffer_size", 1'048'576);
         iterations_ = get_parameter("iterations").as_int();
 
         // §7.1 guard: as_int() returns int64_t — check before narrowing to int
@@ -68,6 +76,19 @@ public:
             throw std::runtime_error("buffer_size exceeds INT_MAX");
         }
         buffer_size_ = static_cast<int>(buf_size_val);
+
+        // D5: auto_activate — when true the node self-transitions to ACTIVE
+        // via a zero-delay timer; when false it waits for external lifecycle
+        // management (e.g. ros2 lifecycle set /accel_node activate).
+        declare_parameter("auto_activate", true);
+        if (get_parameter("auto_activate").as_bool()) {
+            activate_timer_ = create_wall_timer(
+                std::chrono::milliseconds(0), [this]() {
+                    activate_timer_->cancel();
+                    trigger_transition(
+                        lifecycle_msgs::msg::Transition::TRANSITION_ACTIVATE);
+                });
+        }
 
         auto t0 = Clock::now();
         try {
@@ -85,7 +106,7 @@ public:
                                   CL_QUEUE_PROFILING_ENABLE, &err);
         CL_CHECK(err);
 
-        fs::path kernel_path = get_binary_dir() / "kernels" / "passthrough.cl";
+        fs::path kernel_path = get_kernels_dir("node_acceleration") / "passthrough.cl";
         auto prog = build_program(ocl_.context, ocl_.device, kernel_path.string());
         kernel_   = cl::Kernel(prog, "passthrough");
 
@@ -279,6 +300,8 @@ private:
 
     // ── Timing / accounting ───────────────────────────────────────────────────
     double              init_ms_        = 0.0;
+    int                 iterations_     = 10;
+    int                 buffer_size_    = 1'048'576;
     int                 callback_count_ = 0;
     std::vector<double> dispatch_times_;
 
@@ -286,69 +309,13 @@ private:
     rclcpp::Subscription<Float32MultiArray>::SharedPtr sub_;
     rclcpp_lifecycle::LifecyclePublisher<Float32MultiArray>::SharedPtr pub_;
 
-    // One-shot timer used to post the self-deactivation out-of-band.
+    // One-shot timer for self-deactivation; fired out-of-band to avoid mutex deadlock.
     rclcpp::TimerBase::SharedPtr shutdown_timer_;
+    // One-shot timers for self-configure and self-activate (D5 pattern).
+    rclcpp::TimerBase::SharedPtr configure_timer_;
+    rclcpp::TimerBase::SharedPtr activate_timer_;
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// main
-// ─────────────────────────────────────────────────────────────────────────────
-int main(int argc, char* argv[])
-{
-    rclcpp::init(argc, argv);
+}  // namespace node_acceleration
 
-    // WHY use_intra_process_comms(true) on both nodes: intra-process delivery
-    // routes the message as a shared_ptr directly to the subscriber callback,
-    // bypassing DDS serialization. Both nodes must opt in for the optimization
-    // to activate — one node opting out forces the full serialization path.
-    rclcpp::NodeOptions node_opts;
-    node_opts.use_intra_process_comms(true);
-
-    auto executor = std::make_shared<rclcpp::executors::SingleThreadedExecutor>();
-
-    auto accel_node = std::make_shared<AccelNode>(node_opts);
-    executor->add_node(accel_node->get_node_base_interface());
-
-    // Drive AccelNode through configure → activate BEFORE adding
-    // SyntheticPublisher so no messages are published before the subscription
-    // is created in on_activate().
-    accel_node->trigger_transition(
-        lifecycle_msgs::msg::Transition::TRANSITION_CONFIGURE);
-    executor->spin_some(std::chrono::milliseconds(10));
-
-    // Verify on_configure completed and the node reached INACTIVE state.
-    // spin_some() gives the executor a window to process any pending callbacks,
-    // but on_configure runs synchronously inside trigger_transition, so the
-    // state is already final here; the check guards against FAILURE returns.
-    if (accel_node->get_current_state().id() !=
-            lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE) {
-        throw std::runtime_error(
-            "AccelNode did not reach INACTIVE after TRANSITION_CONFIGURE");
-    }
-
-    accel_node->trigger_transition(
-        lifecycle_msgs::msg::Transition::TRANSITION_ACTIVATE);
-    executor->spin_some(std::chrono::milliseconds(10));
-
-    // Verify on_activate completed and the node reached ACTIVE state.
-    if (accel_node->get_current_state().id() !=
-            lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE) {
-        throw std::runtime_error(
-            "AccelNode did not reach ACTIVE after TRANSITION_ACTIVATE");
-    }
-
-    // Add the publisher only after AccelNode is active and its subscription
-    // is registered — this prevents early publishes from being dropped.
-    // WHY accel_node->iterations_: SyntheticPublisher needs the final (parameter-
-    // resolved) iteration count, which is available after on_configure().
-    auto synth_node = std::make_shared<SyntheticPublisher>(
-        accel_node->iterations_,
-        accel_node->buffer_size_,
-        node_opts);
-    executor->add_node(synth_node);
-
-    // Runs until rclcpp::shutdown() is called from AccelNode's shutdown timer.
-    executor->spin();
-
-    return 0;
-}
+RCLCPP_COMPONENTS_REGISTER_NODE(node_acceleration::AccelNode)

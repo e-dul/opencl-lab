@@ -1,0 +1,13 @@
+# C1 Node Acceleration — parameter defaults
+# Override at launch: ros2 launch node_acceleration node_acceleration.launch.py iterations:=20
+
+accel_node:
+  ros__parameters:
+    iterations: 10
+    buffer_size: 1048576
+    auto_activate: true
+
+synthetic_publisher:
+  ros__parameters:
+    iterations: 10
+    buffer_size: 1048576

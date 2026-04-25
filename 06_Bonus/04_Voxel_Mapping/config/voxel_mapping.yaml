@@ -1,0 +1,19 @@
+# 4.5 Voxel Mapping — parameter defaults
+# Override at launch: ros2 launch voxel_mapping voxel_mapping.launch.py resolution:=0.05
+
+voxel_mapping:
+  ros__parameters:
+    topic: /points
+    resolution: 0.1
+    output: output_voxel_slice.bmp
+    enable_flip_filter: false
+    flip_threshold: 5
+
+voxel_point_cloud_publisher:
+  ros__parameters:
+    topic: /points
+    hz: 10.0
+    points: 10000
+    frames: 0
+    scene: static
+    move_speed: 0.05

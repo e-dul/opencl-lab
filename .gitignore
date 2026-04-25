@@ -3,6 +3,8 @@ build/
 build_*/
 build*/
 cmake-build-*/
+install/
+log/
 *.o
 *.so
 *.a

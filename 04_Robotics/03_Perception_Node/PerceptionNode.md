@@ -8,7 +8,7 @@
 
 ## Build & Run
 
-Both terminals must source ROS 2 and export the RMW before running. Add these lines to `~/.bashrc` to avoid repeating them per session:
+`rmw_fastrtps_cpp` is required for loaned messages (zero-copy path). Add to `~/.bashrc`:
 
 ```bash
 source /opt/ros/jazzy/setup.bash
@@ -16,31 +16,48 @@ export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
 ```
 
 ```bash
-cd 03_Perception_Node
 source /opt/ros/jazzy/setup.bash
 export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
-cmake -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build
+cd 04_Robotics/03_Perception_Node
+colcon build
+source install/setup.bash
+ros2 launch perception_node perception_node.launch.py
 ```
 
-**Terminal 1 — perception node:**
+GPU selection and parameter overrides:
 
 ```bash
-GPU=NVIDIA ./build/perception_node --ros-args \
-    -p topic:=/points \
-    -p ground_z:=0.2 \
-    -p min_intensity:=10.0
+# Visual validation scene (three clusters, ground, noise)
+ros2 launch perception_node perception_node.launch.py \
+    gpu:=NVIDIA \
+    scene:=mixed \
+    ground_z:=0.1 \
+    min_intensity:=50.0
+
+# Without RViz
+ros2 launch perception_node perception_node.launch.py use_rviz:=false
+
+# Keep node INACTIVE after configure (manual lifecycle control):
+ros2 launch perception_node perception_node.launch.py auto_activate:=false
+# Then in a second terminal:
+ros2 lifecycle set /perception_node activate
 ```
 
-**Terminal 2 — synthetic publisher:**
+Launch arguments:
 
-```bash
-./build/point_cloud_publisher --topic /points --hz 200 --points 100000
-```
-
-Node parameters (via `declare_parameter`): `topic`, `ground_z`, `min_intensity`, `max_points` (default 200000), `use_double_buffer` (default false — see Challenge below).
-
-Publisher flags (CLI11): `--topic`, `--hz`, `--points`, `--scene` (`grid` for throughput or `mixed` for visual validation).
+| Argument | Default | Description |
+| :------- | :------ | :---------- |
+| `topic` | `/points` | PointCloud2 topic |
+| `ground_z` | `0.2` | Ground-plane Z threshold (metres) |
+| `min_intensity` | `10.0` | Minimum intensity threshold |
+| `max_points` | `100000` | Pre-allocated buffer size (points) |
+| `use_double_buffer` | `false` | Enable non-blocking double-buffer pipeline |
+| `scene` | `grid` | Publisher scene: `grid` (throughput) or `mixed` (validation) |
+| `hz` | `200` | Publisher rate in Hz |
+| `points` | `100000` | Points per publisher message |
+| `auto_activate` | `true` | Self-activate after configure |
+| `gpu` | `` | GPU vendor substring (e.g. `NVIDIA`, `AMD`) |
+| `use_rviz` | `true` | Launch RViz2 for visualisation |
 
 ## Verify
 
@@ -50,7 +67,7 @@ Rate check: `ros2 topic hz /filtered_points` — expect ~200 Hz.
 
 Console prints per-message stage breakdown:
 
-```
+```text
 [perception_node] [RECV ] PointCloud2 deserialized:  0.400 ms
 [perception_node] [GPU  ] Upload:                    0.800 ms
 [perception_node] [GPU  ] Filter:                    1.100 ms
@@ -111,22 +128,26 @@ Pre-allocate two identical buffer sets at `on_configure()`. `std::atomic<int> ac
 **Run the challenge:**
 
 ```bash
-# Terminal 1
-GPU=NVIDIA ./build/perception_node --ros-args \
-    -p topic:=/points -p ground_z:=0.1 -p min_intensity:=50.0 \
-    -p max_points:=200000 -p use_double_buffer:=true
-
-# Terminal 2
-./build/point_cloud_publisher --topic /points --hz 200 --points 100000
+ros2 launch perception_node perception_node.launch.py \
+    gpu:=NVIDIA \
+    ground_z:=0.1 \
+    min_intensity:=50.0 \
+    max_points:=200000 \
+    use_double_buffer:=true \
+    hz:=200 \
+    points:=100000 \
+    use_rviz:=false
 ```
 
 **Pass condition**: zero `WARN: double-buffer contention` entries in 10 seconds at 200 Hz, 100k points.
 
-**MANUAL — RViz**:
+**MANUAL — RViz** (pre-configured with the launch file):
+
 ```bash
-ros2 run rviz2 rviz2
+ros2 launch perception_node perception_node.launch.py use_rviz:=true scene:=mixed
 ```
-Fixed Frame `lidar_link`; PointCloud2 on `/filtered_points`; with `--scene mixed` must show only three valid clusters, no ground or low-intensity points, no frame drops over 10 seconds.
+
+Fixed Frame `lidar_link`; PointCloud2 on `/filtered_points`; with `scene:=mixed` must show only three valid clusters, no ground or low-intensity points, no frame drops over 10 seconds.
 
 ## Mini-Challenge
 
@@ -134,6 +155,9 @@ Replace AoS (`XYZIXYZIXYZ...`) with SoA (`XXX...YYY...ZZZ...III...`) in the uplo
 
 ## Troubleshooting
 
+- **`source /opt/ros/jazzy/setup.bash` must run before `colcon build`**: without it, `find_package(rclcpp REQUIRED)` fails.
+- **`source install/setup.bash` must run before `ros2 launch`**: without it, the package is not on the ROS 2 package path.
+- **Wrong GPU**: pass `gpu:=NVIDIA` or `gpu:=AMD` as a launch argument.
 - **Loaned messages not available**: requires `rmw_fastrtps_cpp`. The node falls back to copy-based transport automatically with a warning.
 - **`ros2 topic hz` shows half the expected rate**: node blocking on `clFinish()` inside callback. Use non-blocking enqueue + event callback.
 - **Double-buffer contention at nominal rate**: GPU pipeline > 5 ms. Break down per-stage times to find the bottleneck.

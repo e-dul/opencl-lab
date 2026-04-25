@@ -10,28 +10,43 @@
 ## Build & Run
 
 ```bash
-cd 01_Node_Acceleration
 source /opt/ros/jazzy/setup.bash
-cmake -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build
-./build/node_acceleration
-# GPU selection: GPU=NVIDIA ./build/node_acceleration
-# Override parameters at launch:
-# ./build/node_acceleration --ros-args -p iterations:=20 -p buffer_size:=2097152
+cd 04_Robotics/01_Node_Acceleration
+colcon build
+source install/setup.bash
+ros2 launch node_acceleration node_acceleration.launch.py
 ```
 
-Parameters (set via `declare_parameter`, overridable at launch):
+GPU selection and parameter overrides:
 
-| Parameter | Type | Default | Description |
-| :-------- | :--- | :------ | :---------- |
-| `iterations` | int | `10` | Number of callback cycles to run |
-| `buffer_size` | int | `1048576` | Floats per message |
+```bash
+# Select GPU vendor
+ros2 launch node_acceleration node_acceleration.launch.py gpu:=NVIDIA
+
+# Override parameters
+ros2 launch node_acceleration node_acceleration.launch.py \
+    iterations:=20 buffer_size:=2097152
+
+# Keep node INACTIVE after configure (manual lifecycle control):
+ros2 launch node_acceleration node_acceleration.launch.py auto_activate:=false
+# Then in a second terminal:
+ros2 lifecycle set /accel_node activate
+```
+
+Launch arguments:
+
+| Argument | Default | Description |
+| :------- | :------ | :---------- |
+| `iterations` | `10` | Number of callback cycles to run |
+| `buffer_size` | `1048576` | Floats per message |
+| `auto_activate` | `true` | Self-activate after configure |
+| `gpu` | `` | GPU vendor substring (e.g. `NVIDIA`, `AMD`) |
 
 ## Verify
 
 Console shows context init exactly once in `on_configure`. Per-callback dispatch time stays flat:
 
-```
+```text
 [on_configure] OpenCL context initialized: NVIDIA GeForce RTX 3080 (2.1 ms)
 [on_activate ] Subscribed to /raw_floats. Publishing to /processed_floats.
 [callback  1 ] kernel dispatched in 0.310 ms
@@ -142,8 +157,9 @@ Run the node with `buffer_size:=524288`, `buffer_size:=1048576`, and `buffer_siz
 
 ## Troubleshooting
 
-- **`source /opt/ros/jazzy/setup.bash` must run before CMake**: without it, `find_package(rclcpp REQUIRED)` fails.
-- **Wrong GPU**: `GPU=NVIDIA ./build/node_acceleration`, `GPU=AMD ./build/node_acceleration`.
+- **`source /opt/ros/jazzy/setup.bash` must run before `colcon build`**: without it, `find_package(rclcpp REQUIRED)` fails.
+- **`source install/setup.bash` must run before `ros2 launch`**: without it, the package is not on the ROS 2 package path.
+- **Wrong GPU**: pass `gpu:=NVIDIA` or `gpu:=AMD` as a launch argument.
 
 ---
 

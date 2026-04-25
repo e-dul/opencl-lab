@@ -77,6 +77,41 @@ inline std::filesystem::path get_binary_dir() {
     return std::filesystem::canonical("/proc/self/exe").parent_path();
 }
 
+#ifdef HAVE_AMENT_INDEX_CPP
+#include <ament_index_cpp/get_package_share_directory.hpp>
+
+// ---------------------------------------------------------------------------
+// get_kernels_dir — resolve the kernels/ directory for a ROS 2 package.
+//
+// WHY two-step lookup: when running as a composable component, /proc/self/exe
+// points to the component container binary (e.g. component_container), not
+// the package's build tree.  The build-tree symlink from symlink_kernels() is
+// next to the component library — not the container.
+//
+//   Step 1: <exe_dir>/kernels/ — works for plain executables and standalone
+//           cmake builds (cmake -B build && cmake --build build).
+//   Step 2: ament_index_cpp fallback — works after "colcon build" +
+//           "source install/setup.bash", where kernels are installed to
+//           share/<pkg>/kernels/ and the package is in the ament index.
+//
+// Linux-only; requires HAVE_AMENT_INDEX_CPP defined (set by
+// opencl_lab_ros2_target in common.cmake).
+// ---------------------------------------------------------------------------
+inline std::filesystem::path get_kernels_dir(const std::string& package_name) {
+    auto dev_path = get_binary_dir() / "kernels";
+    if (std::filesystem::exists(dev_path)) {
+        return dev_path;
+    }
+    try {
+        auto share = ament_index_cpp::get_package_share_directory(package_name);
+        return std::filesystem::path(share) / "kernels";
+    } catch (const std::exception&) {
+        // Package not found in ament index — best-effort fallback to binary dir.
+        return dev_path;
+    }
+}
+#endif  // HAVE_AMENT_INDEX_CPP
+
 // ---------------------------------------------------------------------------
 // build_program — compile a single .cl file and return the cl::Program.
 //

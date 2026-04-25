@@ -14,30 +14,49 @@ See [main README](../../README.md) for base requirements (OpenCL 1.2+, CMake 3.1
 ```bash
 source /opt/ros/jazzy/setup.bash
 cd 06_Bonus/04_Voxel_Mapping
-cmake -B build && cmake --build build
+colcon build --packages-select voxel_mapping
+source install/setup.bash
+ros2 launch voxel_mapping voxel_mapping.launch.py
+# Ctrl-C to stop → output_voxel_slice.bmp written
 ```
 
-**Live (synthetic publisher in terminal 1, voxel_mapping in terminal 2):**
-
-> Two processes communicate over ROS 2 DDS — run in separate terminals that have each sourced ROS 2 (`source /opt/ros/jazzy/setup.bash`).
+Parameter overrides (former CLI11 flags are now `ros2 param` / launch args):
 
 ```bash
-# Terminal 1 — static scene (DDA sanity check):
-./build/voxel_point_cloud_publisher --scene static --hz 10 --frames 10
+# Static scene (DDA sanity check), no RViz
+ros2 launch voxel_mapping voxel_mapping.launch.py \
+    scene:=static hz:=10.0 frames:=10 use_rviz:=false
 
-# Terminal 2:
-./build/voxel_mapping --ros-args -p topic:=/points -p resolution:=0.1
-# Ctrl-C to stop → output_voxel_slice.bmp written
+# Dynamic scene with flip-count filter (exercises dynamic removal)
+ros2 launch voxel_mapping voxel_mapping.launch.py \
+    scene:=dynamic hz:=10.0 frames:=50 \
+    enable_flip_filter:=true flip_threshold:=3
 
-# Dynamic scene (exercises flip-count filter):
-./build/voxel_point_cloud_publisher --scene dynamic --hz 10 --frames 50 &
-./build/voxel_mapping --ros-args -p topic:=/points -p resolution:=0.1 -p enable_flip_filter:=true -p flip_threshold:=3
+# GPU selection
+ros2 launch voxel_mapping voxel_mapping.launch.py gpu:=NVIDIA
 ```
+
+Launch arguments:
+
+| Argument | Default | Description |
+| :------- | :------ | :---------- |
+| `topic` | `/points` | PointCloud2 topic to subscribe/publish on |
+| `resolution` | `0.1` | Voxel size in metres |
+| `output` | `output_voxel_slice.bmp` | Output BMP path for top-down slice |
+| `enable_flip_filter` | `false` | Enable dynamic-object flip-count filter |
+| `flip_threshold` | `5` | Flip count threshold for dynamic object removal |
+| `scene` | `static` | Publisher scene: `static` or `dynamic` |
+| `hz` | `10.0` | Publisher rate in Hz |
+| `points` | `10000` | Points per publisher message |
+| `frames` | `0` | Stop after N frames (0 = infinite) |
+| `move_speed` | `0.05` | Orbit angle increment per frame (rad, dynamic scene only) |
+| `gpu` | `` | GPU vendor substring (e.g. `NVIDIA`, `AMD`) |
+| `use_rviz` | `true` | Launch RViz2 for visualisation |
 
 **From a bag (any PointCloud2 bag, XYZI point_step=16):**
 
 ```bash
-./build/voxel_mapping --ros-args -p topic:=/points -p resolution:=0.1 &
+ros2 launch voxel_mapping voxel_mapping.launch.py frames:=0 &
 ros2 bag play <path/to/bag>
 ```
 
@@ -127,7 +146,7 @@ If a voxel flips between OCCUPIED and FREE more than N times per second, classif
 
 - **Voxel slice shows all grey (unknown)**: check that the publisher or `ros2 bag play` is running and publishing on the same topic (`ros2 param list /voxel_mapping` to inspect). Default is `/points`.
 - **Map drifts over time**: sensor pose is assumed static. For a moving robot, integrate odometry into the origin parameter per frame.
-- **Pipeline exceeds 5 ms**: the voxel update step uses global atomics. If this dominates, reduce grid resolution (`--ros-args -p resolution:=0.2`) or use a hierarchical update (only mark changed voxels).
+- **Pipeline exceeds 5 ms**: the voxel update step uses global atomics. If this dominates, reduce grid resolution (`resolution:=0.2`) or use a hierarchical update (only mark changed voxels).
 - **Dynamic objects never re-appear after filtering**: flip counts must be reset to 0 after each threshold crossing. If objects are permanently absent, verify that `clear_occupied.cl` is dispatched each frame and that the host-side reset pass runs before the next DDA cast.
 - **`/voxel_slice` missing ground detail**: the projection starts at `z = gz/2 + 1` to exclude ground-level voxels. Lower this offset if your sensor is mounted near the bottom half of the grid.
 

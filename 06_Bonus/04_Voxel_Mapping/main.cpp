@@ -18,8 +18,10 @@
 #include <stb_image_write.h>
 #include "image_utils.hpp"
 
-#include "opencl_utils.hpp"   // CL_CHECK, load_kernel_source, get_binary_dir
+#include "opencl_utils.hpp"   // CL_CHECK, load_kernel_source, get_kernels_dir
 #include "ocl_wrapper.hpp"    // create_context, OclContext
+
+#include <rclcpp_components/register_node_macro.hpp>
 
 #include <rcl_interfaces/msg/parameter_descriptor.hpp>
 #include <rclcpp/rclcpp.hpp>
@@ -42,6 +44,8 @@
 
 using PointCloud2 = sensor_msgs::msg::PointCloud2;
 namespace fs = std::filesystem;
+
+namespace voxel_mapping {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -70,7 +74,7 @@ struct GridDims {
 // ─────────────────────────────────────────────────────────────────────────────
 class VoxelMappingNode : public rclcpp::Node {
 public:
-    explicit VoxelMappingNode(const rclcpp::NodeOptions& opts = rclcpp::NodeOptions{})
+    explicit VoxelMappingNode(const rclcpp::NodeOptions& opts)
         : rclcpp::Node("voxel_mapping", opts)
         , first_message_(true)
     {
@@ -177,9 +181,10 @@ public:
         CL_CHECK(profiling_queue_.finish());
 
         // ── Build DDA kernel ──────────────────────────────────────────────────
-        // WHY get_binary_dir(): idiomatic helper reused across C1/C2/C3; avoids
-        // the /proc/self/exe symlink read and its error-prone try/catch wrapper.
-        const fs::path kdir = get_binary_dir() / "kernels";
+        // WHY get_kernels_dir(): tries binary dir first (cmake standalone builds),
+        // falls back to ament share directory when running as a composable node
+        // (where /proc/self/exe is the component container, not the package binary).
+        const fs::path kdir = get_kernels_dir("voxel_mapping");
         const std::string dda_src = load_kernel_source(
             (kdir / "dda_cast.cl").string());
         cl::Program::Sources dda_sources{{dda_src.c_str(), dda_src.size()}};
@@ -218,7 +223,20 @@ public:
             voxel_bytes / (1024u * 1024u));
     }
 
-    // Called on shutdown: read back grid, write top-down BMP slice.
+    ~VoxelMappingNode()
+    {
+        // WHY destructor: composable nodes have no main() to call save_slice()
+        // on Ctrl-C. The component container tears down nodes by destroying them,
+        // so the destructor is the only reliable shutdown hook.
+        try {
+            save_slice();
+        } catch (const std::exception& e) {
+            // Log but do not rethrow — destructors must not propagate exceptions.
+            RCLCPP_ERROR(get_logger(), "save_slice() failed during shutdown: %s", e.what());
+        }
+    }
+
+    // Read back grid, write top-down BMP slice.
     void save_slice()
     {
         const size_t voxel_count =
@@ -610,26 +628,6 @@ private:
     rclcpp::Subscription<PointCloud2>::SharedPtr sub_;
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// main
-// ─────────────────────────────────────────────────────────────────────────────
-int main(int argc, char* argv[])
-{
-    // WHY init before node construction: declare_parameter is called in the
-    // constructor, which requires the ROS 2 context to be active.
-    rclcpp::init(argc, argv);
+}  // namespace voxel_mapping
 
-    auto node = std::make_shared<VoxelMappingNode>();
-
-    // WHY spin in a try-catch: SIGINT on spin raises rclcpp::exceptions::RCLError
-    // on some distributions; we still want to write the BMP slice on exit.
-    try {
-        rclcpp::spin(node);
-    } catch (const std::exception&) {
-        // Shutdown initiated (Ctrl-C) — fall through to slice write.
-    }
-
-    node->save_slice();
-    rclcpp::shutdown();
-    return 0;
-}
+RCLCPP_COMPONENTS_REGISTER_NODE(voxel_mapping::VoxelMappingNode)

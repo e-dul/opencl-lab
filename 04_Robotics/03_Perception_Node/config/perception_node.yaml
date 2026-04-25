@@ -1,0 +1,18 @@
+# C3 Perception Node — parameter defaults
+# Override at launch: ros2 launch perception_node perception_node.launch.py ground_z:=0.5
+
+perception_node:
+  ros__parameters:
+    topic: /points
+    ground_z: 0.2
+    min_intensity: 10.0
+    max_points: 100000
+    use_double_buffer: false
+    auto_activate: true
+
+point_cloud_publisher:
+  ros__parameters:
+    topic: /points
+    hz: 200
+    points: 100000
+    scene: grid

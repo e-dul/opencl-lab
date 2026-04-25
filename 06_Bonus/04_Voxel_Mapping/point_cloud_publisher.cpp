@@ -3,20 +3,27 @@
 // Generates deterministic PointCloud2 messages for testing voxel_mapping
 // without real LiDAR hardware or ROS bag files.
 //
+// Parameters (replaces former CLI11 flags):
+//   topic      — topic to publish on          (default: /points)
+//   hz         — publish rate in Hz           (default: 10)
+//   points     — points per message           (default: 10000)
+//   frames     — stop after N frames (0=inf)  (default: 0)
+//   scene      — static | dynamic             (default: static)
+//   move_speed — orbit angle increment (rad)  (default: 0.05, dynamic only)
+//
 // Scenes:
 //   static  — sphere clusters at fixed positions; same every frame.
 //             Use for DDA correctness checks (output_voxel_slice.bmp).
 //   dynamic — same clusters, but their centres orbit (0,0,1) each frame.
-//             Use with --enable-flip-filter to validate dynamic removal.
+//             Use with enable_flip_filter to validate dynamic removal.
 //
 // WHY deterministic (no RNG): reproducible output across runs, stable RViz
 // display, and compliant with the lab's "no std::rand" convention.
 //
 // Point layout: XYZI, point_step=16 (4 × float32). frame_id = "lidar_link".
 
-#include <CLI/CLI.hpp>
-
 #include <rclcpp/rclcpp.hpp>
+#include <rclcpp_components/register_node_macro.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <sensor_msgs/msg/point_field.hpp>
 
@@ -30,12 +37,14 @@
 using PointCloud2 = sensor_msgs::msg::PointCloud2;
 using PointField  = sensor_msgs::msg::PointField;
 
+namespace voxel_mapping {
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Scene geometry constants (design spec §3 of the task)
 // ─────────────────────────────────────────────────────────────────────────────
-static constexpr float CLUSTER_R        = 0.3f;
-static constexpr float CLUSTER_ORBIT_R  = 1.0f;
-static constexpr float CLUSTER_BASE_Z   = 1.0f;
+static constexpr float CLUSTER_R         = 0.3f;
+static constexpr float CLUSTER_ORBIT_R   = 1.0f;
+static constexpr float CLUSTER_BASE_Z    = 1.0f;
 static constexpr float CLUSTER_INTENSITY = 150.0f;
 static constexpr float GROUND_INTENSITY  = 200.0f;
 static constexpr float NOISE_INTENSITY   = 10.0f;
@@ -45,15 +54,23 @@ static constexpr float NOISE_INTENSITY   = 10.0f;
 // ─────────────────────────────────────────────────────────────────────────────
 class VoxelCloudPublisher : public rclcpp::Node {
 public:
-    VoxelCloudPublisher(const std::string& topic, float hz,
-                        uint32_t num_points, uint32_t max_frames,
-                        const std::string& scene, float move_speed)
-        : rclcpp::Node("voxel_point_cloud_publisher")
-        , num_points_(static_cast<int>(num_points))
-        , max_frames_(max_frames)
-        , scene_(scene)
-        , move_speed_(move_speed)
+    explicit VoxelCloudPublisher(const rclcpp::NodeOptions& opts)
+        : rclcpp::Node("voxel_point_cloud_publisher", opts)
     {
+        declare_parameter("topic",      std::string("/points"));
+        declare_parameter("hz",         10.0);
+        declare_parameter("points",     10000);
+        declare_parameter("frames",     0);
+        declare_parameter("scene",      std::string("static"));
+        declare_parameter("move_speed", 0.05);
+
+        const std::string topic      = get_parameter("topic").as_string();
+        const double      hz         = get_parameter("hz").as_double();
+        num_points_  = static_cast<int>(get_parameter("points").as_int());
+        max_frames_  = static_cast<uint32_t>(get_parameter("frames").as_int());
+        scene_       = get_parameter("scene").as_string();
+        move_speed_  = static_cast<float>(get_parameter("move_speed").as_double());
+
         pub_ = create_publisher<PointCloud2>(topic, 10);
 
         // For static scenes, build the cloud data once to avoid per-callback
@@ -63,7 +80,7 @@ public:
         }
 
         const auto period_ms = std::chrono::milliseconds(
-            static_cast<int64_t>(1000.0f / hz));
+            static_cast<int64_t>(1000.0 / hz));
         timer_ = create_wall_timer(period_ms, [this]() { on_timer(); });
 
         RCLCPP_INFO(get_logger(),
@@ -220,40 +237,6 @@ private:
     rclcpp::TimerBase::SharedPtr              timer_;
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// main
-// ─────────────────────────────────────────────────────────────────────────────
-int main(int argc, char* argv[])
-{
-    // Parse CLI before rclcpp::init so --help exits cleanly without ROS init.
-    CLI::App app{"4.5 Voxel Mapping — Synthetic PointCloud2 Publisher"};
+}  // namespace voxel_mapping
 
-    std::string topic      = "/points";
-    float       hz         = 10.0f;
-    uint32_t    num_points = 10000;
-    uint32_t    max_frames = 0;
-    std::string scene      = "static";
-    float       move_speed = 0.05f;
-
-    app.add_option("--topic",      topic,      "PointCloud2 topic to publish on")->default_str(topic);
-    app.add_option("--hz",         hz,         "Publish rate in Hz")->default_val(hz);
-    app.add_option("--points",     num_points, "Points per message")->default_val(num_points);
-    app.add_option("--frames",     max_frames, "Stop after N frames (0 = infinite)")->default_val(max_frames);
-    app.add_option("--scene",      scene,
-                   "Scene type: static | dynamic")
-       ->default_str(scene)
-       ->check(CLI::IsMember({"static", "dynamic"}));
-    app.add_option("--move-speed", move_speed,
-                   "Orbit angle increment per frame (rad, dynamic scene only)")->default_val(move_speed);
-
-    CLI11_PARSE(app, argc, argv);
-
-    rclcpp::init(argc, argv);
-
-    auto node = std::make_shared<VoxelCloudPublisher>(
-        topic, hz, num_points, max_frames, scene, move_speed);
-    rclcpp::spin(node);
-
-    rclcpp::shutdown();
-    return 0;
-}
+RCLCPP_COMPONENTS_REGISTER_NODE(voxel_mapping::VoxelCloudPublisher)
