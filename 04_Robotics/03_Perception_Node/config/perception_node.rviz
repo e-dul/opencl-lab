@@ -12,6 +12,8 @@ Visualization Manager:
       Color Transformer: Intensity
       Enabled: true
       Name: FilteredPoints
+      Size (m): 0.01
+      Style: Points
       Topic:
         Value: /filtered_points
       Value: true
@@ -22,6 +24,8 @@ Visualization Manager:
       Color: 255; 0; 0
       Enabled: true
       Name: ClusterFeatures
+      Size (m): 0.3
+      Style: Spheres
       Topic:
         Value: /cluster_features
       Value: true
