@@ -142,6 +142,12 @@ If a voxel flips between OCCUPIED and FREE more than N times per second, classif
 4. After zeroing, reset `flip_count` to 0 for those voxels so they can be re-detected in subsequent cycles. Filtering is periodic, not permanent — a voxel that stops moving will accumulate occupancy again once it no longer flips past the threshold.
 5. Profile the counter buffer overhead vs the base ray casting time.
 
+## Recording & Replay
+
+Topic: `/points` · Bag name: `voxel_bag`
+
+See [ROS 2 Setup §5 — Recording & Replay](../../04_Robotics/SETUP.md#5-recording--replay) for the full record → inspect → replay workflow and QoS override instructions.
+
 ## Troubleshooting
 
 - **Voxel slice shows all grey (unknown)**: check that the publisher or `ros2 bag play` is running and publishing on the same topic (`ros2 param list /voxel_mapping` to inspect). Default is `/points`.

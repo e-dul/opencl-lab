@@ -153,6 +153,12 @@ Fixed Frame `lidar_link`; PointCloud2 on `/filtered_points`; with `scene:=mixed`
 
 Replace AoS (`XYZIXYZIXYZ...`) with SoA (`XXX...YYY...ZZZ...III...`) in the upload path. Profile the filter kernel before and after. Which layout wins, and why? See [Toolbox: Memory Coalescing](../../05_Toolbox/02_Coalesced_Access/CoalescedAccess.md).
 
+## Recording & Replay
+
+Topic: `/points` · Bag name: `perception_bag`
+
+See [ROS 2 Setup §5 — Recording & Replay](../SETUP.md#5-recording--replay) for the full record → inspect → replay workflow and QoS override instructions.
+
 ## Troubleshooting
 
 - **`source /opt/ros/jazzy/setup.bash` must run before `colcon build`**: without it, `find_package(rclcpp REQUIRED)` fails.

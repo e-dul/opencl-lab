@@ -27,6 +27,7 @@ sudo apt update
 sudo apt install -y ros-jazzy-desktop \
     ros-jazzy-rclcpp ros-jazzy-sensor-msgs ros-jazzy-nav-msgs \
     ros-jazzy-rmw-fastrtps-cpp ros-jazzy-demo-nodes-cpp \
+    ros-jazzy-ros2bag ros-jazzy-rosbag2-transport \
     python3-colcon-common-extensions
 ```
 
@@ -90,6 +91,38 @@ ros2 doctor
   cd ~/opencl-lab/06_Bonus/04_Voxel_Mapping
   colcon build
   ```
+
+---
+
+## 5. Recording & Replay
+
+`ros2 bag` captures any topic to disk and replays it in place of a live publisher.
+
+**Record** while the node is running:
+
+```bash
+ros2 bag record <topic> -o <bag_name>
+```
+
+**Inspect:**
+
+```bash
+ros2 bag info <bag_name>
+```
+
+**Replay** — stop the publisher, keep the node running, then:
+
+```bash
+ros2 bag play <bag_name>
+ros2 bag play --rate 0.5 <bag_name>   # half speed
+ros2 bag play --rate 2.0 <bag_name>   # double speed
+```
+
+**QoS note**: `ros2 bag play` publishes with the QoS stored in the bag metadata. If the stored QoS (`Reliable`) mismatches the node subscription (`BestEffort`), messages are silently dropped. Override with:
+
+```bash
+ros2 bag play --qos-profile-overrides-path qos_override.yaml <bag_name>
+```
 
 ---
 

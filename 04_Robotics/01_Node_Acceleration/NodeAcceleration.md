@@ -155,6 +155,14 @@ workgroup, giving a reliable baseline for subsequent modules that add real compu
 
 Run the node with `buffer_size:=524288`, `buffer_size:=1048576`, and `buffer_size:=4194304`. Record the per-callback dispatch times from `cl::Event` profiling for each size. At what buffer size does dispatch latency become non-trivial relative to the 0.5 ms gate? Tabulate your results.
 
+## Recording & Replay
+
+**Intra-process constraint**: `AccelNode` and `SyntheticPublisher` run in the same binary via `use_intra_process_comms(true)` — `ros2 bag play` cannot inject into this channel. Record the output topic instead.
+
+Topic: `/processed_floats` · Bag name: `accel_bag`
+
+See [ROS 2 Setup §5 — Recording & Replay](../SETUP.md#5-recording--replay) for the full record → inspect → replay workflow.
+
 ## Troubleshooting
 
 - **`source /opt/ros/jazzy/setup.bash` must run before `colcon build`**: without it, `find_package(rclcpp REQUIRED)` fails.
