@@ -157,9 +157,15 @@ Run the node with `buffer_size:=524288`, `buffer_size:=1048576`, and `buffer_siz
 
 ## Recording & Replay
 
-**Intra-process constraint**: `AccelNode` and `SyntheticPublisher` run in the same binary via `use_intra_process_comms(true)` — `ros2 bag play` cannot inject into this channel. Record the output topic instead.
+Topic: `/raw_floats` · Bag name: `accel_bag`
 
-Topic: `/processed_floats` · Bag name: `accel_bag`
+```bash
+# Record
+ros2 bag record /raw_floats -o accel_bag
+
+# Replay (suppresses SyntheticPublisher; ros2 bag play starts automatically)
+ros2 launch node_acceleration node_acceleration.launch.py bag:=accel_bag
+```
 
 See [ROS 2 Setup §5 — Recording & Replay](../SETUP.md#5-recording--replay) for the full record → inspect → replay workflow.
 

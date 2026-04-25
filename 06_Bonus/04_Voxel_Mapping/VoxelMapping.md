@@ -146,6 +146,14 @@ If a voxel flips between OCCUPIED and FREE more than N times per second, classif
 
 Topic: `/points` · Bag name: `voxel_bag`
 
+```bash
+# Record
+ros2 bag record /points -o voxel_bag
+
+# Replay (suppresses VoxelCloudPublisher; ros2 bag play starts automatically)
+ros2 launch voxel_mapping voxel_mapping.launch.py bag:=voxel_bag
+```
+
 See [ROS 2 Setup §5 — Recording & Replay](../../04_Robotics/SETUP.md#5-recording--replay) for the full record → inspect → replay workflow and QoS override instructions.
 
 ## Troubleshooting

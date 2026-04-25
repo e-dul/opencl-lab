@@ -157,6 +157,14 @@ Replace AoS (`XYZIXYZIXYZ...`) with SoA (`XXX...YYY...ZZZ...III...`) in the uplo
 
 Topic: `/points` · Bag name: `perception_bag`
 
+```bash
+# Record
+ros2 bag record /points -o perception_bag
+
+# Replay (suppresses PointCloudPublisher; ros2 bag play starts automatically)
+ros2 launch perception_node perception_node.launch.py bag:=perception_bag
+```
+
 See [ROS 2 Setup §5 — Recording & Replay](../SETUP.md#5-recording--replay) for the full record → inspect → replay workflow and QoS override instructions.
 
 ## Troubleshooting
