@@ -240,8 +240,12 @@ public:
     // ── on_activate ───────────────────────────────────────────────────────────
     CallbackReturn on_activate(const rclcpp_lifecycle::State&) override
     {
-        filtered_pub_ = create_publisher<PointCloud2>("/filtered_points", 10);
-        features_pub_ = create_publisher<PointCloud2>("/cluster_features", 10);
+        // SensorDataQoS: BestEffort+Volatile matches sensor drivers; Reliable sub ↔ BestEffort pub = silent no-connection
+        // Ref: https://docs.ros.org/en/jazzy/Concepts/Intermediate/About-Quality-of-Service-Settings.html
+        filtered_pub_ = create_publisher<PointCloud2>("/filtered_points", rclcpp::SensorDataQoS());
+        // SensorDataQoS: BestEffort+Volatile matches sensor drivers; Reliable sub ↔ BestEffort pub = silent no-connection
+        // Ref: https://docs.ros.org/en/jazzy/Concepts/Intermediate/About-Quality-of-Service-Settings.html
+        features_pub_ = create_publisher<PointCloud2>("/cluster_features", rclcpp::SensorDataQoS());
         // WHY manual on_activate(): publishers created inside on_activate() are not
         // in the framework's pre-registered list, so they are never auto-activated
         // during the TRANSITION_ACTIVATE pass. Must be activated explicitly here.
@@ -263,8 +267,10 @@ public:
         // WHY warn-and-continue: loaned messages depend on RMW support.
         // Crashing here would break all non-fastrtps environments.
         try {
+            // SensorDataQoS: BestEffort+Volatile matches sensor drivers; Reliable sub ↔ BestEffort pub = silent no-connection
+            // Ref: https://docs.ros.org/en/jazzy/Concepts/Intermediate/About-Quality-of-Service-Settings.html
             sub_ = create_subscription<PointCloud2>(
-                topic_, 10,
+                topic_, rclcpp::SensorDataQoS(),
                 [this](PointCloud2::UniquePtr msg) {
                     this->process_callback_loaned(std::move(msg));
                 });
@@ -274,8 +280,10 @@ public:
             RCLCPP_WARN(get_logger(),
                 "Loaned message subscription unavailable (%s). "
                 "Falling back to copy-based transport.", e.what());
+            // SensorDataQoS: BestEffort+Volatile matches sensor drivers; Reliable sub ↔ BestEffort pub = silent no-connection
+            // Ref: https://docs.ros.org/en/jazzy/Concepts/Intermediate/About-Quality-of-Service-Settings.html
             sub_ = create_subscription<PointCloud2>(
-                topic_, 10,
+                topic_, rclcpp::SensorDataQoS(),
                 [this](PointCloud2::ConstSharedPtr msg) {
                     this->process_callback(msg);
                 });

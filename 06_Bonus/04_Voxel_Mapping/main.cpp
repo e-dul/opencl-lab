@@ -210,12 +210,18 @@ public:
         }
 
         // ── ROS 2 subscriber ──────────────────────────────────────────────────
+        // SensorDataQoS: BestEffort+Volatile matches sensor drivers; Reliable sub ↔ BestEffort pub = silent no-connection
+        // Ref: https://docs.ros.org/en/jazzy/Concepts/Intermediate/About-Quality-of-Service-Settings.html
         sub_ = create_subscription<PointCloud2>(
-            topic, 10,
+            topic, rclcpp::SensorDataQoS(),
             [this](PointCloud2::SharedPtr msg) { on_cloud(msg); });
 
-        voxel_map_pub_   = create_publisher<sensor_msgs::msg::PointCloud2>("/voxel_map",   1);
-        voxel_slice_pub_ = create_publisher<sensor_msgs::msg::Image>("/voxel_slice", 1);
+        // KeepLast(1) Reliable: computed output; consumers (RViz2, rosbag2) expect reliable delivery of the latest result
+        // Ref: https://docs.ros.org/en/jazzy/Concepts/Intermediate/About-Quality-of-Service-Settings.html
+        voxel_map_pub_   = create_publisher<sensor_msgs::msg::PointCloud2>("/voxel_map",   rclcpp::QoS(rclcpp::KeepLast(1)));
+        // KeepLast(1) Reliable: computed output; consumers (RViz2, rosbag2) expect reliable delivery of the latest result
+        // Ref: https://docs.ros.org/en/jazzy/Concepts/Intermediate/About-Quality-of-Service-Settings.html
+        voxel_slice_pub_ = create_publisher<sensor_msgs::msg::Image>("/voxel_slice", rclcpp::QoS(rclcpp::KeepLast(1)));
 
         RCLCPP_INFO(get_logger(),
             "Voxel grid: %dx%dx%d @ %.2fm resolution (%zu MB)",
