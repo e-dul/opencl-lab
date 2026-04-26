@@ -58,11 +58,11 @@ def launch_setup(context, *args, **kwargs):
         plugin='perception_node::PerceptionNode',
         name='perception_node',
         parameters=[yaml_path, {
-            'auto_activate':     auto_activate,
-            'ground_z':          ground_z,
-            'min_intensity':     min_intensity,
-            'max_points':        max_points,
-            'use_double_buffer': use_double_buffer,
+            'auto_activate':     auto_activate.lower() == 'true',
+            'ground_z':          float(ground_z),
+            'min_intensity':     float(min_intensity),
+            'max_points':        int(max_points),
+            'use_double_buffer': use_double_buffer.lower() == 'true',
             'topic':             topic,
         }],
         extra_arguments=[{'use_intra_process_comms': True}],
@@ -75,8 +75,8 @@ def launch_setup(context, *args, **kwargs):
         parameters=[yaml_path, {
             'topic':  topic,
             'scene':  scene,
-            'hz':     hz,
-            'points': points,
+            'hz':     int(hz),
+            'points': int(points),
         }],
         extra_arguments=[{'use_intra_process_comms': True}],
     )

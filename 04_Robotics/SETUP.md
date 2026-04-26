@@ -28,6 +28,7 @@ sudo apt install -y ros-jazzy-desktop \
     ros-jazzy-rclcpp ros-jazzy-sensor-msgs ros-jazzy-nav-msgs \
     ros-jazzy-rmw-fastrtps-cpp ros-jazzy-demo-nodes-cpp \
     ros-jazzy-ros2bag ros-jazzy-rosbag2-transport \
+    ros-jazzy-diagnostic-updater \
     python3-colcon-common-extensions
 ```
 

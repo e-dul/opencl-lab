@@ -45,9 +45,9 @@ def launch_setup(context, *args, **kwargs):
         plugin='node_acceleration::AccelNode',
         name='accel_node',
         parameters=[yaml_path, {
-            'auto_activate': auto_activate,
-            'iterations':    iterations,
-            'buffer_size':   buffer_size,
+            'auto_activate': auto_activate.lower() == 'true',
+            'iterations':    int(iterations),
+            'buffer_size':   int(buffer_size),
         }],
         # WHY use_intra_process_comms: when the publisher is in the same
         # container, Float32MultiArray is delivered as shared_ptr — zero DDS
@@ -61,8 +61,8 @@ def launch_setup(context, *args, **kwargs):
         plugin='node_acceleration::SyntheticPublisher',
         name='synthetic_publisher',
         parameters=[yaml_path, {
-            'iterations':  iterations,
-            'buffer_size': buffer_size,
+            'iterations':  int(iterations),
+            'buffer_size': int(buffer_size),
         }],
         extra_arguments=[{'use_intra_process_comms': True}],
     )

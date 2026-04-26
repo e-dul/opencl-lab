@@ -21,6 +21,7 @@
 #include "opencl_utils.hpp"   // CL_CHECK, load_kernel_source, get_kernels_dir
 #include "ocl_wrapper.hpp"    // create_context, OclContext
 
+#include <diagnostic_updater/diagnostic_updater.hpp>
 #include <rclcpp_components/register_node_macro.hpp>
 
 #include <rcl_interfaces/msg/parameter_descriptor.hpp>
@@ -30,12 +31,13 @@
 #include <sensor_msgs/msg/point_field.hpp>
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <cstdint>
 #include <cstring>
 #include <filesystem>
-#include <iomanip>
 #include <iostream>
+#include <limits>
 #include <memory>
 #include <sstream>
 #include <stdexcept>
@@ -136,8 +138,9 @@ public:
             });
 
         // ── Read params and assign to members ─────────────────────────────────
-        const std::string topic    = get_parameter("topic").as_string();
+        topic_                     = get_parameter("topic").as_string();
         const float resolution     = static_cast<float>(get_parameter("resolution").as_double());
+        resolution_                = resolution;
         output_path_               = get_parameter("output").as_string();
         enable_flip_               = get_parameter("enable_flip_filter").as_bool();
         const int64_t ft_val       = get_parameter("flip_threshold").as_int();
@@ -213,7 +216,7 @@ public:
         // SensorDataQoS: BestEffort+Volatile matches sensor drivers; Reliable sub ↔ BestEffort pub = silent no-connection
         // Ref: https://docs.ros.org/en/jazzy/Concepts/Intermediate/About-Quality-of-Service-Settings.html
         sub_ = create_subscription<PointCloud2>(
-            topic, rclcpp::SensorDataQoS(),
+            topic_, rclcpp::SensorDataQoS(),
             [this](PointCloud2::SharedPtr msg) { on_cloud(msg); });
 
         // KeepLast(1) Reliable: computed output; consumers (RViz2, rosbag2) expect reliable delivery of the latest result
@@ -227,6 +230,24 @@ public:
             "Voxel grid: %dx%dx%d @ %.2fm resolution (%zu MB)",
             grid_.gx, grid_.gy, grid_.gz, resolution,
             voxel_bytes / (1024u * 1024u));
+
+        // WHY unique_ptr (not direct member): initialising Updater in the
+        // member initializer list registers its timer before the executor picks
+        // up the node, so the callback group is never discovered. Constructing
+        // it here, at the end of the constructor body, matches the pattern used
+        // by C3 PerceptionNode (on_configure) and ensures the timer is live.
+        // WHY no mutex: SingleThreadedExecutor serialises the subscription
+        // callback (writes timing_buf_, msg_count_, points_in_acc_,
+        // voxels_occupied_) and the diagnostic timer callback (reads them)
+        // on the same thread — concurrent access is impossible without
+        // changing the executor type.
+        updater_ = std::make_unique<diagnostic_updater::Updater>(this);
+        updater_->setHardwareID("none");
+        updater_->add("GPU pipeline", this, &VoxelMappingNode::gpu_pipeline_diag);
+        updater_->add("Config",       this, &VoxelMappingNode::config_diag);
+        RCLCPP_INFO(get_logger(),
+            "[DIAG] GPU timing and config published at 1 Hz — monitor with:\n"
+            "       ros2 topic echo /diagnostics");
     }
 
     ~VoxelMappingNode()
@@ -543,19 +564,10 @@ private:
         if (enable_flip_) flip_ms = event_ms(flip_ev);
         double total_ms  = upload_ms + dda_ms + flip_ms;
 
-        std::cout << std::fixed << std::setprecision(3);
-        std::cout << "  [GPU] Upload    : " << upload_ms << " ms\n";
-        std::cout << "  [GPU] DDA cast  : " << dda_ms    << " ms\n";
-        if (enable_flip_) {
-            std::cout << "  [GPU] Flip filter: " << flip_ms << " ms\n";
-        }
-        std::cout << "  Total pipeline  : " << total_ms  << " ms ("
-                  << n_points << " pts)\n";
-
-        if (total_ms > 5.0) {
-            std::cout << "[WARN] Pipeline exceeded 5 ms gate: "
-                      << total_ms << " ms\n";
-        }
+        ++msg_count_;
+        timing_buf_[timing_idx_++ % 100] = total_ms;
+        ++timing_count_;
+        points_in_acc_ += static_cast<double>(n_points);
 
         // ── Flip filter apply + debug readback (NOT in pipeline gate) ────────
         // WHY readback+writeback: the flip kernel only increments counters; the
@@ -569,6 +581,13 @@ private:
         std::vector<cl_uint> host_grid(voxel_count);
         CL_CHECK(profiling_queue_.enqueueReadBuffer(
             grid_buf_, CL_TRUE, 0, voxel_bytes, host_grid.data()));
+
+        // Count occupied voxels (OCCUPIED_BIT = 0x2) for diagnostic reporting.
+        uint64_t occ_count = 0;
+        for (const auto& v : host_grid) {
+            if (v & 0x2u) ++occ_count;
+        }
+        voxels_occupied_ = occ_count;
 
         if (enable_flip_) {
             std::vector<cl_uint> host_flips(voxel_count);
@@ -604,6 +623,54 @@ private:
         publish_debug(host_grid, msg->header);
     }
 
+    // ── Diagnostic callbacks ──────────────────────────────────────────────────
+    void gpu_pipeline_diag(diagnostic_updater::DiagnosticStatusWrapper& stat)
+    {
+        using DiagStatus = diagnostic_msgs::msg::DiagnosticStatus;
+        const size_t n = std::min(timing_count_, size_t{100});
+        if (n == 0) {
+            stat.summary(DiagStatus::OK, "No data yet");
+            return;
+        }
+        double sum = 0.0;
+        double mn  = std::numeric_limits<double>::max();
+        double mx  = 0.0;
+        for (size_t i = 0; i < n; ++i) {
+            const double v = timing_buf_[i];
+            sum += v;
+            if (v < mn) mn = v;
+            if (v > mx) mx = v;
+        }
+        const double avg = sum / static_cast<double>(n);
+
+        if (avg <= 5.0)
+            stat.summary(DiagStatus::OK, "");
+        else if (avg <= 15.0)
+            stat.summary(DiagStatus::WARN, "Pipeline exceeds 5 ms gate");
+        else
+            stat.summary(DiagStatus::ERROR, "Pipeline stalled");
+
+        stat.add("avg_kernel_ms",      avg);
+        stat.add("min_kernel_ms",      mn);
+        stat.add("max_kernel_ms",      mx);
+        stat.add("messages_processed", msg_count_);
+        if (msg_count_ > 0)
+            stat.add("points_in_avg",
+                     points_in_acc_ / static_cast<double>(msg_count_));
+        stat.add("voxels_occupied",    voxels_occupied_);
+        stat.add("total_voxels",       grid_.total());
+    }
+
+    void config_diag(diagnostic_updater::DiagnosticStatusWrapper& stat)
+    {
+        using DiagStatus = diagnostic_msgs::msg::DiagnosticStatus;
+        stat.summary(DiagStatus::OK, "");
+        stat.add("resolution",     resolution_);
+        stat.add("flip_filter",    enable_flip_);
+        stat.add("flip_threshold", flip_threshold_);
+        stat.add("topic",          topic_);
+    }
+
     // ── Members ───────────────────────────────────────────────────────────────
     OclContext   ocl_;
     cl::CommandQueue profiling_queue_;
@@ -624,6 +691,17 @@ private:
     bool         enable_flip_;
     uint32_t     flip_threshold_;
     bool         first_message_;
+    float        resolution_;
+    std::string  topic_;
+
+    // ── Diagnostic members ────────────────────────────────────────────────────
+    std::unique_ptr<diagnostic_updater::Updater> updater_;
+    std::array<double, 100> timing_buf_{};
+    size_t   timing_idx_     = 0;
+    size_t   timing_count_   = 0;
+    uint64_t msg_count_      = 0;
+    double   points_in_acc_  = 0.0;
+    uint64_t voxels_occupied_= 0;
 
     // Param callback handle — must outlive the node.
     rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr param_cb_handle_;

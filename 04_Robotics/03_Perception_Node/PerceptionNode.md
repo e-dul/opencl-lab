@@ -65,19 +65,41 @@ Node publishes `/filtered_points` and `/cluster_features`.
 
 Rate check: `ros2 topic hz /filtered_points` — expect ~200 Hz.
 
-Console prints per-message stage breakdown:
+Console on startup (in `on_configure`):
 
 ```text
-[perception_node] [RECV ] PointCloud2 deserialized:  0.400 ms
-[perception_node] [GPU  ] Upload:                    0.800 ms
-[perception_node] [GPU  ] Filter:                    1.100 ms
-[perception_node] [GPU  ] Features:                  1.600 ms
-[perception_node] [GPU  ] Download:                  0.500 ms
-[perception_node] [SEND ] Publish:                   0.300 ms
-[perception_node] [TOTAL] End-to-end:                4.700 ms  <- must be < 5 ms to pass
+[INIT] Context + kernel compile: 312.000 ms
+[DIAG] GPU timing and config published at 1 Hz — monitor with:
+       ros2 topic echo /diagnostics
 ```
 
-**Performance gate**: total end-to-end < 5 ms at 100k points †.
+### Monitoring GPU Performance
+
+Per-message timing is published as structured diagnostics at 1 Hz instead of per-line console output:
+
+```bash
+ros2 topic echo /diagnostics
+```
+
+Each tick reports two status entries for `perception_node`:
+
+| Key | Description |
+| :-- | :---------- |
+| `avg_kernel_ms` | Rolling average total pipeline time (100-message window) |
+| `min_kernel_ms` / `max_kernel_ms` | Window min and max |
+| `messages_processed` | Total messages received since startup |
+| `points_in_avg` / `points_out_avg` | Average points in and out of the filter |
+| `sample_count` | Samples in the current window (up to 100) |
+
+Status levels: **OK** ≤ 10 ms · **WARN** ≤ 25 ms · **ERROR** > 25 ms.
+
+For a visual dashboard:
+
+```bash
+ros2 run rqt_robot_monitor rqt_robot_monitor
+```
+
+**Performance gate**: total end-to-end < 10 ms avg at 100k points (WARN threshold) †.
 
 ## Inspecting Parameters
 

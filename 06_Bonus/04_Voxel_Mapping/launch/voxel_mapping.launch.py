@@ -57,10 +57,10 @@ def launch_setup(context, *args, **kwargs):
         name='voxel_mapping',
         parameters=[yaml_path, {
             'topic':              topic,
-            'resolution':         resolution,
+            'resolution':         float(resolution),
             'output':             output,
-            'enable_flip_filter': enable_flip_filter,
-            'flip_threshold':     flip_threshold,
+            'enable_flip_filter': enable_flip_filter.lower() == 'true',
+            'flip_threshold':     int(flip_threshold),
         }],
         extra_arguments=[{'use_intra_process_comms': True}],
     )
@@ -72,10 +72,10 @@ def launch_setup(context, *args, **kwargs):
         parameters=[yaml_path, {
             'topic':      topic,
             'scene':      scene,
-            'hz':         hz,
-            'points':     points,
-            'frames':     frames,
-            'move_speed': move_speed,
+            'hz':         float(hz),
+            'points':     int(points),
+            'frames':     int(frames),
+            'move_speed': float(move_speed),
         }],
         extra_arguments=[{'use_intra_process_comms': True}],
     )

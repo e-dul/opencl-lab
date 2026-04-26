@@ -12,6 +12,7 @@
 #include "ocl_wrapper.hpp"   // create_context(), OclContext
 #include "opencl_utils.hpp"  // CL_CHECK, build_program, duration_ms, get_kernels_dir
 
+#include <diagnostic_updater/diagnostic_updater.hpp>
 #include <lifecycle_msgs/msg/state.hpp>
 #include <lifecycle_msgs/msg/transition.hpp>
 #include <rcl_interfaces/msg/parameter_descriptor.hpp>
@@ -23,6 +24,7 @@
 #include <std_msgs/msg/header.hpp>
 
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <cassert>
 #include <chrono>
@@ -234,18 +236,28 @@ public:
         double init_ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
         RCLCPP_INFO(get_logger(), "[INIT] Context + kernel compile: %.3f ms", init_ms);
 
+        // WHY no mutex: SingleThreadedExecutor serialises the subscription
+        // callback (writes timing_buf_, msg_count_, points_*_acc_) and the
+        // diagnostic timer callback (reads them) on the same thread —
+        // concurrent access is impossible without changing the executor type.
+        updater_ = std::make_unique<diagnostic_updater::Updater>(this);
+        updater_->setHardwareID("none");
+        updater_->add("GPU pipeline", this, &PerceptionNode::gpu_pipeline_diag);
+        updater_->add("Config",       this, &PerceptionNode::config_diag);
+        RCLCPP_INFO(get_logger(),
+            "[DIAG] GPU timing and config published at 1 Hz — monitor with:\n"
+            "       ros2 topic echo /diagnostics");
+
         return CallbackReturn::SUCCESS;
     }
 
     // ── on_activate ───────────────────────────────────────────────────────────
     CallbackReturn on_activate(const rclcpp_lifecycle::State&) override
     {
-        // SensorDataQoS: BestEffort+Volatile matches sensor drivers; Reliable sub ↔ BestEffort pub = silent no-connection
-        // Ref: https://docs.ros.org/en/jazzy/Concepts/Intermediate/About-Quality-of-Service-Settings.html
-        filtered_pub_ = create_publisher<PointCloud2>("/filtered_points", rclcpp::SensorDataQoS());
-        // SensorDataQoS: BestEffort+Volatile matches sensor drivers; Reliable sub ↔ BestEffort pub = silent no-connection
-        // Ref: https://docs.ros.org/en/jazzy/Concepts/Intermediate/About-Quality-of-Service-Settings.html
-        features_pub_ = create_publisher<PointCloud2>("/cluster_features", rclcpp::SensorDataQoS());
+        // WHY rclcpp::QoS(10) not SensorDataQoS: these are processed pipeline outputs,
+        // not raw sensor streams. RELIABLE matches what RViz2 and downstream nodes expect.
+        filtered_pub_ = create_publisher<PointCloud2>("/filtered_points", rclcpp::QoS(10));
+        features_pub_ = create_publisher<PointCloud2>("/cluster_features", rclcpp::QoS(10));
         // WHY manual on_activate(): publishers created inside on_activate() are not
         // in the framework's pre-registered list, so they are never auto-activated
         // during the TRANSITION_ACTIVATE pass. Must be activated explicitly here.
@@ -255,6 +267,7 @@ public:
         // Report active RMW implementation; warn if loaned messages are unlikely.
         const char* rmw_env = std::getenv("RMW_IMPLEMENTATION");
         const std::string rmw_name = rmw_env ? rmw_env : "(unset — default RMW)";
+        rmw_impl_ = rmw_name;
         RCLCPP_INFO(get_logger(), "RMW_IMPLEMENTATION: %s", rmw_name.c_str());
         if (rmw_name.find("rmw_fastrtps_cpp") == std::string::npos &&
             rmw_name.find("rmw_iceoryx_cpp") == std::string::npos) {
@@ -336,6 +349,7 @@ public:
         }
         queue_          = cl::CommandQueue();
         ocl_            = OclContext{};
+        updater_.reset();
         RCLCPP_INFO(get_logger(), "[DONE] OpenCL resources released.");
         return CallbackReturn::SUCCESS;
     }
@@ -620,7 +634,6 @@ private:
                                           accum_host.data()));
 
         // ── 6. CPU Publish ────────────────────────────────────────────────────
-        auto t_publish_start = Clock::now();
 
         // Publish /filtered_points
         {
@@ -680,42 +693,15 @@ private:
             features_pub_->publish(std::move(feat));
         }
 
-        auto t_end      = Clock::now();
-        double publish_ms = std::chrono::duration<double, std::milli>(
-                                t_end - t_publish_start).count();
-
-        // ── 7. Timing table ───────────────────────────────────────────────────
-        // Columns: upload | filter | compact | feature_extract | download | publish | total
-        // WHY compact includes scatter: the scatter kernel is an integral part of
-        //   the compaction stage; folding avoids a misleading extra column.
-        double upload_ms  = duration_ms(upload_ev);
-        double filter_ms  = duration_ms(filter_ev);
-        // compact_ev captures Pass 1 of the tile scan (the dominant GPU work).
-        // scan_add_ev captures Pass 2 (skipped when num_tiles == 1 → stays 0.0).
-        // Scatter is appended to the same stage label.
-        double compact_ms       = duration_ms(compact_ev);
-        double scan_add_ms      = (num_tiles > 1) ? duration_ms(scan_add_ev) : 0.0;
-        double scatter_ms       = duration_ms(scatter_ev);
-        double compact_total_ms = compact_ms + scan_add_ms + scatter_ms;
-        double feature_ms  = 0.0;
-        double download_ms = 0.0;
-        if (compact_count > 0) {
-            feature_ms  = duration_ms(feature_ev);
-            download_ms = duration_ms(download_ev);
-        }
+        auto t_end = Clock::now();
         double total_ms = std::chrono::duration<double, std::milli>(
                               t_end - t_start).count();
 
-        msg_count_++;
-        RCLCPP_INFO(get_logger(),
-            "[MSG %4d] pts_in=%d pts_out=%d buf=%d | "
-            "upload=%.3f filter=%.3f compact=%.3f "
-            "feature=%.3f download=%.3f publish=%.3f | total=%.3f ms",
-            msg_count_,
-            num_points, compact_count, buf_idx,
-            upload_ms, filter_ms, compact_total_ms,
-            feature_ms, download_ms, publish_ms,
-            total_ms);
+        ++msg_count_;
+        timing_buf_[timing_idx_++ % 100] = total_ms;
+        ++timing_count_;
+        points_in_acc_  += static_cast<double>(num_points);
+        points_out_acc_ += static_cast<double>(compact_count);
 
         // ── 8. Debug: compaction correctness check ────────────────────────────
 #ifndef NDEBUG
@@ -740,6 +726,57 @@ private:
 #endif
 
         return download_ev;
+    }
+
+    // ── Diagnostic callbacks ──────────────────────────────────────────────────
+    void gpu_pipeline_diag(diagnostic_updater::DiagnosticStatusWrapper& stat)
+    {
+        using DiagStatus = diagnostic_msgs::msg::DiagnosticStatus;
+        const size_t n = std::min(timing_count_, size_t{100});
+        if (n == 0) {
+            stat.summary(DiagStatus::OK, "No data yet");
+            return;
+        }
+        double sum = 0.0;
+        double mn  = std::numeric_limits<double>::max();
+        double mx  = 0.0;
+        for (size_t i = 0; i < n; ++i) {
+            const double v = timing_buf_[i];
+            sum += v;
+            if (v < mn) mn = v;
+            if (v > mx) mx = v;
+        }
+        const double avg = sum / static_cast<double>(n);
+
+        if (avg <= 10.0)
+            stat.summary(DiagStatus::OK, "");
+        else if (avg <= 25.0)
+            stat.summary(DiagStatus::WARN, "Pipeline slower than expected");
+        else
+            stat.summary(DiagStatus::ERROR, "Pipeline stalled");
+
+        stat.add("avg_kernel_ms",      avg);
+        stat.add("min_kernel_ms",      mn);
+        stat.add("max_kernel_ms",      mx);
+        stat.add("messages_processed", msg_count_);
+        if (msg_count_ > 0) {
+            stat.add("points_in_avg",
+                     points_in_acc_  / static_cast<double>(msg_count_));
+            stat.add("points_out_avg",
+                     points_out_acc_ / static_cast<double>(msg_count_));
+        }
+        stat.add("sample_count", n);
+    }
+
+    void config_diag(diagnostic_updater::DiagnosticStatusWrapper& stat)
+    {
+        using DiagStatus = diagnostic_msgs::msg::DiagnosticStatus;
+        stat.summary(DiagStatus::OK, "");
+        stat.add("ground_z",      ground_z_);
+        stat.add("min_intensity", min_intensity_);
+        stat.add("max_points",    max_points_);
+        stat.add("double_buffer", use_double_buffer_);
+        stat.add("rmw",           rmw_impl_);
     }
 
     // ── OpenCL members (valid between on_configure and on_cleanup) ────────────
@@ -784,7 +821,15 @@ private:
     rclcpp_lifecycle::LifecyclePublisher<PointCloud2>::SharedPtr filtered_pub_;
     rclcpp_lifecycle::LifecyclePublisher<PointCloud2>::SharedPtr features_pub_;
 
-    int msg_count_ = 0;
+    // ── Diagnostic members ────────────────────────────────────────────────────
+    std::unique_ptr<diagnostic_updater::Updater> updater_;
+    std::array<double, 100> timing_buf_{};
+    size_t   timing_idx_    = 0;
+    size_t   timing_count_  = 0;
+    uint64_t msg_count_     = 0;
+    double   points_in_acc_ = 0.0;
+    double   points_out_acc_= 0.0;
+    std::string rmw_impl_;
 
     // One-shot timers for self-configure and self-activate (D5 pattern).
     rclcpp::TimerBase::SharedPtr configure_timer_;

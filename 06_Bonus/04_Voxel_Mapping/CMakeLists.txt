@@ -17,6 +17,7 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(diagnostic_updater REQUIRED)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Target 1: voxel_mapping — subscribes to PointCloud2, runs DDA ray-casting
@@ -29,7 +30,7 @@ target_include_directories(voxel_mapping PRIVATE
     ${stb_SOURCE_DIR}
 )
 
-opencl_lab_ros2_target(voxel_mapping rclcpp rclcpp_components sensor_msgs)
+opencl_lab_ros2_target(voxel_mapping rclcpp rclcpp_components sensor_msgs diagnostic_updater)
 
 rclcpp_components_register_node(voxel_mapping
     PLUGIN "voxel_mapping::VoxelMappingNode"

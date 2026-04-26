@@ -61,19 +61,42 @@ ros2 bag play <path/to/bag>
 ```
 
 ## Verify
-- `output_voxel_slice.bmp` — top-down 2D slice (occupied = black, free = white, unknown = grey)
-- Console prints:
-  ```
-  [INFO] Sensor pose assumed static. Odometry integration not implemented.
-  [INFO] Voxel grid: 200x200x50 @ 0.10m resolution (3 MB)
-    [GPU] Upload     : 0.312 ms
-    [GPU] DDA cast   : 1.847 ms
-    [GPU] Flip filter: 0.211 ms   ← only when enable_flip_filter:=true
-    Total pipeline   : 2.370 ms (10000 pts)
-  ```
-  Total must remain < 5 ms @ 100k points (C3 performance gate). A `[WARN]` line is printed if the gate is exceeded.
 
-> **Note:** The "3 MB" figure in the console output is approximate; actual size depends on the element type used in `dda_cast.cl`. 200×200×50 = 2,000,000 cells — as `uint` (4 bytes): 8 MB; as `uchar` (1 byte): 2 MB.
+- `output_voxel_slice.bmp` — top-down 2D slice written on Ctrl-C (occupied = black, free = white, unknown = grey).
+- Console on startup:
+  ```
+  [INFO] Voxel grid: 200x200x50 @ 0.10m resolution (8 MB)
+  [INFO] [DIAG] GPU timing and config published at 1 Hz — monitor with:
+               ros2 topic echo /diagnostics
+  ```
+
+> **Note:** Grid size depends on resolution. 200×200×50 at `uint` (4 bytes) = 8 MB; with `resolution:=0.05` this grows to 400×400×100 = 64 MB.
+
+### Monitoring GPU Performance
+
+Per-message timing is published as structured diagnostics instead of per-line console output:
+
+```bash
+ros2 topic echo /diagnostics
+```
+
+Each 1 Hz tick reports two status entries for `voxel_mapping`:
+
+| Key | Description |
+| :-- | :---------- |
+| `avg_kernel_ms` | Rolling average total pipeline time (100-message window) |
+| `min_kernel_ms` / `max_kernel_ms` | Window min and max |
+| `messages_processed` | Total messages received since startup |
+| `points_in_avg` | Average points per message |
+| `voxels_occupied` | Occupied voxels in the current grid |
+| `total_voxels` | Grid capacity (gx × gy × gz) |
+
+Status levels: **OK** ≤ 5 ms · **WARN** ≤ 15 ms · **ERROR** > 15 ms.
+
+For a visual dashboard:
+```bash
+ros2 run rqt_robot_monitor rqt_robot_monitor
+```
 
 ## Live Visualisation (RViz)
 

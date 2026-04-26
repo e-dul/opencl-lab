@@ -21,6 +21,7 @@ find_package(rclcpp_lifecycle REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(lifecycle_msgs REQUIRED)
+find_package(diagnostic_updater REQUIRED)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Target 1: perception_node (main.cpp — LifecycleNode with OpenCL pipeline)
@@ -37,7 +38,7 @@ target_include_directories(perception_node PRIVATE
 )
 
 opencl_lab_ros2_target(perception_node
-    rclcpp rclcpp_lifecycle rclcpp_components sensor_msgs lifecycle_msgs)
+    rclcpp rclcpp_lifecycle rclcpp_components sensor_msgs lifecycle_msgs diagnostic_updater)
 
 rclcpp_components_register_node(perception_node
     PLUGIN "perception_node::PerceptionNode"
